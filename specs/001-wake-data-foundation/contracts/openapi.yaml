@@ -1,0 +1,463 @@
+openapi: 3.1.2
+info:
+  title: Adaptive Wake Coach API
+  version: 0.1.0
+  description: >
+    Contract for verified Telegram bootstrap, resumable wake-up sessions and reproducible
+    user analytics.
+servers:
+  - url: /api/v1
+security:
+  - cookieAuth: []
+paths:
+  /auth/telegram:
+    post:
+      security: []
+      summary: Verify Telegram launch data and create an application session
+      operationId: authenticateTelegram
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [initData]
+              properties:
+                initData:
+                  type: string
+                  minLength: 1
+      responses:
+        '204':
+          description: Authenticated; secure session cookie set
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /bootstrap:
+    get:
+      summary: Load the authenticated user's current application state
+      operationId: getBootstrap
+      responses:
+        '200':
+          description: Current profile, active session and due follow-up
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bootstrap'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /sessions:
+    post:
+      summary: Assign a protocol and create or return the active wake-up session
+      operationId: createSession
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [timezone]
+              properties:
+                timezone:
+                  type: string
+                  examples: [Europe/Moscow]
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WakeSession'
+        '200':
+          description: Existing active session or idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WakeSession'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /sessions/{sessionId}/baseline:
+    put:
+      summary: Accept the baseline alertness rating and start the protocol
+      operationId: setBaseline
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ExpectedVersion'
+      requestBody:
+        $ref: '#/components/requestBodies/Rating'
+      responses:
+        '200':
+          $ref: '#/components/responses/SessionUpdated'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /sessions/{sessionId}/steps/{stepIndex}:
+    put:
+      summary: Accept the result of the currently assigned protocol step
+      operationId: setTaskResult
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/StepIndex'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ExpectedVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskResultInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/SessionUpdated'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /sessions/{sessionId}/post-rating:
+    put:
+      summary: Accept post-protocol alertness and complete the protocol
+      operationId: setPostRating
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ExpectedVersion'
+      requestBody:
+        $ref: '#/components/requestBodies/Rating'
+      responses:
+        '200':
+          $ref: '#/components/responses/SessionUpdated'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /sessions/{sessionId}/follow-up:
+    put:
+      summary: Accept the delayed wake-up outcome
+      operationId: setFollowUp
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome]
+              properties:
+                outcome:
+                  $ref: '#/components/schemas/FollowUpOutcome'
+      responses:
+        '200':
+          $ref: '#/components/responses/SessionUpdated'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /sessions/{sessionId}/abandon:
+    post:
+      summary: Explicitly abandon an unfinished session
+      operationId: abandonSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ExpectedVersion'
+      responses:
+        '200':
+          $ref: '#/components/responses/SessionUpdated'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /analytics/profile:
+    get:
+      summary: Get reproducible wake-up profile metrics
+      operationId: getAnalyticsProfile
+      responses:
+        '200':
+          description: Versioned analytics profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsProfile'
+  /me:
+    delete:
+      summary: Request deletion of the authenticated user's profile and history
+      operationId: deleteMe
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Deletion accepted
+        '409':
+          $ref: '#/components/responses/Conflict'
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: awc_session
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    StepIndex:
+      name: stepIndex
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    ExpectedVersion:
+      name: If-Match
+      in: header
+      required: true
+      description: Expected integer session version
+      schema:
+        type: integer
+        minimum: 1
+  requestBodies:
+    Rating:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [value]
+            properties:
+              value:
+                type: integer
+                minimum: 1
+                maximum: 10
+              clientObservedAt:
+                type: string
+                format: date-time
+  responses:
+    Unauthorized:
+      description: Launch data or application session is invalid or expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Stale state, invalid transition or idempotency-key conflict
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Problem'
+              - type: object
+                properties:
+                  canonicalSession:
+                    $ref: '#/components/schemas/WakeSession'
+    SessionUpdated:
+      description: Session transition accepted or replayed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/WakeSession'
+  schemas:
+    Bootstrap:
+      type: object
+      required: [user, activeSession, dueFollowUp]
+      properties:
+        user:
+          $ref: '#/components/schemas/UserProfile'
+        activeSession:
+          oneOf:
+            - $ref: '#/components/schemas/WakeSession'
+            - type: 'null'
+        dueFollowUp:
+          oneOf:
+            - $ref: '#/components/schemas/DueFollowUp'
+            - type: 'null'
+    UserProfile:
+      type: object
+      required: [id, locale, timezone, learningSessionCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        locale:
+          type: [string, 'null']
+        timezone:
+          type: string
+        learningSessionCount:
+          type: integer
+          minimum: 0
+    WakeSession:
+      type: object
+      required:
+        - id
+        - status
+        - version
+        - currentStepIndex
+        - assignment
+        - observations
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [assigned, in_progress, protocol_completed, abandoned]
+        version:
+          type: integer
+          minimum: 1
+        currentStepIndex:
+          type: integer
+          minimum: 0
+        assignment:
+          $ref: '#/components/schemas/Assignment'
+        observations:
+          type: object
+          required: [baseline, tasks, postRating, followUp]
+          properties:
+            baseline:
+              type: [integer, 'null']
+              minimum: 1
+              maximum: 10
+            tasks:
+              type: array
+              items:
+                $ref: '#/components/schemas/TaskObservation'
+            postRating:
+              type: [integer, 'null']
+              minimum: 1
+              maximum: 10
+            followUp:
+              oneOf:
+                - $ref: '#/components/schemas/FollowUpOutcome'
+                - type: 'null'
+        followUpDueAt:
+          type: [string, 'null']
+          format: date-time
+    Assignment:
+      type: object
+      required: [id, protocolKey, protocolVersion, phase, hypothesis, steps]
+      properties:
+        id:
+          type: string
+          format: uuid
+        protocolKey:
+          type: string
+        protocolVersion:
+          type: integer
+          minimum: 1
+        phase:
+          type: string
+          enum: [learning, adaptive, fallback]
+        hypothesis:
+          type: string
+        steps:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ProtocolStep'
+    ProtocolStep:
+      type: object
+      required: [index, taskId, category]
+      properties:
+        index:
+          type: integer
+          minimum: 0
+        taskId:
+          type: string
+          enum: [math, memory, stroop, reaction, steps, squats, shake, water, window, curtains]
+        category:
+          type: string
+          enum: [cognitive, movement, behavioral, environment]
+    TaskResultInput:
+      type: object
+      required: [taskId, correct, total, durationMs]
+      properties:
+        taskId:
+          type: string
+        correct:
+          type: integer
+          minimum: 0
+        total:
+          type: integer
+          minimum: 0
+        durationMs:
+          type: integer
+          minimum: 0
+    TaskObservation:
+      allOf:
+        - $ref: '#/components/schemas/TaskResultInput'
+        - type: object
+          required: [stepIndex, category, observedAt]
+          properties:
+            stepIndex:
+              type: integer
+              minimum: 0
+            category:
+              type: string
+              enum: [cognitive, movement, behavioral, environment]
+            observedAt:
+              type: string
+              format: date-time
+    FollowUpOutcome:
+      type: string
+      enum: [up, back, drowsy]
+    DueFollowUp:
+      type: object
+      required: [sessionId, dueAt]
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        dueAt:
+          type: string
+          format: date-time
+    AnalyticsProfile:
+      type: object
+      required: [methodVersion, averageDelta, riseSuccess, protocolEffects, factorEffects]
+      properties:
+        methodVersion:
+          type: string
+        averageDelta:
+          $ref: '#/components/schemas/Metric'
+        riseSuccess:
+          $ref: '#/components/schemas/Metric'
+        protocolEffects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Metric'
+        factorEffects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Metric'
+    Metric:
+      type: object
+      required: [key, value, evidenceCount, confidence, evidenceIds]
+      properties:
+        key:
+          type: string
+        value:
+          type: [number, 'null']
+        evidenceCount:
+          type: integer
+          minimum: 0
+        confidence:
+          type: string
+          enum: [insufficient, low, medium, high]
+        evidenceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+    Problem:
+      type: object
+      required: [code, message, correlationId]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        correlationId:
+          type: string
