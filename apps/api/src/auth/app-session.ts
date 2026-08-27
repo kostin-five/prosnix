@@ -1,6 +1,6 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
-interface AppSessionClaims {
+export interface AppSessionClaims {
   userId: string;
   expiresAt: number;
   nonce: string;

@@ -70,6 +70,33 @@ export interface Repositories {
   idempotency: IdempotencyRepository;
 }
 
+export interface BootstrapSession {
+  session: SessionRecord;
+  protocol: {
+    key: string;
+    version: number;
+    title: string;
+    steps: unknown;
+  };
+  assignment: {
+    strategyVersion: string;
+    phase: "learning" | "adaptive" | "fallback";
+    hypothesis: string;
+  };
+  baseline: number | null;
+  postRating: number | null;
+}
+
+export interface BootstrapSnapshot {
+  user: UserRecord;
+  activeSession: BootstrapSession | null;
+  dueFollowUpSessionId: string | null;
+}
+
+export interface BootstrapRepository {
+  load(userId: string, now?: Date): Promise<BootstrapSnapshot | null>;
+}
+
 export interface UnitOfWork {
   transaction<T>(work: (repositories: Repositories) => Promise<T>): Promise<T>;
 }

@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import type {
@@ -12,8 +12,9 @@ import type {
   UserRepository,
 } from "@awc/domain";
 import * as schema from "../schema.js";
+import type { Database } from "./types.js";
 
-type Database = PostgresJsDatabase<typeof schema>;
+export { PostgresBootstrapRepository } from "./bootstrap.js";
 
 function mapUser(row: typeof schema.users.$inferSelect): UserRecord {
   return {

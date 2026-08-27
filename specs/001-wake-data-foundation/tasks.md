@@ -68,18 +68,18 @@ profile.
 
 ### Tests for User Story 1
 
-- [ ] T019 [P] [US1] Write auth and bootstrap contract tests in apps/api/tests/contract/bootstrap.test.ts
-- [ ] T020 [P] [US1] Write cross-restart resume integration test in apps/api/tests/integration/resume.test.ts
-- [ ] T021 [P] [US1] Write mobile bootstrap/resume E2E test in tests/e2e/resume.spec.ts
+- [x] T019 [P] [US1] Write auth and bootstrap contract tests in apps/api/tests/contract/bootstrap.test.ts
+- [x] T020 [P] [US1] Write cross-restart resume integration test in apps/api/tests/integration/resume.test.ts
+- [x] T021 [P] [US1] Write mobile bootstrap/resume E2E test in tests/e2e/resume.spec.ts
 
 ### Implementation for User Story 1
 
-- [ ] T022 [US1] Implement user, assignment and active-session bootstrap repositories in packages/db/src/repositories/bootstrap.ts
-- [ ] T023 [US1] Implement auth and bootstrap routes in apps/api/src/auth/routes.ts and apps/api/src/app/bootstrap-route.ts
-- [ ] T024 [P] [US1] Create Telegram bridge and explicit development adapter in apps/web/src/telegram/
-- [ ] T025 [P] [US1] Create typed same-origin API client in apps/web/src/shared/api/
-- [ ] T026 [US1] Add bootstrap loading, authentication failure and resume decisions in apps/web/src/app/
-- [ ] T027 [US1] Replace production mock initialization with server bootstrap while retaining explicit demo mode in apps/web/src/features/bootstrap/
+- [x] T022 [US1] Implement user, assignment and active-session bootstrap repositories in packages/db/src/repositories/bootstrap.ts
+- [x] T023 [US1] Implement auth and bootstrap routes in apps/api/src/auth/routes.ts and apps/api/src/app/bootstrap-route.ts
+- [x] T024 [P] [US1] Create Telegram bridge and explicit development adapter in apps/web/src/telegram/
+- [x] T025 [P] [US1] Create typed same-origin API client in apps/web/src/shared/api/
+- [x] T026 [US1] Add bootstrap loading, authentication failure and resume decisions in apps/web/src/app/
+- [x] T027 [US1] Replace production mock initialization with server bootstrap while retaining explicit demo mode in apps/web/src/features/bootstrap/
 
 **Checkpoint**: User Story 1 passes independently and is the first deployable MVP slice.
 

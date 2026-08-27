@@ -5,6 +5,8 @@ import {
   ArrowRight, Sun, Award, ChevronRight, Zap, Activity,
   Loader2, AlertCircle, Sparkles,
 } from "lucide-react";
+import { useBootstrap } from "../features/bootstrap/use-bootstrap.js";
+import type { BootstrapResponse } from "../shared/api/client.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Screen = "home" | "alarm" | "startRating" | "tasks" | "endRating" | "results" | "stats";
@@ -1105,16 +1107,33 @@ function BottomNav({ current, onTab }: { current: "home" | "stats"; onTab: (t: "
 }
 
 // ─── App ──────────────────────────────────────────────────────────────────────
-export default function App() {
-  const [screen, setScreen] = useState<Screen>("home");
+function PrototypeApp({
+  demo,
+  resume,
+}: {
+  demo: boolean;
+  resume?: NonNullable<BootstrapResponse["activeSession"]>;
+}) {
+  const resumedTaskIds = (resume?.protocol.steps ?? [])
+    .map(({ taskId }) => taskId)
+    .filter((taskId): taskId is TaskId => taskId in TASK_META);
+  const [screen, setScreen] = useState<Screen>(
+    resume
+      ? resume.baseline === null
+        ? "startRating"
+        : resume.session.currentStepIndex >= resumedTaskIds.length
+          ? "endRating"
+          : "tasks"
+      : "home",
+  );
   const [navTab, setNavTab] = useState<"home" | "stats">("home");
   const [alarmTime, setAlarmTime] = useState("07:00");
-  const [sessions, setSessions] = useState<Session[]>(MOCK_SESSIONS);
+  const [sessions, setSessions] = useState<Session[]>(demo ? MOCK_SESSIONS : []);
 
-  const [taskIds, setTaskIds] = useState<TaskId[]>([]);
-  const [taskIndex, setTaskIndex] = useState(0);
+  const [taskIds, setTaskIds] = useState<TaskId[]>(resumedTaskIds);
+  const [taskIndex, setTaskIndex] = useState(resume?.session.currentStepIndex ?? 0);
   const [taskResults, setTaskResults] = useState<TaskResult[]>([]);
-  const [startAlertness, setStartAlertness] = useState(0);
+  const [startAlertness, setStartAlertness] = useState(resume?.baseline ?? 0);
   const sessionStartRef = useRef(0);
   const [completedSession, setCompletedSession] = useState<Session | null>(null);
 
@@ -1178,5 +1197,69 @@ export default function App() {
         {showNav && <BottomNav current={navTab} onTab={handleNavTab} />}
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  const bootstrap = useBootstrap();
+  const [resumeAccepted, setResumeAccepted] = useState(false);
+
+  if (bootstrap.status === "loading") {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="font-semibold">Загружаем твоё состояние…</p>
+          <p className="text-sm text-muted-foreground mt-2">Берём только подтверждённые данные</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (bootstrap.status === "error") {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+        <div className="max-w-sm text-center">
+          <AlertCircle className="w-10 h-10 text-primary mx-auto mb-4" />
+          <h1 className="text-xl font-bold">Не удалось безопасно войти</h1>
+          <p className="text-sm text-muted-foreground mt-2">{bootstrap.message}</p>
+          <button onClick={bootstrap.retry} className="mt-6 w-full rounded-2xl bg-primary py-3 font-bold text-white">
+            Повторить
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    bootstrap.mode === "telegram" &&
+    bootstrap.data.activeSession &&
+    !resumeAccepted
+  ) {
+    const active = bootstrap.data.activeSession;
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+        <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Сессия сохранена</p>
+          <h1 className="mt-2 text-2xl font-bold">Продолжить пробуждение?</h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Подтверждено шагов: {active.session.currentStepIndex} из {active.protocol.steps.length}.
+            Мы продолжим с последней сохранённой точки.
+          </p>
+          <button onClick={() => setResumeAccepted(true)} className="mt-6 w-full rounded-2xl bg-primary py-3 font-bold text-white">
+            Продолжить
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <PrototypeApp
+      demo={bootstrap.mode === "demo"}
+      {...(bootstrap.mode === "telegram" && bootstrap.data.activeSession
+        ? { resume: bootstrap.data.activeSession }
+        : {})}
+    />
   );
 }

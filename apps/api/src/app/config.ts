@@ -1,6 +1,7 @@
 export interface AppConfig {
   nodeEnv: "development" | "test" | "production";
   port: number;
+  databaseUrl: string;
   botToken: string;
   sessionSecret: string;
   telegramAuthMaxAgeSeconds: number;
@@ -21,12 +22,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   }
   const botToken = env.TELEGRAM_BOT_TOKEN ?? "";
   const sessionSecret = env.SESSION_SECRET ?? "";
+  const databaseUrl = env.DATABASE_URL ?? "postgres://awc:awc@localhost:5432/awc";
   if (nodeEnv === "production" && (!botToken || sessionSecret.length < 32)) {
     throw new Error("Production authentication secrets are missing or unsafe");
   }
   return {
     nodeEnv: nodeEnv as AppConfig["nodeEnv"],
     port,
+    databaseUrl,
     botToken,
     sessionSecret,
     telegramAuthMaxAgeSeconds,
