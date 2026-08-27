@@ -1018,8 +1018,8 @@ function StatsScreen({ sessions }: { sessions: Session[] }) {
                   cursor={{ fill: "rgba(255,255,255,0.03)" }}
                   formatter={(v: number) => [v > 0 ? `+${v}` : v, "Прирост бодрости"]}
                 />
-                <Bar dataKey="value" shape={(props: Record<string, number>) => {
-                  const { x, y, width, height, value } = props;
+                <Bar dataKey="value" shape={(rawProps: unknown) => {
+                  const { x = 0, y = 0, width = 0, height = 0, value = 0 } = rawProps as Partial<Record<"x" | "y" | "width" | "height" | "value", number>>;
                   if (!height || height <= 0) return <g />;
                   const fill = value >= 5 ? "#22C55E" : value >= 3 ? "#F97316" : value >= 0 ? "#EAB308" : "#EF4444";
                   return <rect x={x} y={y} width={width} height={height} fill={fill} rx={5} ry={5} />;

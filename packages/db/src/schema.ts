@@ -1,0 +1,240 @@
+import { sql } from "drizzle-orm";
+import {
+  bigint,
+  check,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+export const sessionStatus = pgEnum("session_status", [
+  "assigned",
+  "in_progress",
+  "protocol_completed",
+  "abandoned",
+]);
+export const experimentPhase = pgEnum("experiment_phase", [
+  "learning",
+  "adaptive",
+  "fallback",
+]);
+export const taskCategory = pgEnum("task_category", [
+  "cognitive",
+  "movement",
+  "behavioral",
+  "environment",
+]);
+export const ratingKind = pgEnum("rating_kind", [
+  "baseline",
+  "post_protocol",
+]);
+export const followUpOutcome = pgEnum("follow_up_outcome", [
+  "up",
+  "back",
+  "drowsy",
+]);
+export const confidence = pgEnum("confidence", [
+  "insufficient",
+  "low",
+  "medium",
+  "high",
+]);
+
+export const users = pgTable(
+  "users",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    telegramUserId: bigint("telegram_user_id", { mode: "bigint" }).notNull(),
+    locale: text(),
+    timezone: text().notNull().default("UTC"),
+    learningSessionCount: integer("learning_session_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    deletionRequestedAt: timestamp("deletion_requested_at", { withTimezone: true }),
+  },
+  (table) => [
+    unique("users_telegram_user_id_unique").on(table.telegramUserId),
+    check("users_learning_count_nonnegative", sql`${table.learningSessionCount} >= 0`),
+  ],
+);
+
+export const protocolDefinitions = pgTable(
+  "protocol_definitions",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    protocolKey: text("protocol_key").notNull(),
+    version: integer().notNull(),
+    title: text().notNull(),
+    steps: jsonb().notNull(),
+    activeFrom: timestamp("active_from", { withTimezone: true }).notNull().defaultNow(),
+    retiredAt: timestamp("retired_at", { withTimezone: true }),
+  },
+  (table) => [
+    unique("protocol_definitions_key_version_unique").on(
+      table.protocolKey,
+      table.version,
+    ),
+    check("protocol_definitions_version_positive", sql`${table.version} > 0`),
+  ],
+);
+
+export const experimentAssignments = pgTable(
+  "experiment_assignments",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    protocolDefinitionId: uuid("protocol_definition_id").notNull().references(() => protocolDefinitions.id),
+    strategyVersion: text("strategy_version").notNull(),
+    phase: experimentPhase().notNull(),
+    hypothesis: text().notNull(),
+    evaluatedFactor: text("evaluated_factor"),
+    comparisonGroupKey: text("comparison_group_key"),
+    comparisonLevel: text("comparison_level"),
+    evidenceSnapshot: jsonb("evidence_snapshot").notNull().default({}),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("experiment_assignments_user_idx").on(table.userId)],
+);
+
+export const wakeSessions = pgTable(
+  "wake_sessions",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    assignmentId: uuid("assignment_id").notNull().references(() => experimentAssignments.id),
+    status: sessionStatus().notNull().default("assigned"),
+    currentStepIndex: integer("current_step_index").notNull().default(0),
+    version: integer().notNull().default(1),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    protocolCompletedAt: timestamp("protocol_completed_at", { withTimezone: true }),
+    followUpDueAt: timestamp("follow_up_due_at", { withTimezone: true }),
+    abandonedAt: timestamp("abandoned_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("wake_sessions_assignment_unique").on(table.assignmentId),
+    check("wake_sessions_step_nonnegative", sql`${table.currentStepIndex} >= 0`),
+    check("wake_sessions_version_positive", sql`${table.version} > 0`),
+    uniqueIndex("wake_sessions_one_active_per_user")
+      .on(table.userId)
+      .where(sql`${table.status} in ('assigned', 'in_progress')`),
+  ],
+);
+
+export const ratingObservations = pgTable(
+  "rating_observations",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").notNull().references(() => wakeSessions.id, { onDelete: "cascade" }),
+    kind: ratingKind().notNull(),
+    value: integer().notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
+    clientObservedAt: timestamp("client_observed_at", { withTimezone: true }),
+    operationId: text("operation_id").notNull(),
+  },
+  (table) => [
+    unique("rating_observations_session_kind_unique").on(table.sessionId, table.kind),
+    unique("rating_observations_user_operation_unique").on(table.userId, table.operationId),
+    check("rating_observations_value_range", sql`${table.value} between 1 and 10`),
+  ],
+);
+
+export const taskObservations = pgTable(
+  "task_observations",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").notNull().references(() => wakeSessions.id, { onDelete: "cascade" }),
+    protocolStepIndex: integer("protocol_step_index").notNull(),
+    taskId: text("task_id").notNull(),
+    category: taskCategory().notNull(),
+    correct: integer().notNull(),
+    total: integer().notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
+    operationId: text("operation_id").notNull(),
+  },
+  (table) => [
+    unique("task_observations_session_step_unique").on(table.sessionId, table.protocolStepIndex),
+    unique("task_observations_user_operation_unique").on(table.userId, table.operationId),
+    check("task_observations_values_valid", sql`${table.protocolStepIndex} >= 0 and ${table.correct} >= 0 and ${table.total} >= ${table.correct} and ${table.durationMs} >= 0`),
+  ],
+);
+
+export const followUpObservations = pgTable(
+  "follow_up_observations",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").notNull().references(() => wakeSessions.id, { onDelete: "cascade" }),
+    outcome: followUpOutcome().notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
+    minutesAfterCompletion: integer("minutes_after_completion").notNull(),
+    operationId: text("operation_id").notNull(),
+  },
+  (table) => [
+    unique("follow_up_observations_session_unique").on(table.sessionId),
+    unique("follow_up_observations_user_operation_unique").on(table.userId, table.operationId),
+    check("follow_up_delay_nonnegative", sql`${table.minutesAfterCompletion} >= 0`),
+  ],
+);
+
+export const idempotencyRecords = pgTable(
+  "idempotency_records",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    operationId: text("operation_id").notNull(),
+    commandType: text("command_type").notNull(),
+    requestHash: text("request_hash").notNull(),
+    responseStatus: integer("response_status").notNull(),
+    responseBody: jsonb("response_body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.operationId] })],
+);
+
+export const analyticsProjections = pgTable(
+  "analytics_projections",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    metricKey: text("metric_key").notNull(),
+    subjectKey: text("subject_key").notNull(),
+    methodVersion: text("method_version").notNull(),
+    value: jsonb().notNull(),
+    evidenceCount: integer("evidence_count").notNull(),
+    evidenceIds: jsonb("evidence_ids").notNull(),
+    confidence: confidence().notNull(),
+    computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
+    staleAt: timestamp("stale_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("analytics_projections_user_idx").on(table.userId),
+    check("analytics_evidence_count_nonnegative", sql`${table.evidenceCount} >= 0`),
+  ],
+);
+
+export const auditEvents = pgTable(
+  "audit_events",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    eventType: text("event_type").notNull(),
+    aggregateId: uuid("aggregate_id"),
+    correlationId: text("correlation_id").notNull(),
+    metadata: jsonb().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("audit_events_user_idx").on(table.userId)],
+);

@@ -1,0 +1,33 @@
+{
+  "name": "adaptive-wake-coach",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @awc/web --filter @awc/api dev",
+    "dev:web": "pnpm --filter @awc/web dev",
+    "dev:api": "pnpm --filter @awc/api dev",
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "test:integration": "pnpm --filter @awc/api test:integration",
+    "test:e2e": "playwright test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:start": "docker compose up -d postgres",
+    "db:stop": "docker compose down",
+    "db:migrate": "pnpm --filter @awc/db migrate"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^22.18.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
