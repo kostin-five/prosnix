@@ -1,4 +1,5 @@
 import type {
+  AnalyticsProfile,
   FollowUpOutcome,
   SessionStatus,
   TaskId,
@@ -175,4 +176,8 @@ export class SessionCommandConflict extends Error {
 
 export interface SessionCommandRepository {
   execute(envelope: SessionCommandEnvelope): Promise<SessionCommandResult>;
+}
+
+export interface AnalyticsRepository {
+  recompute(userId: string, now?: Date): Promise<AnalyticsProfile>;
 }

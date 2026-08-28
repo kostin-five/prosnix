@@ -1,5 +1,6 @@
 import {
   connectDatabase,
+  PostgresAnalyticsRepository,
   PostgresBootstrapRepository,
   PostgresSessionCommandRepository,
 } from "@awc/db";
@@ -12,6 +13,7 @@ const app = await createApp(config, {
   unitOfWork: database.unitOfWork,
   bootstrapRepository: new PostgresBootstrapRepository(database.db),
   sessionCommands: new PostgresSessionCommandRepository(database.db),
+  analyticsRepository: new PostgresAnalyticsRepository(database.db),
 });
 app.addHook("onClose", async () => database.close());
 

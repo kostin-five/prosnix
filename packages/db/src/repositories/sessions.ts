@@ -8,6 +8,7 @@ import {
   acceptFollowUp,
   acceptPostRating,
   acceptTaskResult,
+  selectLearningAssignment,
   type ExperimentAssignment,
   type ProtocolStep,
   type SessionCommand,
@@ -37,11 +38,6 @@ const TASK_IDS = new Set<TaskId>([
 const CATEGORIES = new Set<TaskCategory>([
   "cognitive", "movement", "behavioral", "environment",
 ]);
-const LEARNING_PROTOCOL: readonly ProtocolStep[] = [
-  { index: 0, taskId: "math", category: "cognitive" },
-  { index: 1, taskId: "memory", category: "cognitive" },
-];
-
 function parseSteps(value: unknown): readonly ProtocolStep[] {
   if (!Array.isArray(value)) throw new Error("Protocol steps are not an array");
   return value.map((item, index) => {
@@ -154,6 +150,13 @@ async function createSession(
   if (envelope.command.type !== "create") {
     throw new SessionCommandConflict("session_not_found", "Сессия не найдена", null);
   }
+  const [user] = await db
+    .select({ learningSessionCount: users.learningSessionCount })
+    .from(users)
+    .where(eq(users.id, envelope.userId))
+    .limit(1);
+  if (!user) throw new SessionCommandConflict("session_not_found", "Профиль не найден", null);
+  const planned = selectLearningAssignment(user.learningSessionCount);
   await db.update(users).set({
     timezone: envelope.command.timezone,
     updatedAt: envelope.observedAt,
@@ -162,10 +165,10 @@ async function createSession(
   const inserted = await db
     .insert(protocolDefinitions)
     .values({
-      protocolKey: "learning-cognitive",
-      version: 1,
-      title: "Когнитивный старт",
-      steps: LEARNING_PROTOCOL,
+      protocolKey: planned.protocolKey,
+      version: planned.protocolVersion,
+      title: planned.hypothesis,
+      steps: planned.steps,
     })
     .onConflictDoNothing()
     .returning({ id: protocolDefinitions.id });
@@ -175,7 +178,10 @@ async function createSession(
         await db
           .select({ id: protocolDefinitions.id })
           .from(protocolDefinitions)
-          .where(and(eq(protocolDefinitions.protocolKey, "learning-cognitive"), eq(protocolDefinitions.version, 1)))
+          .where(and(
+            eq(protocolDefinitions.protocolKey, planned.protocolKey),
+            eq(protocolDefinitions.version, planned.protocolVersion),
+          ))
           .limit(1)
       )[0];
   const protocolId = inserted[0]?.id ?? existingProtocol?.id;
@@ -186,9 +192,12 @@ async function createSession(
     .values({
       userId: envelope.userId,
       protocolDefinitionId: protocolId,
-      strategyVersion: "learning-v1",
-      phase: "learning",
-      hypothesis: "Проверяем когнитивный стартовый протокол",
+      strategyVersion: planned.strategyVersion,
+      phase: planned.phase,
+      hypothesis: planned.hypothesis,
+      evaluatedFactor: planned.comparison?.factorKey,
+      comparisonGroupKey: planned.comparison?.groupKey,
+      comparisonLevel: planned.comparison?.level,
       evidenceSnapshot: {},
     })
     .returning({ id: experimentAssignments.id });
@@ -294,6 +303,13 @@ async function mutateSession(
         ...(command.clientObservedAt ? { clientObservedAt: new Date(command.clientObservedAt) } : {}),
         operationId: envelope.operationId,
       });
+      await db
+        .update(users)
+        .set({
+          learningSessionCount: sql`${users.learningSessionCount} + 1`,
+          updatedAt: envelope.observedAt,
+        })
+        .where(eq(users.id, envelope.userId));
     } else if (command.type === "follow_up") {
       next = acceptFollowUp(current, {
         expectedVersion: command.expectedVersion ?? current.version,

@@ -61,6 +61,22 @@ export interface WakeSessionResponse {
   abandonedAt: string | null;
 }
 
+export interface MetricResponse {
+  key: string;
+  value: number | null;
+  evidenceCount: number;
+  evidenceIds: string[];
+  confidence: "insufficient" | "low" | "medium" | "high";
+}
+
+export interface AnalyticsProfileResponse {
+  methodVersion: "analytics-v1";
+  averageDelta: MetricResponse;
+  riseSuccess: MetricResponse;
+  protocolEffects: MetricResponse[];
+  factorEffects: MetricResponse[];
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -92,4 +108,11 @@ export async function loadBootstrap(): Promise<BootstrapResponse> {
     await fetch("/api/v1/bootstrap", { credentials: "same-origin" }),
   );
   return (await response.json()) as BootstrapResponse;
+}
+
+export async function loadAnalyticsProfile(): Promise<AnalyticsProfileResponse> {
+  const response = await expectSuccess(
+    await fetch("/api/v1/analytics/profile", { credentials: "same-origin" }),
+  );
+  return (await response.json()) as AnalyticsProfileResponse;
 }

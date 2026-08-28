@@ -122,16 +122,16 @@ a low-confidence factor result with reproducible evidence IDs.
 
 ### Tests for User Story 3
 
-- [ ] T037 [P] [US3] Add analytics fixture and regression tests in packages/domain/tests/analytics-fixtures.test.ts
-- [ ] T038 [P] [US3] Write analytics profile contract test in apps/api/tests/contract/analytics.test.ts
-- [ ] T039 [P] [US3] Write mixed-protocol profile E2E test in tests/e2e/analytics.spec.ts
+- [x] T037 [P] [US3] Add analytics fixture and regression tests in packages/domain/tests/analytics-fixtures.test.ts
+- [x] T038 [P] [US3] Write analytics profile contract test in apps/api/tests/contract/analytics.test.ts
+- [x] T039 [P] [US3] Write mixed-protocol profile E2E test in tests/e2e/analytics.spec.ts
 
 ### Implementation for User Story 3
 
-- [ ] T040 [US3] Implement learning assignments and comparable-factor metadata in packages/domain/src/experiments/learning.ts
-- [ ] T041 [US3] Implement analytics projection repository and recomputation in packages/db/src/repositories/analytics.ts
-- [ ] T042 [US3] Implement analytics profile route in apps/api/src/analytics/routes.ts
-- [ ] T043 [US3] Replace prototype category calculations with versioned API metrics in apps/web/src/features/analytics/
+- [x] T040 [US3] Implement learning assignments and comparable-factor metadata in packages/domain/src/experiments/learning.ts
+- [x] T041 [US3] Implement analytics projection repository and recomputation in packages/db/src/repositories/analytics.ts
+- [x] T042 [US3] Implement analytics profile route in apps/api/src/analytics/routes.ts
+- [x] T043 [US3] Replace prototype category calculations with versioned API metrics in apps/web/src/features/analytics/
 
 **Checkpoint**: Analytics values match manual fixtures and never credit every category in a mixed
 protocol.

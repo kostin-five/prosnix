@@ -2,6 +2,7 @@ import cookie from "@fastify/cookie";
 import Fastify, { type FastifyInstance } from "fastify";
 
 import type {
+  AnalyticsRepository,
   BootstrapRepository,
   SessionCommandRepository,
   UnitOfWork,
@@ -10,12 +11,14 @@ import { registerAuthRoutes } from "../auth/routes.js";
 import { registerBootstrapRoute } from "./bootstrap-route.js";
 import { registerSessionRoutes } from "../sessions/routes.js";
 import { SessionService } from "../sessions/service.js";
+import { registerAnalyticsRoutes } from "../analytics/routes.js";
 import type { AppConfig } from "./config.js";
 
 export interface AppDependencies {
   unitOfWork: UnitOfWork;
   bootstrapRepository: BootstrapRepository;
   sessionCommands?: SessionCommandRepository;
+  analyticsRepository?: AnalyticsRepository;
   now?: () => Date;
 }
 
@@ -52,6 +55,13 @@ export async function createApp(
           dependencies.sessionCommands,
           dependencies.now ?? (() => new Date()),
         ),
+        ...(dependencies.now ? { now: dependencies.now } : {}),
+      });
+    }
+    if (dependencies.analyticsRepository) {
+      await registerAnalyticsRoutes(app, {
+        config,
+        repository: dependencies.analyticsRepository,
         ...(dependencies.now ? { now: dependencies.now } : {}),
       });
     }

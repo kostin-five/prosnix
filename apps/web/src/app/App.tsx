@@ -6,6 +6,7 @@ import {
   Loader2, AlertCircle, Sparkles,
 } from "lucide-react";
 import { useBootstrap } from "../features/bootstrap/use-bootstrap.js";
+import { useAnalyticsProfile } from "../features/analytics/use-analytics.js";
 import {
   SessionConflictError,
   createWakeSession,
@@ -207,6 +208,15 @@ const CONF_LABEL: Record<Confidence, string> = {
   medium:       "Средняя уверенность",
   high:         "Высокая уверенность",
 };
+
+function factorLabel(key: string): string {
+  const factor = key.split(":")[1] as TaskCategory | undefined;
+  return factor && factor in CAT_META ? CAT_META[factor].label : "Фактор протокола";
+}
+
+function protocolLabel(key: string): string {
+  return key.replace(/^protocol:/, "").replace(/@/, " · версия ");
+}
 
 function computeCategoryEffectiveness(sessions: Session[]) {
   const cats: TaskCategory[] = ["cognitive", "movement", "behavioral", "environment"];
@@ -949,18 +959,33 @@ function ResultsScreen({ session, allSessions, onStats, onHome, onFollowUp }: {
 }
 
 // ─── Stats Screen ─────────────────────────────────────────────────────────────
-function StatsScreen({ sessions }: { sessions: Session[] }) {
+function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean }) {
+  const analytics = useAnalyticsProfile(!demo);
+  const apiProfile = analytics.status === "ready" ? analytics.profile : null;
   const valid = sessions.filter(s => s.endAlertness > 0);
-  const isLearning = valid.length < 7;
+  const evidenceCount = demo
+    ? valid.length
+    : apiProfile?.averageDelta.evidenceCount ?? 0;
+  const isLearning = evidenceCount < 7;
 
   // Key metrics
-  const avgGain = valid.length ? valid.reduce((s, v) => s + (v.endAlertness - v.startAlertness), 0) / valid.length : 0;
+  const avgGain = demo
+    ? valid.length
+      ? valid.reduce((s, v) => s + (v.endAlertness - v.startAlertness), 0) / valid.length
+      : 0
+    : apiProfile?.averageDelta.value ?? 0;
   const followedUp = valid.filter(s => s.followUp !== null);
-  const successRate = followedUp.length ? Math.round(followedUp.filter(s => s.followUp === "up").length / followedUp.length * 100) : null;
+  const successRate = demo
+    ? followedUp.length
+      ? Math.round(followedUp.filter(s => s.followUp === "up").length / followedUp.length * 100)
+      : null
+    : apiProfile?.riseSuccess.value === null || apiProfile?.riseSuccess.value === undefined
+      ? null
+      : Math.round(apiProfile.riseSuccess.value * 100);
   const avgMinutes = valid.length ? Math.round(valid.reduce((s, v) => s + v.totalMs, 0) / valid.length / 60000 * 10) / 10 : null;
 
   // Category profile
-  const eff = computeCategoryEffectiveness(valid);
+  const eff = computeCategoryEffectiveness(demo ? valid : []);
   const sortedCats = (Object.entries(eff) as [TaskCategory, typeof eff[TaskCategory]][])
     .filter(([, d]) => d.sessions > 0)
     .sort((a, b) => b[1].avgDelta - a[1].avgDelta);
@@ -970,6 +995,9 @@ function StatsScreen({ sessions }: { sessions: Session[] }) {
   const hasBestSeq = successSessions.length >= 2;
   const bestSession = hasBestSeq ? successSessions.reduce((a, b) => (b.endAlertness - b.startAlertness) > (a.endAlertness - a.startAlertness) ? b : a) : null;
   const bestAvgDelta = hasBestSeq ? successSessions.reduce((s, v) => s + (v.endAlertness - v.startAlertness), 0) / successSessions.length : 0;
+  const bestProtocol = apiProfile?.protocolEffects
+    .filter((metric) => metric.value !== null)
+    .sort((left, right) => (right.value ?? 0) - (left.value ?? 0))[0];
 
   // Chart data
   const chartData = sessions.slice(-7).map((s, i) => ({
@@ -992,10 +1020,10 @@ function StatsScreen({ sessions }: { sessions: Session[] }) {
           <div className="flex items-center gap-2 mb-3"><Zap className="w-4 h-4 text-accent" /><p className="text-sm font-semibold text-accent">Период изучения</p></div>
           <div className="flex gap-1.5 mb-2">
             {Array.from({ length: 7 }, (_, i) => (
-              <div key={i} className={`flex-1 h-2 rounded-full ${i < valid.length ? "bg-primary" : "bg-muted"}`} />
+              <div key={i} className={`flex-1 h-2 rounded-full ${i < evidenceCount ? "bg-primary" : "bg-muted"}`} />
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">{valid.length}/7 — {valid.length < 7 ? `ещё ${7 - valid.length} до первого профиля` : "профиль формируется"}</p>
+          <p className="text-xs text-muted-foreground">{evidenceCount}/7 — {evidenceCount < 7 ? `ещё ${7 - evidenceCount} до первого профиля` : "профиль формируется"}</p>
         </div>
       )}
 
@@ -1003,7 +1031,7 @@ function StatsScreen({ sessions }: { sessions: Session[] }) {
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
           <TrendingUp className="w-4 h-4 text-primary mx-auto mb-2" />
-          <div className="text-xl font-extrabold">{valid.length ? `+${avgGain.toFixed(1)}` : "—"}</div>
+          <div className="text-xl font-extrabold">{evidenceCount ? `${avgGain >= 0 ? "+" : ""}${avgGain.toFixed(1)}` : "—"}</div>
           <div className="text-xs text-muted-foreground mt-0.5">Прирост</div>
         </div>
         <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
@@ -1021,7 +1049,31 @@ function StatsScreen({ sessions }: { sessions: Session[] }) {
       {/* Wake-up profile */}
       <div className="bg-card border border-border rounded-2xl p-4 mb-5">
         <p className="text-sm font-semibold mb-4">Твой профиль пробуждения</p>
-        {sortedCats.length === 0 ? (
+        {!demo && analytics.status === "loading" ? (
+          <p className="text-sm text-muted-foreground">Пересчитываем профиль по сохранённым сессиям…</p>
+        ) : !demo && analytics.status === "error" ? (
+          <p className="text-sm text-red-400">{analytics.message}</p>
+        ) : !demo && apiProfile?.factorEffects.length ? (
+          apiProfile.factorEffects.map((metric) => {
+            const value = metric.value ?? 0;
+            return (
+              <div key={metric.key} className="flex items-start justify-between py-3 border-b border-border last:border-0">
+                <div>
+                  <p className="text-sm font-semibold">{factorLabel(metric.key)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {CONF_LABEL[metric.confidence]} · {metric.evidenceCount} парных сравнения
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className={`text-lg font-black ${value >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    {value >= 0 ? "+" : ""}{value.toFixed(1)}
+                  </span>
+                  <p className="text-xs text-muted-foreground">эффект фактора</p>
+                </div>
+              </div>
+            );
+          })
+        ) : sortedCats.length === 0 ? (
           <p className="text-sm text-muted-foreground">Пройди несколько сессий, чтобы увидеть профиль.</p>
         ) : (
           sortedCats.map(([cat, data]) => {
@@ -1056,7 +1108,14 @@ function StatsScreen({ sessions }: { sessions: Session[] }) {
       {/* Best sequence */}
       <div className="bg-card border border-border rounded-2xl p-4 mb-5">
         <p className="text-sm font-semibold mb-3">Твой лучший протокол</p>
-        {hasBestSeq && bestSession ? (
+        {!demo && bestProtocol ? (
+          <>
+            <p className="text-sm font-semibold text-green-400">{protocolLabel(bestProtocol.key)}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Средний прирост бодрости {bestProtocol.value! >= 0 ? "+" : ""}{bestProtocol.value!.toFixed(1)} · {CONF_LABEL[bestProtocol.confidence].toLowerCase()} · {bestProtocol.evidenceCount} сессий.
+            </p>
+          </>
+        ) : demo && hasBestSeq && bestSession ? (
           <>
             <div className="flex items-center gap-2 flex-wrap mb-3">
               {bestSession.tasks.map((t, i) => (
@@ -1079,7 +1138,7 @@ function StatsScreen({ sessions }: { sessions: Session[] }) {
       </div>
 
       {/* Chart */}
-      {valid.length > 0 && (
+      {demo && valid.length > 0 && (
         <div className="bg-card border border-border rounded-2xl p-4 mb-5">
           <p className="text-sm font-semibold mb-4">Прирост бодрости по дням</p>
           <div className="h-36">
@@ -1104,34 +1163,42 @@ function StatsScreen({ sessions }: { sessions: Session[] }) {
         </div>
       )}
 
-      {/* Next plan — AI Wake Coach */}
+      {/* Next experiment */}
       <div className="bg-card border border-border rounded-2xl p-4 mb-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-accent" />
-            <p className="text-sm font-semibold">✨ План на следующее пробуждение</p>
+            <p className="text-sm font-semibold">✨ Следующий эксперимент</p>
           </div>
-          <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">AI Wake Coach</span>
+          <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{demo ? "Прототип" : "План обучения"}</span>
         </div>
-        <p className="text-xs text-muted-foreground mb-3">Завтра попробуем:</p>
-        <div className="flex items-center gap-2 flex-wrap mb-3">
-          {nextTaskMeta.map((meta, i) => (
-            <div key={i} className="flex items-center gap-1.5">
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${CAT_META[meta.category].bg}`}>
-                <span className="text-sm">{meta.emoji}</span>
-                <span className={`text-xs font-semibold ${CAT_META[meta.category].color}`}>{meta.title}</span>
-              </div>
-              {i < nextTaskMeta.length - 1 && <ArrowRight className="w-3 h-3 text-muted-foreground" />}
+        {demo ? (
+          <>
+            <p className="text-xs text-muted-foreground mb-3">Завтра попробуем:</p>
+            <div className="flex items-center gap-2 flex-wrap mb-3">
+              {nextTaskMeta.map((meta, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${CAT_META[meta.category].bg}`}>
+                    <span className="text-sm">{meta.emoji}</span>
+                    <span className={`text-xs font-semibold ${CAT_META[meta.category].color}`}>{meta.title}</span>
+                  </div>
+                  {i < nextTaskMeta.length - 1 && <ArrowRight className="w-3 h-3 text-muted-foreground" />}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">{nextPlan.rationale}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{nextPlan.rationale}</p>
+          </>
+        ) : (
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Следующий протокол назначается сервером по заранее заданному плану сравнений. После достаточного числа сопоставимых сессий здесь появится объяснение выбора; нейросеть сможет сформулировать его, но не изменит исходные метрики.
+          </p>
+        )}
       </div>
 
       {/* History */}
       <div className="bg-card border border-border rounded-2xl p-4">
         <p className="text-sm font-semibold mb-3">История пробуждений</p>
-        {[...valid].reverse().slice(0, 6).map((s, i) => {
+        {demo && [...valid].reverse().slice(0, 6).map((s, i) => {
           const delta = s.endAlertness - s.startAlertness;
           const deltaColor2 = delta >= 4 ? "text-green-400" : delta >= 2 ? "text-yellow-300" : "text-red-400";
           return (
@@ -1153,7 +1220,11 @@ function StatsScreen({ sessions }: { sessions: Session[] }) {
             </div>
           );
         })}
-        {valid.length === 0 && <p className="text-sm text-muted-foreground">Ещё нет завершённых сессий.</p>}
+        {(!demo || valid.length === 0) && (
+          <p className="text-sm text-muted-foreground">
+            {demo ? "Ещё нет завершённых сессий." : "Подробная история появится после подключения серверного списка сессий."}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -1444,7 +1515,7 @@ function PrototypeApp({
           </div>
         )}
         {screen === "home"        && <HomeScreen alarmTime={alarmTime} onTimeChange={setAlarmTime} onStart={startSession} sessions={sessions} />}
-        {screen === "stats"       && <StatsScreen sessions={sessions} />}
+        {screen === "stats"       && <StatsScreen sessions={sessions} demo={demo} />}
         {screen === "alarm"       && <AlarmScreen alarmTime={alarmTime} onBegin={() => setScreen("startRating")} />}
         {screen === "startRating" && <StartRatingScreen onDone={handleStartRating} />}
         {screen === "tasks"       && <TasksContainer taskIds={taskIds} taskIndex={taskIndex} onDone={handleTaskDone} />}
