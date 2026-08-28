@@ -34,6 +34,7 @@ function metric(
 
 export function computeAnalyticsProfile(
   evidence: readonly CompletedSessionEvidence[],
+  computedAt = "1970-01-01T00:00:00.000Z",
 ): AnalyticsProfile {
   const deltas = evidence.map(
     ({ baseline, postRating }) => postRating - baseline,
@@ -117,6 +118,7 @@ export function computeAnalyticsProfile(
 
   return {
     methodVersion: "analytics-v1",
+    computedAt,
     averageDelta: metric("average-delta", mean(deltas), evidence),
     riseSuccess: metric(
       "rise-success",

@@ -71,6 +71,7 @@ export interface MetricResponse {
 
 export interface AnalyticsProfileResponse {
   methodVersion: "analytics-v1";
+  computedAt: string;
   averageDelta: MetricResponse;
   riseSuccess: MetricResponse;
   protocolEffects: MetricResponse[];

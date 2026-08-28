@@ -10,6 +10,7 @@ import { useAnalyticsProfile } from "../features/analytics/use-analytics.js";
 import { DeleteProfile } from "../features/profile/delete-profile.js";
 import {
   SessionConflictError,
+  abandonWakeSession,
   createWakeSession,
   saveBaseline,
   saveFollowUp,
@@ -1047,6 +1048,21 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
         </div>
       </div>
 
+      {!demo && apiProfile && (
+        <details className="bg-card border border-border rounded-2xl p-4 mb-5">
+          <summary className="cursor-pointer text-sm font-semibold">Источники расчёта</summary>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Метод {apiProfile.methodVersion} · пересчитано {new Date(apiProfile.computedAt).toLocaleString("ru-RU")}
+          </p>
+          <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+            {apiProfile.averageDelta.evidenceIds.map((id) => <li key={id}>Сессия {id}</li>)}
+          </ul>
+          {apiProfile.averageDelta.evidenceIds.length === 0 && (
+            <p className="mt-3 text-xs text-muted-foreground">Подтверждённых сессий пока нет.</p>
+          )}
+        </details>
+      )}
+
       {/* Wake-up profile */}
       <div className="bg-card border border-border rounded-2xl p-4 mb-5">
         <p className="text-sm font-semibold mb-4">Твой профиль пробуждения</p>
@@ -1540,6 +1556,9 @@ function PrototypeApp({
 export default function App() {
   const bootstrap = useBootstrap();
   const [resumeAccepted, setResumeAccepted] = useState(false);
+  const [resumeDiscarded, setResumeDiscarded] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  const [discardError, setDiscardError] = useState<string | null>(null);
 
   if (bootstrap.status === "loading") {
     return (
@@ -1571,9 +1590,22 @@ export default function App() {
   if (
     bootstrap.mode === "telegram" &&
     bootstrap.data.activeSession &&
-    !resumeAccepted
+    !resumeAccepted &&
+    !resumeDiscarded
   ) {
     const active = bootstrap.data.activeSession;
+    async function discardActiveSession() {
+      setDiscarding(true);
+      setDiscardError(null);
+      try {
+        await abandonWakeSession(active.session.id, active.session.version);
+        setResumeDiscarded(true);
+      } catch (error) {
+        setDiscardError(error instanceof Error ? error.message : "Не удалось начать заново");
+      } finally {
+        setDiscarding(false);
+      }
+    }
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
         <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6">
@@ -1583,9 +1615,13 @@ export default function App() {
             Подтверждено шагов: {active.session.currentStepIndex} из {active.protocol.steps.length}.
             Мы продолжим с последней сохранённой точки.
           </p>
-          <button onClick={() => setResumeAccepted(true)} className="mt-6 w-full rounded-2xl bg-primary py-3 font-bold text-white">
+          <button disabled={discarding} onClick={() => setResumeAccepted(true)} className="mt-6 w-full rounded-2xl bg-primary py-3 font-bold text-white">
             Продолжить
           </button>
+          <button disabled={discarding} onClick={() => void discardActiveSession()} className="mt-2 w-full rounded-2xl bg-secondary py-3 font-semibold text-foreground">
+            {discarding ? "Закрываем старую сессию…" : "Начать заново"}
+          </button>
+          {discardError && <p role="alert" className="mt-3 text-sm text-red-400">{discardError}</p>}
         </div>
       </div>
     );
@@ -1594,7 +1630,7 @@ export default function App() {
   return (
     <PrototypeApp
       demo={bootstrap.mode === "demo"}
-      {...(bootstrap.mode === "telegram" && bootstrap.data.activeSession
+      {...(bootstrap.mode === "telegram" && bootstrap.data.activeSession && !resumeDiscarded
         ? { resume: bootstrap.data.activeSession }
         : {})}
       {...(bootstrap.mode === "telegram"

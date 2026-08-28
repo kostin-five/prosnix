@@ -28,6 +28,7 @@ test("пользователь подтверждает удаление и на
       contentType: "application/json",
       body: JSON.stringify({
         methodVersion: "analytics-v1",
+        computedAt: "2026-08-28T06:00:00.000Z",
         averageDelta: { key: "average-delta", value: null, evidenceCount: 0, evidenceIds: [], confidence: "insufficient" },
         riseSuccess: { key: "rise-success", value: null, evidenceCount: 0, evidenceIds: [], confidence: "insufficient" },
         protocolEffects: [],

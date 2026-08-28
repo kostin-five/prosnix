@@ -84,6 +84,7 @@ export interface Metric {
 
 export interface AnalyticsProfile {
   methodVersion: "analytics-v1";
+  computedAt: string;
   averageDelta: Metric;
   riseSuccess: Metric;
   protocolEffects: readonly Metric[];

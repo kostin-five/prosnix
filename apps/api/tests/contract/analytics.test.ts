@@ -11,6 +11,7 @@ import {
 
 const profile: AnalyticsProfile = {
   methodVersion: "analytics-v1",
+  computedAt: testNow.toISOString(),
   averageDelta: {
     key: "average-delta",
     value: 3.5,

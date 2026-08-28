@@ -131,7 +131,7 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
         });
       }
 
-      const profile = computeAnalyticsProfile(evidence);
+      const profile = computeAnalyticsProfile(evidence, now.toISOString());
       await db
         .delete(analyticsProjections)
         .where(eq(analyticsProjections.userId, userId));

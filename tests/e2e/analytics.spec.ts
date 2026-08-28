@@ -35,6 +35,7 @@ test("профиль показывает только воспроизводи�
   await page.route("**/api/v1/analytics/profile", (route) =>
     json(route, {
       methodVersion: "analytics-v1",
+      computedAt: "2026-08-28T06:00:00.000Z",
       averageDelta: {
         key: "average-delta",
         value: 3.5,
@@ -85,5 +86,8 @@ test("профиль показывает только воспроизводи�
   await expect(page.getByText("Движение", { exact: true })).toBeVisible();
   await expect(page.getByText("Низкая уверенность · 3 парных сравнения")).toBeVisible();
   await expect(page.getByText("movement-with · версия 1")).toBeVisible();
+  await page.getByText("Источники расчёта").click();
+  await expect(page.getByText("Сессия s1")).toBeVisible();
+  await expect(page.getByText(/Метод analytics-v1/)).toBeVisible();
   await expect(page.getByText("AI Wake Coach")).toHaveCount(0);
 });

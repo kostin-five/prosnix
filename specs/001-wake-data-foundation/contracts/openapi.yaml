@@ -412,10 +412,13 @@ components:
           format: date-time
     AnalyticsProfile:
       type: object
-      required: [methodVersion, averageDelta, riseSuccess, protocolEffects, factorEffects]
+      required: [methodVersion, computedAt, averageDelta, riseSuccess, protocolEffects, factorEffects]
       properties:
         methodVersion:
           type: string
+        computedAt:
+          type: string
+          format: date-time
         averageDelta:
           $ref: '#/components/schemas/Metric'
         riseSuccess:

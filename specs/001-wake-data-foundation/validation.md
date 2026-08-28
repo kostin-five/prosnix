@@ -11,7 +11,7 @@
 | TypeScript | PASS | Все 5 workspace-проектов проходят `pnpm typecheck`. |
 | Unit/contract | PASS | 10 доменных, 1 web и 11 API-тестов. |
 | Integration | PASS с ограничением | 4 теста проходят на memory-адаптерах; настоящий PostgreSQL не проверен. |
-| Mobile E2E | PASS | 4 сценария Playwright на профиле iPhone 13. |
+| Mobile E2E | PASS | 5 сценариев Playwright на профиле iPhone 13. |
 | Production build | PASS | Vite и серверные пакеты собираются; остаётся предупреждение о JS chunk больше 500 КБ. |
 | Production boundaries | PASS | Проверено 3 bundle-файла; секреты, тестовый launch payload и mock-история отсутствуют. |
 | Форматирование | FAIL | `pnpm format:check` сообщает о 113 ранее неформатированных файлах, включая Spec Kit и Figma-generated исходники. |
@@ -33,11 +33,11 @@
 | Требования | Статус | Основание или пробел |
 |---|---|---|
 | FR-001–FR-006 | PASS | Серверная проверка Telegram, ownership, чистый bootstrap, одна активная сессия и контрольные точки реализованы. |
-| FR-007 | GAP | Resume реализован, API abandon существует, но в окне восстановления пока нет пользовательской кнопки «Начать заново». |
+| FR-007 | PASS | Resume и серверно подтверждаемая кнопка «Начать заново» покрыты mobile E2E. |
 | FR-008–FR-012 | PASS с DB-блокировкой | Идемпотентность, версии и append-only observations покрыты правилами и тестами; PostgreSQL не запущен. |
-| FR-013 | GAP | Метод, evidence и confidence возвращаются, но дата вычисления не входит в публичный analytics response. |
+| FR-013 | PASS | API возвращает метод, дату вычисления, evidence IDs и объём выборки. |
 | FR-014–FR-022 | PASS | Пересчёт из observations, назначения до старта, парные сравнения, confidence, follow-up denominator и fallback реализованы. |
-| FR-023 | PARTIAL | Размер выборки и confidence видны; UI пока не раскрывает список конкретных evidence IDs. |
+| FR-023 | PASS | Размер выборки, confidence, дата и раскрываемый список evidence IDs доступны в статистике. |
 | FR-024 | PASS с DB-блокировкой | Полное удаление и изоляция покрыты API/E2E; каскады PostgreSQL требуют проверки. |
 | FR-025–FR-026 | PASS | Loading/error/draft/conflict состояния и due follow-up реализованы. |
 
@@ -55,8 +55,6 @@
 ## Блокеры Telegram-пилота
 
 1. Запустить Docker/PostgreSQL, применить миграции и выполнить реальные транзакционные тесты.
-2. Добавить «Начать заново» для прерванной сессии.
-3. Добавить `computedAt` в analytics contract и просмотр источников показателя.
-4. Определить стратегию форматирования generated-кода и сделать `format:check` зелёным.
-5. Развернуть staging HTTPS, подключить тестового Telegram-бота и проверить backup/restore.
-6. Измерить загрузку, доступность и пользовательское понимание resume-сценария.
+2. Определить стратегию форматирования generated-кода и сделать `format:check` зелёным.
+3. Развернуть staging HTTPS, подключить тестового Telegram-бота и проверить backup/restore.
+4. Измерить загрузку, доступность и пользовательское понимание resume-сценария.

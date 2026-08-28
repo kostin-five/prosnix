@@ -127,3 +127,15 @@ export function saveFollowUp(
     { outcome },
   );
 }
+
+export function abandonWakeSession(
+  sessionId: string,
+  expectedVersion: number,
+): Promise<WakeSessionResponse> {
+  return sendCommand(
+    "POST",
+    `/api/v1/sessions/${sessionId}/abandon`,
+    null,
+    expectedVersion,
+  );
+}
