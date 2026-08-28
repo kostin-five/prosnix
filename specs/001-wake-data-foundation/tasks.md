@@ -164,9 +164,9 @@ the other is unchanged and retained audit data cannot be linked to Telegram iden
 
 **Purpose**: Verify production-operational promises across all stories.
 
-- [ ] T049 [P] Add structured request and state-transition telemetry in apps/api/src/observability/
+- [x] T049 [P] Add structured request and state-transition telemetry in apps/api/src/observability/
 - [ ] T050 [P] Add mobile accessibility and error-state checks in apps/web/tests/
-- [ ] T051 Add schema backward-compatibility and backup-restore validation instructions in infra/README.md
+- [x] T051 Add schema backward-compatibility and backup-restore validation instructions in infra/README.md
 - [ ] T052 Run every scenario in specs/001-wake-data-foundation/quickstart.md and record results in specs/001-wake-data-foundation/validation.md
 - [ ] T053 Verify no secrets or mock histories enter production assets using scripts/verify-production-boundaries.mjs
 - [ ] T054 Review all requirements FR-001 through FR-026 and success criteria SC-001 through SC-009 in specs/001-wake-data-foundation/validation.md

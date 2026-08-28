@@ -15,6 +15,7 @@ import { SessionService } from "../sessions/service.js";
 import { registerAnalyticsRoutes } from "../analytics/routes.js";
 import { registerDeleteUserRoute } from "../auth/delete-route.js";
 import type { AppConfig } from "./config.js";
+import { registerObservability } from "../observability/register.js";
 
 export interface AppDependencies {
   unitOfWork: UnitOfWork;
@@ -39,6 +40,7 @@ export async function createApp(
   });
 
   app.get("/health", async () => ({ status: "ok" }));
+  await registerObservability(app);
 
   if (dependencies) {
     await registerAuthRoutes(app, {

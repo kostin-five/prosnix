@@ -42,9 +42,23 @@ async function execute(
   if (!key) return reply.status(400).send({ code: "idempotency_key_required" });
   try {
     const result = await options.service.execute(userId, key, command);
+    request.log.info(
+      {
+        event: "wake_session_transition",
+        commandType: command.type,
+        sessionStatus: result.session.status,
+        sessionVersion: result.session.version,
+        replayed: result.replayed,
+      },
+      "wake session transition accepted",
+    );
     return reply.status(result.responseStatus).send(result.session);
   } catch (error) {
     if (error instanceof SessionCommandConflict) {
+      request.log.warn(
+        { event: "wake_session_transition_conflict", commandType: command.type, conflictCode: error.code },
+        "wake session transition rejected",
+      );
       return reply.status(409).send({
         code: error.code,
         message: error.message,
