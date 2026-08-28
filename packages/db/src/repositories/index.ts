@@ -15,6 +15,7 @@ import * as schema from "../schema.js";
 import type { Database } from "./types.js";
 
 export { PostgresBootstrapRepository } from "./bootstrap.js";
+export { PostgresSessionCommandRepository } from "./sessions.js";
 
 function mapUser(row: typeof schema.users.$inferSelect): UserRecord {
   return {

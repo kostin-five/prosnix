@@ -24,6 +24,43 @@ export interface BootstrapResponse {
   dueFollowUpSessionId: string | null;
 }
 
+export interface WakeSessionResponse {
+  id: string;
+  userId: string;
+  status: "assigned" | "in_progress" | "protocol_completed" | "abandoned";
+  currentStepIndex: number;
+  version: number;
+  assignment: {
+    id: string;
+    protocolKey: string;
+    protocolVersion: number;
+    strategyVersion: string;
+    phase: "learning" | "adaptive" | "fallback";
+    hypothesis: string;
+    steps: Array<{
+      index: number;
+      taskId: string;
+      category: "cognitive" | "movement" | "behavioral" | "environment";
+    }>;
+  };
+  baseline: number | null;
+  tasks: Array<{
+    stepIndex: number;
+    taskId: string;
+    category: "cognitive" | "movement" | "behavioral" | "environment";
+    correct: number;
+    total: number;
+    durationMs: number;
+    observedAt: string;
+  }>;
+  postRating: number | null;
+  followUp: "up" | "back" | "drowsy" | null;
+  startedAt: string | null;
+  protocolCompletedAt: string | null;
+  followUpDueAt: string | null;
+  abandonedAt: string | null;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,

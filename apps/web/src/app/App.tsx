@@ -6,7 +6,18 @@ import {
   Loader2, AlertCircle, Sparkles,
 } from "lucide-react";
 import { useBootstrap } from "../features/bootstrap/use-bootstrap.js";
-import type { BootstrapResponse } from "../shared/api/client.js";
+import {
+  SessionConflictError,
+  createWakeSession,
+  saveBaseline,
+  saveFollowUp,
+  savePostRating,
+  saveTaskResult,
+} from "../features/session/session-api.js";
+import type {
+  BootstrapResponse,
+  WakeSessionResponse,
+} from "../shared/api/client.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Screen = "home" | "alarm" | "startRating" | "tasks" | "endRating" | "results" | "stats";
@@ -32,6 +43,41 @@ interface Session {
   endAlertness: number;     // same scale
   followUp: FollowUp;
   totalMs: number;
+}
+
+function resumedServerSession(
+  resume: NonNullable<BootstrapResponse["activeSession"]>,
+): WakeSessionResponse {
+  return {
+    id: resume.session.id,
+    userId: "",
+    status: resume.session.status,
+    currentStepIndex: resume.session.currentStepIndex,
+    version: resume.session.version,
+    assignment: {
+      id: resume.session.id,
+      protocolKey: resume.protocol.key,
+      protocolVersion: resume.protocol.version,
+      strategyVersion: resume.assignment.strategyVersion,
+      phase: resume.assignment.phase,
+      hypothesis: resume.assignment.hypothesis,
+      steps: resume.protocol.steps
+        .filter((step) => step.category !== undefined)
+        .map((step) => ({
+          index: step.index,
+          taskId: step.taskId,
+          category: step.category as TaskCategory,
+        })),
+    },
+    baseline: resume.baseline,
+    tasks: [],
+    postRating: resume.postRating,
+    followUp: null,
+    startedAt: null,
+    protocolCompletedAt: null,
+    followUpDueAt: null,
+    abandonedAt: null,
+  };
 }
 
 // ─── Task Pool ────────────────────────────────────────────────────────────────
@@ -731,11 +777,32 @@ function EndRatingScreen({ startAlertness, onDone }: { startAlertness: number; o
 }
 
 // ─── Results Screen ───────────────────────────────────────────────────────────
-function ResultsScreen({ session, allSessions, onStats, onHome }: {
-  session: Session; allSessions: Session[]; onStats: () => void; onHome: () => void;
+function ResultsScreen({ session, allSessions, onStats, onHome, onFollowUp }: {
+  session: Session;
+  allSessions: Session[];
+  onStats: () => void;
+  onHome: () => void;
+  onFollowUp: (answer: Exclude<FollowUp, null>) => Promise<void>;
 }) {
   const [showFollowUp, setShowFollowUp] = useState(false);
   const [followUpAns, setFollowUpAns] = useState<FollowUp>(null);
+  const [followUpSaving, setFollowUpSaving] = useState(false);
+  const [followUpError, setFollowUpError] = useState<string | null>(null);
+
+  async function answerFollowUp(answer: Exclude<FollowUp, null>) {
+    setFollowUpSaving(true);
+    setFollowUpError(null);
+    try {
+      await onFollowUp(answer);
+      setFollowUpAns(answer);
+    } catch (error) {
+      setFollowUpError(
+        error instanceof Error ? error.message : "Ответ пока не сохранён",
+      );
+    } finally {
+      setFollowUpSaving(false);
+    }
+  }
 
   const delta = session.endAlertness - session.startAlertness;
   const deltaColor = delta >= 4 ? "text-green-400" : delta >= 2 ? "text-yellow-400" : delta >= 0 ? "text-orange-400" : "text-red-400";
@@ -837,7 +904,7 @@ function ResultsScreen({ session, allSessions, onStats, onHome }: {
             <p className="text-xs text-muted-foreground mb-3">Удалось ли тебе окончательно проснуться — это ключевая метрика.</p>
             {!showFollowUp ? (
               <button onClick={() => setShowFollowUp(true)} className="text-sm text-accent underline underline-offset-2">
-                Ответить сейчас (демо)
+                Ответить сейчас
               </button>
             ) : (
               <div className="flex flex-col gap-2">
@@ -846,11 +913,16 @@ function ResultsScreen({ session, allSessions, onStats, onHome }: {
                   { val: "back" as FollowUp,  emoji: "🛏", label: "Снова лёг" },
                   { val: "drowsy" as FollowUp,emoji: "😴", label: "Не лёг, но всё ещё очень сонный" },
                 ]).map(opt => (
-                  <button key={String(opt.val)} onClick={() => setFollowUpAns(opt.val)}
+                  <button
+                    key={String(opt.val)}
+                    onClick={() => opt.val && void answerFollowUp(opt.val)}
+                    disabled={followUpSaving}
                     className="w-full py-3 px-4 rounded-xl bg-secondary border border-border text-sm text-left text-foreground active:scale-[0.99] transition-transform">
                     {opt.emoji} {opt.label}
                   </button>
                 ))}
+                {followUpSaving && <p className="text-xs text-muted-foreground">Сохраняем ответ…</p>}
+                {followUpError && <p className="text-xs text-red-400">{followUpError}</p>}
               </div>
             )}
           </>
@@ -1110,9 +1182,11 @@ function BottomNav({ current, onTab }: { current: "home" | "stats"; onTab: (t: "
 function PrototypeApp({
   demo,
   resume,
+  dueFollowUpSessionId,
 }: {
   demo: boolean;
   resume?: NonNullable<BootstrapResponse["activeSession"]>;
+  dueFollowUpSessionId?: string | null;
 }) {
   const resumedTaskIds = (resume?.protocol.steps ?? [])
     .map(({ taskId }) => taskId)
@@ -1129,43 +1203,165 @@ function PrototypeApp({
   const [navTab, setNavTab] = useState<"home" | "stats">("home");
   const [alarmTime, setAlarmTime] = useState("07:00");
   const [sessions, setSessions] = useState<Session[]>(demo ? MOCK_SESSIONS : []);
+  const [serverSession, setServerSession] = useState<WakeSessionResponse | null>(
+    resume ? resumedServerSession(resume) : null,
+  );
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [dueFollowUp, setDueFollowUp] = useState(dueFollowUpSessionId ?? null);
 
   const [taskIds, setTaskIds] = useState<TaskId[]>(resumedTaskIds);
   const [taskIndex, setTaskIndex] = useState(resume?.session.currentStepIndex ?? 0);
   const [taskResults, setTaskResults] = useState<TaskResult[]>([]);
   const [startAlertness, setStartAlertness] = useState(resume?.baseline ?? 0);
-  const sessionStartRef = useRef(0);
+  const sessionStartRef = useRef(Date.now());
   const [completedSession, setCompletedSession] = useState<Session | null>(null);
 
-  function startSession() {
-    const ids = selectTasks(sessions.length, sessions);
-    setTaskIds(ids);
-    setTaskIndex(0);
-    setTaskResults([]);
-    setStartAlertness(0);
+  function applyConflict(error: unknown): void {
+    if (error instanceof SessionConflictError && error.canonicalSession) {
+      setServerSession(error.canonicalSession);
+      setTaskIndex(error.canonicalSession.currentStepIndex);
+      setTaskIds(
+        error.canonicalSession.assignment.steps
+          .map(({ taskId }) => taskId)
+          .filter((taskId): taskId is TaskId => taskId in TASK_META),
+      );
+    }
+    setSyncError(
+      error instanceof Error
+        ? error.message
+        : "Действие пока не подтверждено сервером",
+    );
+  }
+
+  async function startSession() {
+    setSyncError(null);
     sessionStartRef.current = Date.now();
-    setScreen("alarm");
+    if (demo) {
+      const ids = selectTasks(sessions.length, sessions);
+      setTaskIds(ids);
+      setTaskIndex(0);
+      setTaskResults([]);
+      setStartAlertness(0);
+      setScreen("alarm");
+      return;
+    }
+    setSyncing(true);
+    try {
+      const created = await createWakeSession(
+        Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+      );
+      setServerSession(created);
+      setTaskIds(
+        created.assignment.steps
+          .map(({ taskId }) => taskId)
+          .filter((taskId): taskId is TaskId => taskId in TASK_META),
+      );
+      setTaskIndex(created.currentStepIndex);
+      setTaskResults([]);
+      setStartAlertness(0);
+      setScreen("alarm");
+    } catch (error) {
+      applyConflict(error);
+    } finally {
+      setSyncing(false);
+    }
   }
 
-  function handleStartRating(v: number) {
-    setStartAlertness(v);
-    setScreen("tasks");
+  async function handleStartRating(v: number) {
+    setSyncError(null);
+    if (demo) {
+      setStartAlertness(v);
+      setScreen("tasks");
+      return;
+    }
+    if (!serverSession) return;
+    setSyncing(true);
+    try {
+      const updated = await saveBaseline(
+        serverSession.id,
+        serverSession.version,
+        v,
+      );
+      setServerSession(updated);
+      setStartAlertness(v);
+      setScreen("tasks");
+    } catch (error) {
+      applyConflict(error);
+    } finally {
+      setSyncing(false);
+    }
   }
 
-  function handleTaskDone(result: TaskResult) {
-    const next = [...taskResults, result];
-    setTaskResults(next);
-    if (taskIndex + 1 < taskIds.length) setTaskIndex(i => i + 1);
-    else setScreen("endRating");
+  async function handleTaskDone(result: TaskResult) {
+    setSyncError(null);
+    if (demo) {
+      const next = [...taskResults, result];
+      setTaskResults(next);
+      if (taskIndex + 1 < taskIds.length) setTaskIndex(i => i + 1);
+      else setScreen("endRating");
+      return;
+    }
+    if (!serverSession) return;
+    setSyncing(true);
+    try {
+      const updated = await saveTaskResult(
+        serverSession.id,
+        serverSession.version,
+        taskIndex,
+        {
+          taskId: result.id,
+          correct: result.correct,
+          total: result.total,
+          durationMs: result.timeMs,
+        },
+      );
+      setServerSession(updated);
+      setTaskResults((current) => [...current, result]);
+      setTaskIndex(updated.currentStepIndex);
+      if (updated.currentStepIndex >= taskIds.length) setScreen("endRating");
+    } catch (error) {
+      applyConflict(error);
+    } finally {
+      setSyncing(false);
+    }
   }
 
-  function handleEndRating(endAlertness: number) {
+  async function handleEndRating(endAlertness: number) {
+    setSyncError(null);
+    let confirmedTasks = taskResults;
+    if (!demo) {
+      if (!serverSession) return;
+      setSyncing(true);
+      try {
+        const updated = await savePostRating(
+          serverSession.id,
+          serverSession.version,
+          endAlertness,
+        );
+        setServerSession(updated);
+        confirmedTasks = updated.tasks
+          .filter(({ taskId }) => taskId in TASK_META)
+          .map((task) => ({
+            id: task.taskId as TaskId,
+            category: task.category,
+            correct: task.correct,
+            total: task.total,
+            timeMs: task.durationMs,
+          }));
+      } catch (error) {
+        applyConflict(error);
+        setSyncing(false);
+        return;
+      }
+      setSyncing(false);
+    }
     const session: Session = {
-      id: `s${Date.now()}`,
+      id: serverSession?.id ?? `s${Date.now()}`,
       date: new Date().toLocaleDateString("ru", { day: "numeric", month: "short" }),
       wakeTime: new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" }),
       startAlertness,
-      tasks: taskResults,
+      tasks: confirmedTasks,
       endAlertness,
       followUp: null,
       totalMs: Date.now() - sessionStartRef.current,
@@ -1175,6 +1371,42 @@ function PrototypeApp({
     setScreen("results");
   }
 
+  async function handleFollowUp(answer: Exclude<FollowUp, null>) {
+    if (demo) {
+      setSessions((current) =>
+        current.map((session) =>
+          session.id === completedSession?.id
+            ? { ...session, followUp: answer }
+            : session,
+        ),
+      );
+      return;
+    }
+    const sessionId = serverSession?.id ?? completedSession?.id;
+    if (!sessionId) throw new Error("Не удалось определить сессию для follow-up");
+    const updated = await saveFollowUp(sessionId, answer);
+    setServerSession(updated);
+    setSessions((current) =>
+      current.map((session) =>
+        session.id === sessionId ? { ...session, followUp: answer } : session,
+      ),
+    );
+  }
+
+  async function answerDueFollowUp(answer: Exclude<FollowUp, null>) {
+    if (!dueFollowUp) return;
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      await saveFollowUp(dueFollowUp, answer);
+      setDueFollowUp(null);
+    } catch (error) {
+      applyConflict(error);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   function handleNavTab(tab: "home" | "stats") {
     setNavTab(tab);
     setScreen(tab);
@@ -1182,9 +1414,35 @@ function PrototypeApp({
 
   const showNav = screen === "home" || screen === "stats";
 
+  if (dueFollowUp && !serverSession) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+        <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Проверка подъёма</p>
+          <h1 className="mt-2 text-2xl font-bold">Ты окончательно проснулся?</h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Ответ будет связан с сохранённой сессией и поможет честно оценить протокол.
+          </p>
+          <div className="mt-6 flex flex-col gap-2">
+            <button disabled={syncing} onClick={() => void answerDueFollowUp("up")} className="rounded-xl bg-secondary px-4 py-3 text-left">✅ Да, уже встал</button>
+            <button disabled={syncing} onClick={() => void answerDueFollowUp("back")} className="rounded-xl bg-secondary px-4 py-3 text-left">🛏 Снова лёг</button>
+            <button disabled={syncing} onClick={() => void answerDueFollowUp("drowsy")} className="rounded-xl bg-secondary px-4 py-3 text-left">😴 Не лёг, но ещё сонный</button>
+          </div>
+          {syncing && <p className="mt-3 text-xs text-muted-foreground">Сохраняем ответ…</p>}
+          {syncError && <p className="mt-3 text-xs text-red-400">{syncError}</p>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-start justify-center min-h-screen bg-background text-foreground">
       <div className="w-full max-w-[390px] min-h-screen flex flex-col bg-background relative">
+        {(syncing || syncError) && (
+          <div className={`sticky top-0 z-[60] px-4 py-2 text-center text-xs ${syncError ? "bg-red-500/90 text-white" : "bg-primary text-white"}`}>
+            {syncError ?? "Сохраняем подтверждённое состояние…"}
+          </div>
+        )}
         {screen === "home"        && <HomeScreen alarmTime={alarmTime} onTimeChange={setAlarmTime} onStart={startSession} sessions={sessions} />}
         {screen === "stats"       && <StatsScreen sessions={sessions} />}
         {screen === "alarm"       && <AlarmScreen alarmTime={alarmTime} onBegin={() => setScreen("startRating")} />}
@@ -1192,7 +1450,13 @@ function PrototypeApp({
         {screen === "tasks"       && <TasksContainer taskIds={taskIds} taskIndex={taskIndex} onDone={handleTaskDone} />}
         {screen === "endRating"   && <EndRatingScreen startAlertness={startAlertness} onDone={handleEndRating} />}
         {screen === "results" && completedSession && (
-          <ResultsScreen session={completedSession} allSessions={sessions} onStats={() => handleNavTab("stats")} onHome={() => handleNavTab("home")} />
+          <ResultsScreen
+            session={completedSession}
+            allSessions={sessions}
+            onStats={() => handleNavTab("stats")}
+            onHome={() => handleNavTab("home")}
+            onFollowUp={handleFollowUp}
+          />
         )}
         {showNav && <BottomNav current={navTab} onTab={handleNavTab} />}
       </div>
@@ -1259,6 +1523,9 @@ export default function App() {
       demo={bootstrap.mode === "demo"}
       {...(bootstrap.mode === "telegram" && bootstrap.data.activeSession
         ? { resume: bootstrap.data.activeSession }
+        : {})}
+      {...(bootstrap.mode === "telegram"
+        ? { dueFollowUpSessionId: bootstrap.data.dueFollowUpSessionId }
         : {})}
     />
   );

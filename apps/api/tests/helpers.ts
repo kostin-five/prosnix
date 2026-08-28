@@ -1,11 +1,23 @@
 import { createHmac } from "node:crypto";
+import type { FastifyInstance } from "fastify";
 
 import type {
   BootstrapRepository,
   BootstrapSnapshot,
   Repositories,
+  SessionCommandRepository,
   UnitOfWork,
   UserRecord,
+} from "@awc/domain";
+import {
+  SessionCommandConflict,
+  SessionCommandError,
+  abandonSession,
+  acceptBaseline,
+  acceptFollowUp,
+  acceptPostRating,
+  acceptTaskResult,
+  type WakeSession,
 } from "@awc/domain";
 import type { AppConfig } from "../src/app/config.js";
 
@@ -88,4 +100,130 @@ export function cookieFrom(setCookie: string | string[] | undefined): string {
   const value = Array.isArray(setCookie) ? setCookie[0] : setCookie;
   if (!value) throw new Error("Expected authentication cookie");
   return value.split(";", 1)[0] as string;
+}
+
+export function createMemorySessionCommands(userId: string): SessionCommandRepository {
+  let session: WakeSession | null = null;
+  const results = new Map<
+    string,
+    { requestHash: string; result: Awaited<ReturnType<SessionCommandRepository["execute"]>> }
+  >();
+
+  return {
+    async execute(envelope) {
+      const stored = results.get(`${envelope.userId}:${envelope.operationId}`);
+      if (stored) {
+        if (stored.requestHash !== envelope.requestHash) {
+          throw new SessionCommandConflict(
+            "idempotency_conflict",
+            "Ключ операции уже использован с другими данными",
+            session,
+          );
+        }
+        return { ...stored.result, replayed: true };
+      }
+
+      if (envelope.userId !== userId) {
+        throw new SessionCommandConflict("session_not_found", "Сессия не найдена", null);
+      }
+      const observedAt = envelope.observedAt.toISOString();
+      try {
+        if (envelope.command.type === "create") {
+          session ??= {
+            id: "00000000-0000-4000-8000-000000000100",
+            userId,
+            assignment: {
+              id: "00000000-0000-4000-8000-000000000101",
+              protocolKey: "learning-cognitive",
+              protocolVersion: 1,
+              strategyVersion: "learning-v1",
+              phase: "learning",
+              hypothesis: "Проверяем когнитивный стартовый протокол",
+              steps: [
+                { index: 0, taskId: "math", category: "cognitive" },
+                { index: 1, taskId: "memory", category: "cognitive" },
+              ],
+            },
+            status: "assigned",
+            currentStepIndex: 0,
+            version: 1,
+            baseline: null,
+            tasks: [],
+            postRating: null,
+            followUp: null,
+            startedAt: null,
+            protocolCompletedAt: null,
+            followUpDueAt: null,
+            abandonedAt: null,
+          };
+        } else {
+          if (!session || session.id !== envelope.command.sessionId) {
+            throw new SessionCommandConflict(
+              "session_not_found",
+              "Сессия не найдена",
+              null,
+            );
+          }
+          const command = envelope.command;
+          if (command.type === "baseline") {
+            session = acceptBaseline(session, {
+              expectedVersion: command.expectedVersion,
+              value: command.value,
+              observedAt,
+            });
+          } else if (command.type === "task") {
+            session = acceptTaskResult(session, { ...command, observedAt });
+          } else if (command.type === "post_rating") {
+            session = acceptPostRating(session, {
+              expectedVersion: command.expectedVersion,
+              value: command.value,
+              observedAt,
+              followUpDelayMinutes: 15,
+            });
+          } else if (command.type === "follow_up") {
+            session = acceptFollowUp(session, {
+              expectedVersion: command.expectedVersion ?? session.version,
+              outcome: command.outcome,
+            });
+          } else {
+            session = abandonSession(session, {
+              expectedVersion: command.expectedVersion,
+              observedAt,
+            });
+          }
+        }
+      } catch (error) {
+        if (error instanceof SessionCommandError) {
+          throw new SessionCommandConflict(
+            error.code === "stale_version" ? "stale_version" : "invalid_transition",
+            error.message,
+            session,
+          );
+        }
+        throw error;
+      }
+
+      const result = {
+        session,
+        responseStatus: envelope.command.type === "create" ? (201 as const) : (200 as const),
+        replayed: false,
+      };
+      results.set(`${envelope.userId}:${envelope.operationId}`, {
+        requestHash: envelope.requestHash,
+        result,
+      });
+      return result;
+    },
+  };
+}
+
+export async function authenticateTestUser(
+  app: FastifyInstance,
+): Promise<string> {
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/telegram",
+    payload: { initData: signedInitData() },
+  });
+  return cookieFrom(response.headers["set-cookie"]);
 }

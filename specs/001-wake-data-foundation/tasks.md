@@ -95,18 +95,18 @@ verify one canonical observation per step and a resumable final state.
 
 ### Tests for User Story 2
 
-- [ ] T028 [P] [US2] Write session command contract tests in apps/api/tests/contract/sessions.test.ts
-- [ ] T029 [P] [US2] Write idempotency and optimistic-concurrency integration tests in apps/api/tests/integration/session-concurrency.test.ts
-- [ ] T030 [P] [US2] Write full wake-up and follow-up E2E test in tests/e2e/wake-session.spec.ts
+- [x] T028 [P] [US2] Write session command contract tests in apps/api/tests/contract/sessions.test.ts
+- [x] T029 [P] [US2] Write idempotency and optimistic-concurrency integration tests in apps/api/tests/integration/session-concurrency.test.ts
+- [x] T030 [P] [US2] Write full wake-up and follow-up E2E test in tests/e2e/wake-session.spec.ts
 
 ### Implementation for User Story 2
 
-- [ ] T031 [US2] Implement atomic idempotent session command repository in packages/db/src/repositories/sessions.ts
-- [ ] T032 [US2] Implement create, baseline, task, post-rating, follow-up and abandon services in apps/api/src/sessions/service.ts
-- [ ] T033 [US2] Implement session command routes from contracts/openapi.yaml in apps/api/src/sessions/routes.ts
-- [ ] T034 [US2] Connect existing wake-up screens to server commands and version conflicts in apps/web/src/features/session/
-- [ ] T035 [US2] Implement explicit unsynchronized draft handling in apps/web/src/features/session/draft-store.ts
-- [ ] T036 [US2] Persist follow-up to the canonical session and surface due follow-up during bootstrap in apps/web/src/features/follow-up/
+- [x] T031 [US2] Implement atomic idempotent session command repository in packages/db/src/repositories/sessions.ts
+- [x] T032 [US2] Implement create, baseline, task, post-rating, follow-up and abandon services in apps/api/src/sessions/service.ts
+- [x] T033 [US2] Implement session command routes from contracts/openapi.yaml in apps/api/src/sessions/routes.ts
+- [x] T034 [US2] Connect existing wake-up screens to server commands and version conflicts in apps/web/src/features/session/
+- [x] T035 [US2] Implement explicit unsynchronized draft handling in apps/web/src/features/session/draft-store.ts
+- [x] T036 [US2] Persist follow-up to the canonical session and surface due follow-up during bootstrap in apps/web/src/features/follow-up/
 
 **Checkpoint**: User Stories 1 and 2 pass independently; confirmed data survives refresh and retry.
 

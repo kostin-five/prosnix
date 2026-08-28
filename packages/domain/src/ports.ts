@@ -1,4 +1,9 @@
-import type { SessionStatus } from "./model.js";
+import type {
+  FollowUpOutcome,
+  SessionStatus,
+  TaskId,
+  WakeSession,
+} from "./model.js";
 
 export interface UserRecord {
   id: string;
@@ -99,4 +104,75 @@ export interface BootstrapRepository {
 
 export interface UnitOfWork {
   transaction<T>(work: (repositories: Repositories) => Promise<T>): Promise<T>;
+}
+
+export type SessionCommand =
+  | { type: "create"; timezone: string }
+  | {
+      type: "baseline";
+      sessionId: string;
+      expectedVersion: number;
+      value: number;
+      clientObservedAt?: string;
+    }
+  | {
+      type: "task";
+      sessionId: string;
+      expectedVersion: number;
+      stepIndex: number;
+      taskId: TaskId;
+      correct: number;
+      total: number;
+      durationMs: number;
+    }
+  | {
+      type: "post_rating";
+      sessionId: string;
+      expectedVersion: number;
+      value: number;
+      clientObservedAt?: string;
+    }
+  | {
+      type: "follow_up";
+      sessionId: string;
+      expectedVersion?: number;
+      outcome: FollowUpOutcome;
+    }
+  | {
+      type: "abandon";
+      sessionId: string;
+      expectedVersion: number;
+    };
+
+export interface SessionCommandEnvelope {
+  userId: string;
+  operationId: string;
+  requestHash: string;
+  observedAt: Date;
+  command: SessionCommand;
+}
+
+export interface SessionCommandResult {
+  session: WakeSession;
+  responseStatus: 200 | 201;
+  replayed: boolean;
+}
+
+export class SessionCommandConflict extends Error {
+  constructor(
+    readonly code:
+      | "idempotency_conflict"
+      | "stale_version"
+      | "invalid_transition"
+      | "session_not_found",
+    message: string,
+    readonly canonicalSession: WakeSession | null,
+  ) {
+    super(message);
+    this.name = "SessionCommandConflict";
+  }
+}
+
+export interface SessionCommandRepository {
+  execute(envelope: SessionCommandEnvelope): Promise<SessionCommandResult>;
 }
