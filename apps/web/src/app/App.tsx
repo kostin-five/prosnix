@@ -128,7 +128,7 @@ const mkTask = (id: TaskId, ms: number, err = 0): TaskResult => ({
   id, category: TASK_META[id].category, correct: Math.max(0, 3 - err), total: 3, timeMs: ms,
 });
 
-const MOCK_SESSIONS: Session[] = [
+const MOCK_SESSIONS: Session[] = import.meta.env.DEV ? [
   {
     id: "s1", date: "16 авг", wakeTime: "07:05",
     startAlertness: 3, tasks: [mkTask("math", 52000, 1), mkTask("memory", 38000, 0)],
@@ -159,7 +159,7 @@ const MOCK_SESSIONS: Session[] = [
     startAlertness: 2, tasks: [mkTask("math", 70000, 3), mkTask("stroop", 38000, 2), mkTask("memory", 45000, 1)],
     endAlertness: 5, followUp: "back", totalMs: 228000,
   },
-];
+] : [];
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 function rand(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
@@ -1543,7 +1543,7 @@ export default function App() {
 
   if (bootstrap.status === "loading") {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+      <div role="status" aria-live="polite" className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
           <p className="font-semibold">Загружаем твоё состояние…</p>
@@ -1555,7 +1555,7 @@ export default function App() {
 
   if (bootstrap.status === "error") {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+      <div role="alert" className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
         <div className="max-w-sm text-center">
           <AlertCircle className="w-10 h-10 text-primary mx-auto mb-4" />
           <h1 className="text-xl font-bold">Не удалось безопасно войти</h1>

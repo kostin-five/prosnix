@@ -176,13 +176,9 @@ paths:
     delete:
       summary: Request deletion of the authenticated user's profile and history
       operationId: deleteMe
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
       responses:
-        '202':
-          description: Deletion accepted
-        '409':
-          $ref: '#/components/responses/Conflict'
+        '204':
+          description: Profile and history deleted; application session cleared
 components:
   securitySchemes:
     cookieAuth:
