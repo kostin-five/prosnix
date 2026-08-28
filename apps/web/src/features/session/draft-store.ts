@@ -51,3 +51,7 @@ export async function removeSessionDraft(operationId: string): Promise<void> {
 export async function listSessionDrafts(): Promise<SessionDraft[]> {
   return withStore("readonly", (store) => store.getAll());
 }
+
+export async function clearSessionDrafts(): Promise<void> {
+  await withStore("readwrite", (store) => store.clear());
+}

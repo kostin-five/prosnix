@@ -181,3 +181,7 @@ export interface SessionCommandRepository {
 export interface AnalyticsRepository {
   recompute(userId: string, now?: Date): Promise<AnalyticsProfile>;
 }
+
+export interface UserDeletionRepository {
+  deleteUser(userId: string, correlationId: string, now?: Date): Promise<boolean>;
+}

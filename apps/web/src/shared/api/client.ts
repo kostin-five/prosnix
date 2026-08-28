@@ -116,3 +116,9 @@ export async function loadAnalyticsProfile(): Promise<AnalyticsProfileResponse> 
   );
   return (await response.json()) as AnalyticsProfileResponse;
 }
+
+export async function deleteProfile(): Promise<void> {
+  await expectSuccess(
+    await fetch("/api/v1/me", { method: "DELETE", credentials: "same-origin" }),
+  );
+}

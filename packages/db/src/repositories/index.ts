@@ -17,6 +17,7 @@ import type { Database } from "./types.js";
 export { PostgresBootstrapRepository } from "./bootstrap.js";
 export { PostgresSessionCommandRepository } from "./sessions.js";
 export { PostgresAnalyticsRepository } from "./analytics.js";
+export { PostgresUserDeletionRepository } from "./delete-user.js";
 
 function mapUser(row: typeof schema.users.$inferSelect): UserRecord {
   return {

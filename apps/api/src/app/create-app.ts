@@ -6,12 +6,14 @@ import type {
   BootstrapRepository,
   SessionCommandRepository,
   UnitOfWork,
+  UserDeletionRepository,
 } from "@awc/domain";
 import { registerAuthRoutes } from "../auth/routes.js";
 import { registerBootstrapRoute } from "./bootstrap-route.js";
 import { registerSessionRoutes } from "../sessions/routes.js";
 import { SessionService } from "../sessions/service.js";
 import { registerAnalyticsRoutes } from "../analytics/routes.js";
+import { registerDeleteUserRoute } from "../auth/delete-route.js";
 import type { AppConfig } from "./config.js";
 
 export interface AppDependencies {
@@ -19,6 +21,7 @@ export interface AppDependencies {
   bootstrapRepository: BootstrapRepository;
   sessionCommands?: SessionCommandRepository;
   analyticsRepository?: AnalyticsRepository;
+  userDeletionRepository?: UserDeletionRepository;
   now?: () => Date;
 }
 
@@ -62,6 +65,13 @@ export async function createApp(
       await registerAnalyticsRoutes(app, {
         config,
         repository: dependencies.analyticsRepository,
+        ...(dependencies.now ? { now: dependencies.now } : {}),
+      });
+    }
+    if (dependencies.userDeletionRepository) {
+      await registerDeleteUserRoute(app, {
+        config,
+        repository: dependencies.userDeletionRepository,
         ...(dependencies.now ? { now: dependencies.now } : {}),
       });
     }

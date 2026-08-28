@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useBootstrap } from "../features/bootstrap/use-bootstrap.js";
 import { useAnalyticsProfile } from "../features/analytics/use-analytics.js";
+import { DeleteProfile } from "../features/profile/delete-profile.js";
 import {
   SessionConflictError,
   createWakeSession,
@@ -1226,6 +1227,7 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
           </p>
         )}
       </div>
+      {!demo && <DeleteProfile />}
     </div>
   );
 }

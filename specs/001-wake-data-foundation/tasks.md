@@ -147,14 +147,14 @@ the other is unchanged and retained audit data cannot be linked to Telegram iden
 
 ### Tests for User Story 4
 
-- [ ] T044 [P] [US4] Write isolated user-deletion integration test in apps/api/tests/integration/delete-user.test.ts
-- [ ] T045 [P] [US4] Write profile deletion E2E test in tests/e2e/delete-profile.spec.ts
+- [x] T044 [P] [US4] Write isolated user-deletion integration test in apps/api/tests/integration/delete-user.test.ts
+- [x] T045 [P] [US4] Write profile deletion E2E test in tests/e2e/delete-profile.spec.ts
 
 ### Implementation for User Story 4
 
-- [ ] T046 [US4] Implement transactional user deletion and audit anonymization in packages/db/src/repositories/delete-user.ts
-- [ ] T047 [US4] Implement DELETE /me workflow in apps/api/src/auth/delete-route.ts
-- [ ] T048 [US4] Add deletion confirmation and clean-profile reset in apps/web/src/features/profile/delete-profile.tsx
+- [x] T046 [US4] Implement transactional user deletion and audit anonymization in packages/db/src/repositories/delete-user.ts
+- [x] T047 [US4] Implement DELETE /me workflow in apps/api/src/auth/delete-route.ts
+- [x] T048 [US4] Add deletion confirmation and clean-profile reset in apps/web/src/features/profile/delete-profile.tsx
 
 **Checkpoint**: All four user stories are independently functional.
 
