@@ -30,6 +30,8 @@ import {
   saveTaskResult,
 } from "../features/session/session-api.js";
 import type { BootstrapResponse, WakeSessionResponse } from "../shared/api/client.js";
+import { saveWakeSchedule, type WakeSchedule } from "../features/schedule/schedule-api.js";
+import { WakeScheduleCard } from "../features/schedule/wake-schedule-card.js";
 
 const DemoWakeChart = lazy(() => import("../features/analytics/demo-wake-chart.js"));
 
@@ -931,16 +933,23 @@ function TasksContainer({
 // ─── Home Screen ──────────────────────────────────────────────────────────────
 function HomeScreen({
   alarmTime,
-  onTimeChange,
   onStart,
   sessions,
+  wakeSchedule,
+  scheduleSaving,
+  onScheduleSave,
 }: {
   alarmTime: string;
-  onTimeChange: (t: string) => void;
   onStart: () => void;
   sessions: Session[];
+  wakeSchedule: WakeSchedule | null;
+  scheduleSaving: boolean;
+  onScheduleSave: (input: {
+    localTime: string;
+    timezone: string;
+    enabled: boolean;
+  }) => Promise<void>;
 }) {
-  const [editing, setEditing] = useState(false);
   const valid = sessions.filter((s) => s.endAlertness > 0);
   const streak = valid.length;
   const avgGain = valid.length
@@ -994,53 +1003,12 @@ function HomeScreen({
         </p>
       </div>
 
-      {/* Alarm card */}
-      <div className="bg-card border border-border rounded-3xl p-5 mb-4 relative overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-10 pointer-events-none"
-          style={{ background: "radial-gradient(circle at 80% 50%, #F97316 0%, transparent 60%)" }}
-        />
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <Bell className="w-4 h-4" />
-            <span>Будильник</span>
-          </div>
-          <button
-            onClick={() => setEditing((e) => !e)}
-            className="text-xs border border-border rounded-full px-3 py-1 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {editing ? "Готово" : "Изменить"}
-          </button>
-        </div>
-        {editing ? (
-          <input
-            type="time"
-            value={alarmTime}
-            onChange={(e) => onTimeChange(e.target.value)}
-            className="text-5xl font-extrabold bg-transparent border-none outline-none text-foreground w-full"
-          />
-        ) : (
-          <div className="text-6xl font-extrabold tracking-tight">{alarmTime}</div>
-        )}
-        <div className="flex gap-2 mt-4 flex-wrap">
-          {["Пн", "Вт", "Ср", "Чт", "Пт"].map((d) => (
-            <span
-              key={d}
-              className="text-xs font-semibold text-primary bg-primary/15 border border-primary/20 rounded-full px-2.5 py-0.5"
-            >
-              {d}
-            </span>
-          ))}
-          {["Сб", "Вс"].map((d) => (
-            <span
-              key={d}
-              className="text-xs text-muted-foreground bg-muted rounded-full px-2.5 py-0.5"
-            >
-              {d}
-            </span>
-          ))}
-        </div>
-      </div>
+      <WakeScheduleCard
+        schedule={wakeSchedule}
+        defaultTime={alarmTime}
+        saving={scheduleSaving}
+        onSave={onScheduleSave}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-4">
@@ -1908,10 +1876,12 @@ function PrototypeApp({
   demo,
   resume,
   dueFollowUpSessionId,
+  initialWakeSchedule,
 }: {
   demo: boolean;
   resume?: NonNullable<BootstrapResponse["activeSession"]>;
   dueFollowUpSessionId?: string | null;
+  initialWakeSchedule?: WakeSchedule | null;
 }) {
   const resumedTaskIds = (resume?.protocol.steps ?? [])
     .map(({ taskId }) => taskId)
@@ -1926,7 +1896,11 @@ function PrototypeApp({
       : "home",
   );
   const [navTab, setNavTab] = useState<"home" | "stats">("home");
-  const [alarmTime, setAlarmTime] = useState("07:00");
+  const [alarmTime, setAlarmTime] = useState(initialWakeSchedule?.localTime ?? "07:00");
+  const [wakeSchedule, setWakeSchedule] = useState<WakeSchedule | null>(
+    initialWakeSchedule ?? null,
+  );
+  const [scheduleSaving, setScheduleSaving] = useState(false);
   const [sessions, setSessions] = useState<Session[]>(demo ? MOCK_SESSIONS : []);
   const [serverSession, setServerSession] = useState<WakeSessionResponse | null>(
     resume ? resumedServerSession(resume) : null,
@@ -1941,6 +1915,34 @@ function PrototypeApp({
   const [startAlertness, setStartAlertness] = useState(resume?.baseline ?? 0);
   const sessionStartRef = useRef(Date.now());
   const [completedSession, setCompletedSession] = useState<Session | null>(null);
+
+  async function saveScheduleSetting(input: {
+    localTime: string;
+    timezone: string;
+    enabled: boolean;
+  }): Promise<void> {
+    setScheduleSaving(true);
+    setSyncError(null);
+    try {
+      const saved = demo
+        ? {
+            ...input,
+            nextTriggerAt: input.enabled
+              ? new Date(Date.now() + 24 * 60 * 60_000).toISOString()
+              : null,
+            botStatus: "unknown" as const,
+            revision: (wakeSchedule?.revision ?? 0) + 1,
+          }
+        : await saveWakeSchedule(input);
+      setWakeSchedule(saved);
+      setAlarmTime(saved.localTime);
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "Не удалось сохранить напоминание");
+      throw error;
+    } finally {
+      setScheduleSaving(false);
+    }
+  }
 
   function applyConflict(error: unknown): void {
     if (error instanceof SessionConflictError && error.canonicalSession) {
@@ -2174,9 +2176,11 @@ function PrototypeApp({
         {screen === "home" && (
           <HomeScreen
             alarmTime={alarmTime}
-            onTimeChange={setAlarmTime}
             onStart={startSession}
             sessions={sessions}
+            wakeSchedule={wakeSchedule}
+            scheduleSaving={scheduleSaving}
+            onScheduleSave={saveScheduleSetting}
           />
         )}
         {screen === "stats" && <StatsScreen sessions={sessions} demo={demo} />}
@@ -2316,7 +2320,10 @@ export default function App() {
         ? { resume: bootstrap.data.activeSession }
         : {})}
       {...(bootstrap.mode === "telegram"
-        ? { dueFollowUpSessionId: bootstrap.data.dueFollowUpSessionId }
+        ? {
+            dueFollowUpSessionId: bootstrap.data.dueFollowUpSessionId,
+            initialWakeSchedule: bootstrap.data.wakeSchedule,
+          }
         : {})}
     />
   );

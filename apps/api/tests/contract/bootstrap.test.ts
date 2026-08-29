@@ -39,6 +39,7 @@ describe("auth and bootstrap API contract", () => {
       },
       activeSession: null,
       dueFollowUpSessionId: null,
+      wakeSchedule: null,
     });
     await app.close();
   });

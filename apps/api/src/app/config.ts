@@ -5,6 +5,7 @@ export interface AppConfig {
   botToken: string;
   sessionSecret: string;
   telegramAuthMaxAgeSeconds: number;
+  telegramWebAppUrl: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -23,8 +24,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const botToken = env.TELEGRAM_BOT_TOKEN ?? "";
   const sessionSecret = env.SESSION_SECRET ?? "";
   const databaseUrl = env.DATABASE_URL ?? "postgres://awc:awc@localhost:5432/awc";
+  const telegramWebAppUrl = env.TELEGRAM_WEB_APP_URL ?? "http://localhost:5190/";
+  let parsedWebAppUrl: URL;
+  try {
+    parsedWebAppUrl = new URL(telegramWebAppUrl);
+  } catch {
+    throw new Error("TELEGRAM_WEB_APP_URL must be a valid URL");
+  }
   if (nodeEnv === "production" && (!botToken || sessionSecret.length < 32)) {
     throw new Error("Production authentication secrets are missing or unsafe");
+  }
+  if (nodeEnv === "production" && parsedWebAppUrl.protocol !== "https:") {
+    throw new Error("TELEGRAM_WEB_APP_URL must use HTTPS in production");
   }
   return {
     nodeEnv: nodeEnv as AppConfig["nodeEnv"],
@@ -33,5 +44,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     botToken,
     sessionSecret,
     telegramAuthMaxAgeSeconds,
+    telegramWebAppUrl: parsedWebAppUrl.toString(),
   };
 }

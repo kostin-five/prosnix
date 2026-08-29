@@ -28,9 +28,14 @@ API-сервиса, который обычно называется **Variables
 
 ## Что у нас есть сейчас, а чего ещё нет
 
-Уже есть рабочие web, API, PostgreSQL-миграции, Telegram-аутентификация и production-сборка.
-В качестве понятного первого варианта ниже выбран Render для приложения и Neon для базы.
-Постоянный URL для BotFather появится после их настройки. Не указывайте в BotFather `localhost`.
+Уже работают web, API, Neon, Telegram-аутентификация и бот `@wake_coach_bot`. Текущие адреса:
+
+- Mini App: `https://wake-coach-1.onrender.com/`;
+- API: `https://wake-coach.onrender.com/`;
+- health-check: `https://wake-coach.onrender.com/health`.
+
+Новая функция ежедневного Telegram-напоминания требует ещё одного ресурса Render — Cron Job.
+Не указывайте в BotFather или Render `localhost` для staging.
 
 ## Перед началом: проверить Node.js и pnpm
 
@@ -72,6 +77,7 @@ POSTGRES_PORT=5432
 TELEGRAM_BOT_TOKEN=вставьте_сюда_токен_из_BotFather
 SESSION_SECRET=вставьте_сюда_случайную_строку
 TELEGRAM_AUTH_MAX_AGE_SECONDS=900
+TELEGRAM_WEB_APP_URL=https://wake-coach-1.onrender.com/
 
 # Пока можно оставить пустым: AI-модуль ещё не подключён.
 DEEPSEEK_API_KEY=
@@ -214,6 +220,7 @@ Render и Neon не являются обязательными навсегда
 | `TELEGRAM_BOT_TOKEN`            | Уже полученный токен BotFather         |
 | `SESSION_SECRET`                | Новый результат `openssl rand -hex 32` |
 | `TELEGRAM_AUTH_MAX_AGE_SECONDS` | `900`                                  |
+| `TELEGRAM_WEB_APP_URL`          | `https://wake-coach-1.onrender.com/`   |
 
 Render сам устанавливает `NODE_ENV=production` и `PORT`. Код API умеет читать Render `PORT`,
 поэтому `API_PORT` на Render добавлять не нужно. DeepSeek-переменные пока тоже не нужны.
@@ -265,6 +272,45 @@ Render выдаёт бесплатный HTTPS-адрес `*.onrender.com`; по
 обязательно. Собственный домен понадобится ближе к production. Render автоматически обслуживает
 HTTPS и позволяет позже добавить домен в `Settings` → `Custom Domains`.
 
+## Шаг 6.1. Создать Render Cron Job для напоминаний
+
+Cron Job — это отдельная короткая задача на Render. Она просыпается по расписанию, проверяет due
+записи в Neon, отправляет сообщения и завершается. Это надёжнее таймера внутри бесплатного API,
+который может заснуть.
+
+1. В [Render Dashboard](https://dashboard.render.com/) нажмите `New` → `Cron Job`.
+2. Выберите репозиторий `wake-coach` и ветку `dev`.
+3. `Root Directory` оставьте пустым.
+4. В `Build Command` вставьте:
+
+   ```bash
+   corepack enable && pnpm install --frozen-lockfile && pnpm build
+   ```
+
+5. В `Command` вставьте:
+
+   ```bash
+   pnpm --filter @awc/api notifications:dispatch
+   ```
+
+6. В `Schedule` задайте запуск каждые пять минут. Если Render просит cron expression, используйте
+   `*/5 * * * *`.
+7. Откройте **Environment именно этого Cron Job** и добавьте:
+
+| Key                    | Откуда взять Value                                  |
+| ---------------------- | --------------------------------------------------- |
+| `DATABASE_URL`         | Скопировать значение из Environment API Web Service |
+| `TELEGRAM_BOT_TOKEN`   | Скопировать значение из Environment API Web Service |
+| `SESSION_SECRET`       | Скопировать значение из Environment API Web Service |
+| `TELEGRAM_WEB_APP_URL` | Ввести `https://wake-coach-1.onrender.com/`         |
+
+`SESSION_SECRET` worker сейчас не использует напрямую, но production-конфигурация проверяет полный
+набор серверных секретов. Не добавляйте эти значения в Static Site, GitHub или BotFather.
+
+После deploy откройте Cron Job → `Trigger Run` и проверьте лог. Нормальное завершение выглядит как
+одна JSON-строка `notification.run.completed`; токен, Telegram ID и текст ответов там отсутствуют.
+Если due-записей нет, `claimed` и `sent` будут равны нулю — это нормальный результат.
+
 ## Какие переменные куда помещаются
 
 | Имя переменной                  | Откуда взять значение                           | Куда добавить         |
@@ -275,6 +321,7 @@ HTTPS и позволяет позже добавить домен в `Settings`
 | `TELEGRAM_BOT_TOKEN`            | Уже полученный токен BotFather                  | Только API-сервис     |
 | `SESSION_SECRET`                | Новый результат `openssl rand -hex 32`          | Только API-сервис     |
 | `TELEGRAM_AUTH_MAX_AGE_SECONDS` | Введите `900`                                   | Только API-сервис     |
+| `TELEGRAM_WEB_APP_URL`          | `https://wake-coach-1.onrender.com/`            | API и Render Cron Job |
 | `DEEPSEEK_API_KEY`              | Ключ DeepSeek; пока можно не добавлять          | В будущем только API  |
 | `DEEPSEEK_BASE_URL`             | `https://api.deepseek.com`                      | В будущем только API  |
 | `DEEPSEEK_MODEL`                | `deepseek-chat`                                 | В будущем только API  |
@@ -284,8 +331,8 @@ HTTPS и позволяет позже добавить домен в `Settings`
 `VITE_` может попасть в браузер пользователя.
 
 Локальный `.env` не загружается на хостинг автоматически. Значения нужно вручную перенести в
-Render API Web Service → `Environment`. В GitHub, Render Static Site и BotFather секреты не
-добавляются.
+Render API Web Service → `Environment`, а перечисленные выше три секрета и URL — также в
+Render Cron Job → `Environment`. В GitHub, Render Static Site и BotFather секреты не добавляются.
 
 ## Шаг 7. Привязать HTTPS URL в BotFather
 

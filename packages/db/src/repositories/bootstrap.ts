@@ -9,6 +9,7 @@ import {
   ratingObservations,
   users,
   wakeSessions,
+  wakeSchedules,
 } from "../schema.js";
 
 export class PostgresBootstrapRepository implements BootstrapRepository {
@@ -17,6 +18,11 @@ export class PostgresBootstrapRepository implements BootstrapRepository {
   async load(userId: string, now = new Date()) {
     const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user || user.deletionRequestedAt) return null;
+    const [wakeSchedule] = await this.db
+      .select()
+      .from(wakeSchedules)
+      .where(eq(wakeSchedules.userId, userId))
+      .limit(1);
 
     const [active] = await this.db
       .select({
@@ -98,6 +104,17 @@ export class PostgresBootstrapRepository implements BootstrapRepository {
       },
       activeSession,
       dueFollowUpSessionId: dueFollowUp?.id ?? null,
+      wakeSchedule: wakeSchedule
+        ? {
+            userId: wakeSchedule.userId,
+            localTime: wakeSchedule.localTime,
+            timezone: wakeSchedule.timezone,
+            enabled: wakeSchedule.enabled,
+            nextTriggerAt: wakeSchedule.nextTriggerAt,
+            botStatus: wakeSchedule.botStatus,
+            revision: wakeSchedule.revision,
+          }
+        : null,
     };
   }
 }

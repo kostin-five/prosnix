@@ -4,6 +4,7 @@ import {
   PostgresBootstrapRepository,
   PostgresSessionCommandRepository,
   PostgresUserDeletionRepository,
+  PostgresWakeScheduleRepository,
 } from "@awc/db";
 import { createApp } from "./app/create-app.js";
 import { loadConfig } from "./app/config.js";
@@ -16,6 +17,7 @@ const app = await createApp(config, {
   sessionCommands: new PostgresSessionCommandRepository(database.db),
   analyticsRepository: new PostgresAnalyticsRepository(database.db),
   userDeletionRepository: new PostgresUserDeletionRepository(database.db),
+  wakeScheduleRepository: new PostgresWakeScheduleRepository(database.db),
 });
 app.addHook("onClose", async () => database.close());
 

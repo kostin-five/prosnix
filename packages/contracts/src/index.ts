@@ -52,3 +52,31 @@ export type FollowUpOutcome = Static<typeof FollowUpOutcomeSchema>;
 export type RatingInput = Static<typeof RatingInputSchema>;
 export type TaskResultInput = Static<typeof TaskResultInputSchema>;
 export type FollowUpInput = Static<typeof FollowUpInputSchema>;
+
+export const BOT_STATUSES = ["unknown", "available", "blocked"] as const;
+export const BotStatusSchema = Type.Union(BOT_STATUSES.map((value) => Type.Literal(value)));
+
+export const WakeScheduleInputSchema = Type.Object(
+  {
+    localTime: Type.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d$" }),
+    timezone: Type.String({ minLength: 1, maxLength: 100 }),
+    enabled: Type.Boolean(),
+  },
+  { additionalProperties: false },
+);
+
+export const WakeScheduleSchema = Type.Object(
+  {
+    localTime: Type.String(),
+    timezone: Type.String(),
+    enabled: Type.Boolean(),
+    nextTriggerAt: Type.Union([Type.String({ format: "date-time" }), Type.Null()]),
+    botStatus: BotStatusSchema,
+    revision: Type.Integer({ minimum: 1 }),
+  },
+  { additionalProperties: false },
+);
+
+export type BotStatus = Static<typeof BotStatusSchema>;
+export type WakeScheduleInput = Static<typeof WakeScheduleInputSchema>;
+export type WakeScheduleResponse = Static<typeof WakeScheduleSchema>;

@@ -18,6 +18,10 @@ export { PostgresBootstrapRepository } from "./bootstrap.js";
 export { PostgresSessionCommandRepository } from "./sessions.js";
 export { PostgresAnalyticsRepository } from "./analytics.js";
 export { PostgresUserDeletionRepository } from "./delete-user.js";
+export {
+  PostgresWakeNotificationRepository,
+  PostgresWakeScheduleRepository,
+} from "./wake-schedules.js";
 
 function mapUser(row: typeof schema.users.$inferSelect): UserRecord {
   return {

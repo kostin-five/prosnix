@@ -5,6 +5,7 @@ import type {
   TaskId,
   WakeSession,
 } from "./model.js";
+import type { WakeScheduleValue } from "./schedule/schedule.js";
 
 export interface UserRecord {
   id: string;
@@ -94,6 +95,7 @@ export interface BootstrapSnapshot {
   user: UserRecord;
   activeSession: BootstrapSession | null;
   dueFollowUpSessionId: string | null;
+  wakeSchedule: WakeScheduleValue | null;
 }
 
 export interface BootstrapRepository {

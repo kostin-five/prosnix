@@ -32,6 +32,7 @@ export const testConfig: AppConfig = {
   botToken: testBotToken,
   sessionSecret: testSessionSecret,
   telegramAuthMaxAgeSeconds: 900,
+  telegramWebAppUrl: "https://wake-coach.example/",
 };
 
 export function signedInitData(userId = 42): string {
@@ -94,6 +95,7 @@ export function createMemoryDependencies(snapshot?: Partial<BootstrapSnapshot>):
               user,
               activeSession: snapshot?.activeSession ?? null,
               dueFollowUpSessionId: snapshot?.dueFollowUpSessionId ?? null,
+              wakeSchedule: snapshot?.wakeSchedule ?? null,
             }
           : null,
     },

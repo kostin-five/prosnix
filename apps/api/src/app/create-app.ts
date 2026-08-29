@@ -7,6 +7,7 @@ import type {
   SessionCommandRepository,
   UnitOfWork,
   UserDeletionRepository,
+  WakeScheduleRepository,
 } from "@awc/domain";
 import { registerAuthRoutes } from "../auth/routes.js";
 import { registerBootstrapRoute } from "./bootstrap-route.js";
@@ -16,6 +17,8 @@ import { registerAnalyticsRoutes } from "../analytics/routes.js";
 import { registerDeleteUserRoute } from "../auth/delete-route.js";
 import type { AppConfig } from "./config.js";
 import { registerObservability } from "../observability/register.js";
+import { registerWakeScheduleRoutes } from "../notifications/routes.js";
+import { WakeScheduleService } from "../notifications/service.js";
 
 export interface AppDependencies {
   unitOfWork: UnitOfWork;
@@ -23,6 +26,7 @@ export interface AppDependencies {
   sessionCommands?: SessionCommandRepository;
   analyticsRepository?: AnalyticsRepository;
   userDeletionRepository?: UserDeletionRepository;
+  wakeScheduleRepository?: WakeScheduleRepository;
   now?: () => Date;
 }
 
@@ -74,6 +78,16 @@ export async function createApp(
       await registerDeleteUserRoute(app, {
         config,
         repository: dependencies.userDeletionRepository,
+        ...(dependencies.now ? { now: dependencies.now } : {}),
+      });
+    }
+    if (dependencies.wakeScheduleRepository) {
+      await registerWakeScheduleRoutes(app, {
+        config,
+        service: new WakeScheduleService(
+          dependencies.wakeScheduleRepository,
+          dependencies.now ?? (() => new Date()),
+        ),
         ...(dependencies.now ? { now: dependencies.now } : {}),
       });
     }

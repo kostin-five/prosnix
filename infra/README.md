@@ -60,3 +60,20 @@ DATABASE_URL=postgres://awc:awc@localhost:55432/awc pnpm db:migrate
 - Structured logs without Telegram launch payloads, bot tokens or wake-up answers
 
 Провайдер выбирается после измерений staging: региональный трафик, размер базы и месячная стоимость.
+
+## Плановая доставка Telegram
+
+Ежедневные напоминания обрабатывает одноразовая команда:
+
+```bash
+pnpm --filter @awc/api notifications:dispatch
+```
+
+На staging её запускает Render Cron Job каждые пять минут. Cron Job использует те же
+`DATABASE_URL`, `TELEGRAM_BOT_TOKEN` и `SESSION_SECRET`, что API, плюс публичный
+`TELEGRAM_WEB_APP_URL`. Внутренний таймер API и публичный HTTP-endpoint для запуска worker
+запрещены: free web service может заснуть, а privileged endpoint увеличивает поверхность атаки.
+
+Доставка имеет семантику at-most-once для неопределённого ответа Telegram. Автоматически
+повторяется только явный `429`; timeout и `5xx` фиксируются как ambiguous без повтора, чтобы не
+создать два утренних сообщения.

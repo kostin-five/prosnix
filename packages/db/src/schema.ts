@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   check,
   index,
   integer,
@@ -31,6 +32,16 @@ export const taskCategory = pgEnum("task_category", [
 export const ratingKind = pgEnum("rating_kind", ["baseline", "post_protocol"]);
 export const followUpOutcome = pgEnum("follow_up_outcome", ["up", "back", "drowsy"]);
 export const confidence = pgEnum("confidence", ["insufficient", "low", "medium", "high"]);
+export const botStatus = pgEnum("bot_status", ["unknown", "available", "blocked"]);
+export const notificationDeliveryStatus = pgEnum("notification_delivery_status", [
+  "sending",
+  "retry_wait",
+  "sent",
+  "blocked",
+  "ambiguous",
+  "failed",
+  "skipped",
+]);
 
 export const users = pgTable(
   "users",
@@ -47,6 +58,62 @@ export const users = pgTable(
   (table) => [
     unique("users_telegram_user_id_unique").on(table.telegramUserId),
     check("users_learning_count_nonnegative", sql`${table.learningSessionCount} >= 0`),
+  ],
+);
+
+export const wakeSchedules = pgTable(
+  "wake_schedules",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    localTime: text("local_time").notNull(),
+    timezone: text().notNull(),
+    enabled: boolean().notNull().default(false),
+    nextTriggerAt: timestamp("next_trigger_at", { withTimezone: true }),
+    botStatus: botStatus("bot_status").notNull().default("unknown"),
+    revision: integer().notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("wake_schedules_due_idx").on(table.nextTriggerAt),
+    check(
+      "wake_schedules_time_format",
+      sql`${table.localTime} ~ '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'`,
+    ),
+    check("wake_schedules_revision_positive", sql`${table.revision} > 0`),
+    check(
+      "wake_schedules_enabled_trigger",
+      sql`not ${table.enabled} or ${table.nextTriggerAt} is not null`,
+    ),
+  ],
+);
+
+export const notificationDeliveries = pgTable(
+  "notification_deliveries",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    scheduleUserId: uuid("schedule_user_id")
+      .notNull()
+      .references(() => wakeSchedules.userId, { onDelete: "cascade" }),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }).notNull(),
+    status: notificationDeliveryStatus().notNull(),
+    attempts: integer().notNull().default(1),
+    retryAt: timestamp("retry_at", { withTimezone: true }),
+    telegramMessageId: bigint("telegram_message_id", { mode: "bigint" }),
+    errorCode: text("error_code"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+  },
+  (table) => [
+    unique("notification_deliveries_schedule_time_unique").on(
+      table.scheduleUserId,
+      table.scheduledFor,
+    ),
+    index("notification_deliveries_retry_idx").on(table.status, table.retryAt),
+    check("notification_deliveries_attempts_range", sql`${table.attempts} between 1 and 2`),
   ],
 );
 

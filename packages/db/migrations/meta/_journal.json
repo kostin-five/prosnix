@@ -8,6 +8,13 @@
       "when": 1787861265532,
       "tag": "0000_wake_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788018000000,
+      "tag": "0001_wake_notifications",
+      "breakpoints": true
     }
   ]
 }

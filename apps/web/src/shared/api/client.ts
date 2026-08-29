@@ -22,6 +22,14 @@ export interface BootstrapResponse {
     postRating: number | null;
   };
   dueFollowUpSessionId: string | null;
+  wakeSchedule: null | {
+    localTime: string;
+    timezone: string;
+    enabled: boolean;
+    nextTriggerAt: string | null;
+    botStatus: "unknown" | "available" | "blocked";
+    revision: number;
+  };
 }
 
 export interface WakeSessionResponse {

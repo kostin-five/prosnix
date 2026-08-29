@@ -1,0 +1,65 @@
+openapi: 3.1.0
+info:
+  title: Adaptive Wake Coach — расписание пробуждения
+  version: 0.2.0
+paths:
+  /api/v1/me/wake-schedule:
+    get:
+      summary: Получить расписание текущего пользователя
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: Расписание или null
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WakeScheduleEnvelope" }
+        "401": { description: Нет подтверждённой сессии }
+    put:
+      summary: Создать, изменить или выключить ежедневное расписание
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WakeScheduleInput" }
+      responses:
+        "200":
+          description: Сохранённое расписание
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WakeSchedule" }
+        "400": { description: Некорректное время или timezone }
+        "401": { description: Нет подтверждённой сессии }
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: awc_session
+  schemas:
+    WakeScheduleInput:
+      type: object
+      additionalProperties: false
+      required: [localTime, timezone, enabled]
+      properties:
+        localTime: { type: string, pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d$" }
+        timezone: { type: string, minLength: 1, maxLength: 100 }
+        enabled: { type: boolean }
+    WakeSchedule:
+      type: object
+      required: [localTime, timezone, enabled, nextTriggerAt, botStatus, revision]
+      properties:
+        localTime: { type: string }
+        timezone: { type: string }
+        enabled: { type: boolean }
+        nextTriggerAt: { type: [string, "null"], format: date-time }
+        botStatus: { type: string, enum: [unknown, available, blocked] }
+        revision: { type: integer, minimum: 1 }
+    WakeScheduleEnvelope:
+      type: object
+      required: [schedule]
+      properties:
+        schedule:
+          oneOf:
+            - { $ref: "#/components/schemas/WakeSchedule" }
+            - { type: "null" }

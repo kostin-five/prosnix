@@ -29,6 +29,16 @@ export async function registerBootstrapRoute(
       },
       activeSession: snapshot.activeSession,
       dueFollowUpSessionId: snapshot.dueFollowUpSessionId,
+      wakeSchedule: snapshot.wakeSchedule
+        ? {
+            localTime: snapshot.wakeSchedule.localTime,
+            timezone: snapshot.wakeSchedule.timezone,
+            enabled: snapshot.wakeSchedule.enabled,
+            nextTriggerAt: snapshot.wakeSchedule.nextTriggerAt?.toISOString() ?? null,
+            botStatus: snapshot.wakeSchedule.botStatus,
+            revision: snapshot.wakeSchedule.revision,
+          }
+        : null,
     };
   });
 }
