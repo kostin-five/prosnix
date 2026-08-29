@@ -65,7 +65,11 @@ export function createMemoryDependencies(snapshot?: Partial<BootstrapSnapshot>):
     users: {
       findByTelegramId: async (telegramUserId: bigint) => users.get(telegramUserId) ?? null,
       createFromTelegram: async (input: { telegramUserId: bigint; locale?: string }) => {
-        const created = { ...user, telegramUserId: input.telegramUserId, locale: input.locale ?? null };
+        const created = {
+          ...user,
+          telegramUserId: input.telegramUserId,
+          locale: input.locale ?? null,
+        };
         users.set(input.telegramUserId, created);
         return created;
       },
@@ -158,11 +162,7 @@ export function createMemorySessionCommands(userId: string): SessionCommandRepos
           };
         } else {
           if (!session || session.id !== envelope.command.sessionId) {
-            throw new SessionCommandConflict(
-              "session_not_found",
-              "Сессия не найдена",
-              null,
-            );
+            throw new SessionCommandConflict("session_not_found", "Сессия не найдена", null);
           }
           const command = envelope.command;
           if (command.type === "baseline") {
@@ -217,9 +217,7 @@ export function createMemorySessionCommands(userId: string): SessionCommandRepos
   };
 }
 
-export async function authenticateTestUser(
-  app: FastifyInstance,
-): Promise<string> {
+export async function authenticateTestUser(app: FastifyInstance): Promise<string> {
   const response = await app.inject({
     method: "POST",
     url: "/api/v1/auth/telegram",

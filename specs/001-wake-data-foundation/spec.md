@@ -11,7 +11,7 @@
 экспериментальную аналитику, чтобы пользователи могли в любое время открыть приложение и
 продолжить пользоваться им без потери данных."
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Открыть приложение и продолжить работу (Priority: P1)
 
@@ -130,7 +130,7 @@
 - В реальный профиль по ошибке пытаются загрузиться демонстрационные данные.
 - Пользователь удаляет профиль во время активной сессии.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -209,7 +209,7 @@
 - **Recommendation**: Следующий назначаемый протокол, его объяснение, источники доказательств и
   безопасный fallback.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 

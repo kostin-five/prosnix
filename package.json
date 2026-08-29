@@ -11,6 +11,7 @@
     "dev": "pnpm --parallel --filter @awc/web --filter @awc/api dev",
     "dev:web": "pnpm --filter @awc/web dev",
     "dev:api": "pnpm --filter @awc/api dev",
+    "start:api": "pnpm --filter @awc/api start",
     "build": "pnpm -r --if-present build",
     "verify:production": "node scripts/verify-production-boundaries.mjs",
     "typecheck": "pnpm -r --if-present typecheck",

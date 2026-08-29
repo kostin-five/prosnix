@@ -45,15 +45,15 @@ concurrent active sessions; four user stories and the existing seven-screen wake
 
 ## Constitution Check
 
-*GATE: Passed before research and re-checked after design.*
+_GATE: Passed before research and re-checked after design._
 
-| Principle | Gate | Design evidence |
-|-----------|------|-----------------|
-| Reliable Wake-Up Continuity | PASS | Server checkpoints, optimistic concurrency, idempotency, managed backups, same-origin deployment and explicit draft state |
-| Truthful Experimentation | PASS | Immutable observations, protocol-level attribution, matched comparisons, algorithm versions and sample-size labels |
-| Privacy and Security by Default | PASS | Server-side Telegram validation, short-lived secure session, least-data model and deletion workflow |
-| Modular Domain Architecture | PASS | Domain, contracts, persistence, API and UI are separate workspace boundaries |
-| Testable and Observable Delivery | PASS | Unit, integration, contract and end-to-end gates plus structured privacy-safe telemetry |
+| Principle                        | Gate | Design evidence                                                                                                           |
+| -------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------- |
+| Reliable Wake-Up Continuity      | PASS | Server checkpoints, optimistic concurrency, idempotency, managed backups, same-origin deployment and explicit draft state |
+| Truthful Experimentation         | PASS | Immutable observations, protocol-level attribution, matched comparisons, algorithm versions and sample-size labels        |
+| Privacy and Security by Default  | PASS | Server-side Telegram validation, short-lived secure session, least-data model and deletion workflow                       |
+| Modular Domain Architecture      | PASS | Domain, contracts, persistence, API and UI are separate workspace boundaries                                              |
+| Testable and Observable Delivery | PASS | Unit, integration, contract and end-to-end gates plus structured privacy-safe telemetry                                   |
 
 No constitution exceptions are required.
 

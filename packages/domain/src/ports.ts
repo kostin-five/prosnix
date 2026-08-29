@@ -35,10 +35,7 @@ export interface StoredCommandResult {
 
 export interface UserRepository {
   findByTelegramId(telegramUserId: bigint): Promise<UserRecord | null>;
-  createFromTelegram(input: {
-    telegramUserId: bigint;
-    locale?: string;
-  }): Promise<UserRecord>;
+  createFromTelegram(input: { telegramUserId: bigint; locale?: string }): Promise<UserRecord>;
 }
 
 export interface SessionRepository {
@@ -162,10 +159,7 @@ export interface SessionCommandResult {
 export class SessionCommandConflict extends Error {
   constructor(
     readonly code:
-      | "idempotency_conflict"
-      | "stale_version"
-      | "invalid_transition"
-      | "session_not_found",
+      "idempotency_conflict" | "stale_version" | "invalid_transition" | "session_not_found",
     message: string,
     readonly canonicalSession: WakeSession | null,
   ) {

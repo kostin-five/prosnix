@@ -39,7 +39,9 @@ export function verifyAppSessionToken(
     return null;
   }
   try {
-    const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Partial<AppSessionClaims>;
+    const claims = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    ) as Partial<AppSessionClaims>;
     if (
       typeof claims.userId !== "string" ||
       typeof claims.nonce !== "string" ||

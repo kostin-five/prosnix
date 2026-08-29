@@ -2,12 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AnalyticsProfile } from "@awc/domain";
 import { createApp } from "../../src/app/create-app.js";
-import {
-  authenticateTestUser,
-  createMemoryDependencies,
-  testConfig,
-  testNow,
-} from "../helpers.js";
+import { authenticateTestUser, createMemoryDependencies, testConfig, testNow } from "../helpers.js";
 
 const profile: AnalyticsProfile = {
   methodVersion: "analytics-v1",

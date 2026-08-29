@@ -9,6 +9,9 @@ async function json(route: Route, body: unknown) {
 }
 
 async function openTelegramApp(page: Page) {
+  await page.route("https://telegram.org/js/telegram-web-app.js*", (route) =>
+    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
+  );
   await page.addInitScript(() => {
     window.Telegram = {
       WebApp: {
@@ -18,9 +21,7 @@ async function openTelegramApp(page: Page) {
       },
     };
   });
-  await page.route("**/api/v1/auth/telegram", (route) =>
-    route.fulfill({ status: 204 }),
-  );
+  await page.route("**/api/v1/auth/telegram", (route) => route.fulfill({ status: 204 }));
   await page.route("**/api/v1/bootstrap", (route) =>
     json(route, {
       user: { id: "user-1", locale: "ru", timezone: "Europe/Moscow" },

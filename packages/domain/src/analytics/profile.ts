@@ -1,9 +1,4 @@
-import type {
-  AnalyticsProfile,
-  CompletedSessionEvidence,
-  Confidence,
-  Metric,
-} from "../model.js";
+import type { AnalyticsProfile, CompletedSessionEvidence, Confidence, Metric } from "../model.js";
 
 function mean(values: readonly number[]): number | null {
   if (values.length === 0) return null;
@@ -36,12 +31,8 @@ export function computeAnalyticsProfile(
   evidence: readonly CompletedSessionEvidence[],
   computedAt = "1970-01-01T00:00:00.000Z",
 ): AnalyticsProfile {
-  const deltas = evidence.map(
-    ({ baseline, postRating }) => postRating - baseline,
-  );
-  const answeredFollowUps = evidence.filter(
-    ({ followUp }) => followUp !== null,
-  );
+  const deltas = evidence.map(({ baseline, postRating }) => postRating - baseline);
+  const answeredFollowUps = evidence.filter(({ followUp }) => followUp !== null);
 
   const protocolGroups = new Map<string, CompletedSessionEvidence[]>();
   for (const item of evidence) {
@@ -56,11 +47,7 @@ export function computeAnalyticsProfile(
       const value =
         group.length < 3
           ? null
-          : mean(
-              group.map(
-                ({ baseline, postRating }) => postRating - baseline,
-              ),
-            );
+          : mean(group.map(({ baseline, postRating }) => postRating - baseline));
       return metric(`protocol:${key}`, value, group);
     });
 
@@ -88,22 +75,14 @@ export function computeAnalyticsProfile(
   }
   const factorEffects = [...comparisonGroups.values()]
     .sort((left, right) =>
-      `${left.factorKey}:${left.groupKey}`.localeCompare(
-        `${right.factorKey}:${right.groupKey}`,
-      ),
+      `${left.factorKey}:${left.groupKey}`.localeCompare(`${right.factorKey}:${right.groupKey}`),
     )
     .flatMap((group) => {
       const pairCount = Math.min(group.with.length, group.without.length);
       if (pairCount < 3) return [];
-      const withMean = mean(
-        group.with.map(
-          ({ baseline, postRating }) => postRating - baseline,
-        ),
-      );
+      const withMean = mean(group.with.map(({ baseline, postRating }) => postRating - baseline));
       const withoutMean = mean(
-        group.without.map(
-          ({ baseline, postRating }) => postRating - baseline,
-        ),
+        group.without.map(({ baseline, postRating }) => postRating - baseline),
       );
       if (withMean === null || withoutMean === null) return [];
       return [
@@ -122,11 +101,7 @@ export function computeAnalyticsProfile(
     averageDelta: metric("average-delta", mean(deltas), evidence),
     riseSuccess: metric(
       "rise-success",
-      mean(
-        answeredFollowUps.map(({ followUp }) =>
-          followUp === "up" ? 1 : 0,
-        ),
-      ),
+      mean(answeredFollowUps.map(({ followUp }) => (followUp === "up" ? 1 : 0))),
       answeredFollowUps,
     ),
     protocolEffects,

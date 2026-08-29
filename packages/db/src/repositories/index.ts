@@ -97,12 +97,7 @@ class PostgresSessionRepository implements SessionRepository {
     const [row] = await this.db
       .select()
       .from(schema.wakeSessions)
-      .where(
-        and(
-          eq(schema.wakeSessions.userId, userId),
-          eq(schema.wakeSessions.id, sessionId),
-        ),
-      )
+      .where(and(eq(schema.wakeSessions.userId, userId), eq(schema.wakeSessions.id, sessionId)))
       .limit(1);
     return row ? mapSession(row) : null;
   }
@@ -121,9 +116,7 @@ class PostgresSessionRepository implements SessionRepository {
         ...(input.protocolCompletedAt !== undefined
           ? { protocolCompletedAt: input.protocolCompletedAt }
           : {}),
-        ...(input.followUpDueAt !== undefined
-          ? { followUpDueAt: input.followUpDueAt }
-          : {}),
+        ...(input.followUpDueAt !== undefined ? { followUpDueAt: input.followUpDueAt } : {}),
         ...(input.abandonedAt !== undefined ? { abandonedAt: input.abandonedAt } : {}),
       })
       .where(
@@ -186,9 +179,7 @@ export function connectDatabase(databaseUrl: string): {
     close: () => client.end(),
     unitOfWork: {
       transaction: (work) =>
-        db.transaction((transaction) =>
-          work(createRepositories(transaction as Database)),
-        ),
+        db.transaction((transaction) => work(createRepositories(transaction as Database))),
     },
   };
 }

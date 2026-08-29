@@ -1,8 +1,13 @@
 import type { FollowUpOutcome, TaskId, WakeSession } from "../model.js";
 import { SessionCommandError } from "../model.js";
 
-interface VersionedCommand { expectedVersion: number }
-interface BaselineCommand extends VersionedCommand { value: number; observedAt: string }
+interface VersionedCommand {
+  expectedVersion: number;
+}
+interface BaselineCommand extends VersionedCommand {
+  value: number;
+  observedAt: string;
+}
 interface TaskResultCommand extends VersionedCommand {
   stepIndex: number;
   taskId: TaskId;
@@ -16,8 +21,12 @@ interface PostRatingCommand extends VersionedCommand {
   observedAt: string;
   followUpDelayMinutes: number;
 }
-interface FollowUpCommand extends VersionedCommand { outcome: FollowUpOutcome }
-interface AbandonCommand extends VersionedCommand { observedAt: string }
+interface FollowUpCommand extends VersionedCommand {
+  outcome: FollowUpOutcome;
+}
+interface AbandonCommand extends VersionedCommand {
+  observedAt: string;
+}
 
 function assertVersion(session: WakeSession, expectedVersion: number): void {
   if (session.version !== expectedVersion) {
@@ -30,10 +39,7 @@ function assertVersion(session: WakeSession, expectedVersion: number): void {
 
 function assertRating(value: number): void {
   if (!Number.isInteger(value) || value < 1 || value > 10) {
-    throw new SessionCommandError(
-      "invalid_rating",
-      "Rating must be an integer from 1 to 10",
-    );
+    throw new SessionCommandError("invalid_rating", "Rating must be an integer from 1 to 10");
   }
 }
 
@@ -46,10 +52,7 @@ function assertActive(session: WakeSession): void {
   }
 }
 
-export function acceptBaseline(
-  session: WakeSession,
-  command: BaselineCommand,
-): WakeSession {
+export function acceptBaseline(session: WakeSession, command: BaselineCommand): WakeSession {
   assertVersion(session, command.expectedVersion);
   assertRating(command.value);
   if (session.status !== "assigned" || session.baseline !== null) {
@@ -67,10 +70,7 @@ export function acceptBaseline(
   };
 }
 
-export function acceptTaskResult(
-  session: WakeSession,
-  command: TaskResultCommand,
-): WakeSession {
+export function acceptTaskResult(session: WakeSession, command: TaskResultCommand): WakeSession {
   assertVersion(session, command.expectedVersion);
   assertActive(session);
   if (session.status !== "in_progress" || session.baseline === null) {
@@ -99,10 +99,7 @@ export function acceptTaskResult(
     !Number.isInteger(command.durationMs) ||
     command.durationMs < 0
   ) {
-    throw new SessionCommandError(
-      "invalid_task_result",
-      "Task result values are invalid",
-    );
+    throw new SessionCommandError("invalid_task_result", "Task result values are invalid");
   }
   return {
     ...session,
@@ -123,10 +120,7 @@ export function acceptTaskResult(
   };
 }
 
-export function acceptPostRating(
-  session: WakeSession,
-  command: PostRatingCommand,
-): WakeSession {
+export function acceptPostRating(session: WakeSession, command: PostRatingCommand): WakeSession {
   assertVersion(session, command.expectedVersion);
   assertRating(command.value);
   assertActive(session);
@@ -142,10 +136,7 @@ export function acceptPostRating(
       "All assigned steps must be completed before the post rating",
     );
   }
-  if (
-    !Number.isInteger(command.followUpDelayMinutes) ||
-    command.followUpDelayMinutes < 0
-  ) {
+  if (!Number.isInteger(command.followUpDelayMinutes) || command.followUpDelayMinutes < 0) {
     throw new SessionCommandError(
       "invalid_transition",
       "Follow-up delay must be a non-negative integer",
@@ -153,10 +144,7 @@ export function acceptPostRating(
   }
   const completedAt = new Date(command.observedAt);
   if (Number.isNaN(completedAt.getTime())) {
-    throw new SessionCommandError(
-      "invalid_transition",
-      "Observed time is invalid",
-    );
+    throw new SessionCommandError("invalid_transition", "Observed time is invalid");
   }
   const followUpDueAt = new Date(
     completedAt.getTime() + command.followUpDelayMinutes * 60_000,
@@ -171,16 +159,10 @@ export function acceptPostRating(
   };
 }
 
-export function acceptFollowUp(
-  session: WakeSession,
-  command: FollowUpCommand,
-): WakeSession {
+export function acceptFollowUp(session: WakeSession, command: FollowUpCommand): WakeSession {
   assertVersion(session, command.expectedVersion);
   if (session.status !== "protocol_completed" || session.postRating === null) {
-    throw new SessionCommandError(
-      "invalid_transition",
-      "Follow-up requires a completed protocol",
-    );
+    throw new SessionCommandError("invalid_transition", "Follow-up requires a completed protocol");
   }
   if (session.followUp !== null) {
     throw new SessionCommandError(
@@ -195,10 +177,7 @@ export function acceptFollowUp(
   };
 }
 
-export function abandonSession(
-  session: WakeSession,
-  command: AbandonCommand,
-): WakeSession {
+export function abandonSession(session: WakeSession, command: AbandonCommand): WakeSession {
   assertVersion(session, command.expectedVersion);
   assertActive(session);
   return {

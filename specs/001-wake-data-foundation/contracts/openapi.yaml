@@ -27,29 +27,29 @@ paths:
                   type: string
                   minLength: 1
       responses:
-        '204':
+        "204":
           description: Authenticated; secure session cookie set
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /bootstrap:
     get:
       summary: Load the authenticated user's current application state
       operationId: getBootstrap
       responses:
-        '200':
+        "200":
           description: Current profile, active session and due follow-up
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Bootstrap'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                $ref: "#/components/schemas/Bootstrap"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /sessions:
     post:
       summary: Assign a protocol and create or return the active wake-up session
       operationId: createSession
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -62,77 +62,77 @@ paths:
                   type: string
                   examples: [Europe/Moscow]
       responses:
-        '201':
+        "201":
           description: Session created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WakeSession'
-        '200':
+                $ref: "#/components/schemas/WakeSession"
+        "200":
           description: Existing active session or idempotent replay
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WakeSession'
-        '409':
-          $ref: '#/components/responses/Conflict'
+                $ref: "#/components/schemas/WakeSession"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /sessions/{sessionId}/baseline:
     put:
       summary: Accept the baseline alertness rating and start the protocol
       operationId: setBaseline
       parameters:
-        - $ref: '#/components/parameters/SessionId'
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/ExpectedVersion'
+        - $ref: "#/components/parameters/SessionId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
       requestBody:
-        $ref: '#/components/requestBodies/Rating'
+        $ref: "#/components/requestBodies/Rating"
       responses:
-        '200':
-          $ref: '#/components/responses/SessionUpdated'
-        '409':
-          $ref: '#/components/responses/Conflict'
+        "200":
+          $ref: "#/components/responses/SessionUpdated"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /sessions/{sessionId}/steps/{stepIndex}:
     put:
       summary: Accept the result of the currently assigned protocol step
       operationId: setTaskResult
       parameters:
-        - $ref: '#/components/parameters/SessionId'
-        - $ref: '#/components/parameters/StepIndex'
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/ExpectedVersion'
+        - $ref: "#/components/parameters/SessionId"
+        - $ref: "#/components/parameters/StepIndex"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TaskResultInput'
+              $ref: "#/components/schemas/TaskResultInput"
       responses:
-        '200':
-          $ref: '#/components/responses/SessionUpdated'
-        '409':
-          $ref: '#/components/responses/Conflict'
+        "200":
+          $ref: "#/components/responses/SessionUpdated"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /sessions/{sessionId}/post-rating:
     put:
       summary: Accept post-protocol alertness and complete the protocol
       operationId: setPostRating
       parameters:
-        - $ref: '#/components/parameters/SessionId'
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/ExpectedVersion'
+        - $ref: "#/components/parameters/SessionId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
       requestBody:
-        $ref: '#/components/requestBodies/Rating'
+        $ref: "#/components/requestBodies/Rating"
       responses:
-        '200':
-          $ref: '#/components/responses/SessionUpdated'
-        '409':
-          $ref: '#/components/responses/Conflict'
+        "200":
+          $ref: "#/components/responses/SessionUpdated"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /sessions/{sessionId}/follow-up:
     put:
       summary: Accept the delayed wake-up outcome
       operationId: setFollowUp
       parameters:
-        - $ref: '#/components/parameters/SessionId'
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: "#/components/parameters/SessionId"
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -142,42 +142,42 @@ paths:
               required: [outcome]
               properties:
                 outcome:
-                  $ref: '#/components/schemas/FollowUpOutcome'
+                  $ref: "#/components/schemas/FollowUpOutcome"
       responses:
-        '200':
-          $ref: '#/components/responses/SessionUpdated'
-        '409':
-          $ref: '#/components/responses/Conflict'
+        "200":
+          $ref: "#/components/responses/SessionUpdated"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /sessions/{sessionId}/abandon:
     post:
       summary: Explicitly abandon an unfinished session
       operationId: abandonSession
       parameters:
-        - $ref: '#/components/parameters/SessionId'
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/ExpectedVersion'
+        - $ref: "#/components/parameters/SessionId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
       responses:
-        '200':
-          $ref: '#/components/responses/SessionUpdated'
-        '409':
-          $ref: '#/components/responses/Conflict'
+        "200":
+          $ref: "#/components/responses/SessionUpdated"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /analytics/profile:
     get:
       summary: Get reproducible wake-up profile metrics
       operationId: getAnalyticsProfile
       responses:
-        '200':
+        "200":
           description: Versioned analytics profile
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AnalyticsProfile'
+                $ref: "#/components/schemas/AnalyticsProfile"
   /me:
     delete:
       summary: Request deletion of the authenticated user's profile and history
       operationId: deleteMe
       responses:
-        '204':
+        "204":
           description: Profile and history deleted; application session cleared
 components:
   securitySchemes:
@@ -238,39 +238,39 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Problem'
+            $ref: "#/components/schemas/Problem"
     Conflict:
       description: Stale state, invalid transition or idempotency-key conflict
       content:
         application/json:
           schema:
             allOf:
-              - $ref: '#/components/schemas/Problem'
+              - $ref: "#/components/schemas/Problem"
               - type: object
                 properties:
                   canonicalSession:
-                    $ref: '#/components/schemas/WakeSession'
+                    $ref: "#/components/schemas/WakeSession"
     SessionUpdated:
       description: Session transition accepted or replayed
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/WakeSession'
+            $ref: "#/components/schemas/WakeSession"
   schemas:
     Bootstrap:
       type: object
       required: [user, activeSession, dueFollowUp]
       properties:
         user:
-          $ref: '#/components/schemas/UserProfile'
+          $ref: "#/components/schemas/UserProfile"
         activeSession:
           oneOf:
-            - $ref: '#/components/schemas/WakeSession'
-            - type: 'null'
+            - $ref: "#/components/schemas/WakeSession"
+            - type: "null"
         dueFollowUp:
           oneOf:
-            - $ref: '#/components/schemas/DueFollowUp'
-            - type: 'null'
+            - $ref: "#/components/schemas/DueFollowUp"
+            - type: "null"
     UserProfile:
       type: object
       required: [id, locale, timezone, learningSessionCount]
@@ -279,7 +279,7 @@ components:
           type: string
           format: uuid
         locale:
-          type: [string, 'null']
+          type: [string, "null"]
         timezone:
           type: string
         learningSessionCount:
@@ -308,29 +308,29 @@ components:
           type: integer
           minimum: 0
         assignment:
-          $ref: '#/components/schemas/Assignment'
+          $ref: "#/components/schemas/Assignment"
         observations:
           type: object
           required: [baseline, tasks, postRating, followUp]
           properties:
             baseline:
-              type: [integer, 'null']
+              type: [integer, "null"]
               minimum: 1
               maximum: 10
             tasks:
               type: array
               items:
-                $ref: '#/components/schemas/TaskObservation'
+                $ref: "#/components/schemas/TaskObservation"
             postRating:
-              type: [integer, 'null']
+              type: [integer, "null"]
               minimum: 1
               maximum: 10
             followUp:
               oneOf:
-                - $ref: '#/components/schemas/FollowUpOutcome'
-                - type: 'null'
+                - $ref: "#/components/schemas/FollowUpOutcome"
+                - type: "null"
         followUpDueAt:
-          type: [string, 'null']
+          type: [string, "null"]
           format: date-time
     Assignment:
       type: object
@@ -353,7 +353,7 @@ components:
           type: array
           minItems: 1
           items:
-            $ref: '#/components/schemas/ProtocolStep'
+            $ref: "#/components/schemas/ProtocolStep"
     ProtocolStep:
       type: object
       required: [index, taskId, category]
@@ -384,7 +384,7 @@ components:
           minimum: 0
     TaskObservation:
       allOf:
-        - $ref: '#/components/schemas/TaskResultInput'
+        - $ref: "#/components/schemas/TaskResultInput"
         - type: object
           required: [stepIndex, category, observedAt]
           properties:
@@ -412,7 +412,8 @@ components:
           format: date-time
     AnalyticsProfile:
       type: object
-      required: [methodVersion, computedAt, averageDelta, riseSuccess, protocolEffects, factorEffects]
+      required:
+        [methodVersion, computedAt, averageDelta, riseSuccess, protocolEffects, factorEffects]
       properties:
         methodVersion:
           type: string
@@ -420,17 +421,17 @@ components:
           type: string
           format: date-time
         averageDelta:
-          $ref: '#/components/schemas/Metric'
+          $ref: "#/components/schemas/Metric"
         riseSuccess:
-          $ref: '#/components/schemas/Metric'
+          $ref: "#/components/schemas/Metric"
         protocolEffects:
           type: array
           items:
-            $ref: '#/components/schemas/Metric'
+            $ref: "#/components/schemas/Metric"
         factorEffects:
           type: array
           items:
-            $ref: '#/components/schemas/Metric'
+            $ref: "#/components/schemas/Metric"
     Metric:
       type: object
       required: [key, value, evidenceCount, confidence, evidenceIds]
@@ -438,7 +439,7 @@ components:
         key:
           type: string
         value:
-          type: [number, 'null']
+          type: [number, "null"]
         evidenceCount:
           type: integer
           minimum: 0

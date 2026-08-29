@@ -30,6 +30,9 @@ async function json(route: Route, body: unknown, status = 200) {
 }
 
 async function installTelegram(page: Page) {
+  await page.route("https://telegram.org/js/telegram-web-app.js*", (route) =>
+    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
+  );
   await page.addInitScript(() => {
     window.Telegram = {
       WebApp: {

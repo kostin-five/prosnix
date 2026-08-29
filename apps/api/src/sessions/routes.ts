@@ -13,14 +13,16 @@ import type { AppConfig } from "../app/config.js";
 import { authenticatedUserId } from "../auth/require-session.js";
 import { SessionService } from "./service.js";
 
-interface SessionParams { sessionId: string }
-interface StepParams extends SessionParams { stepIndex: string }
+interface SessionParams {
+  sessionId: string;
+}
+interface StepParams extends SessionParams {
+  stepIndex: string;
+}
 
 function operationId(request: FastifyRequest): string | null {
   const value = request.headers["idempotency-key"];
-  return typeof value === "string" && value.length >= 8 && value.length <= 128
-    ? value
-    : null;
+  return typeof value === "string" && value.length >= 8 && value.length <= 128 ? value : null;
 }
 
 function expectedVersion(request: FastifyRequest): number | null {
@@ -56,7 +58,11 @@ async function execute(
   } catch (error) {
     if (error instanceof SessionCommandConflict) {
       request.log.warn(
-        { event: "wake_session_transition_conflict", commandType: command.type, conflictCode: error.code },
+        {
+          event: "wake_session_transition_conflict",
+          commandType: command.type,
+          conflictCode: error.code,
+        },
         "wake session transition rejected",
       );
       return reply.status(409).send({
@@ -88,10 +94,15 @@ export async function registerSessionRoutes(
       },
     },
     (request, reply) =>
-      execute(request, reply, { ...options, now }, {
-        type: "create",
-        timezone: request.body.timezone,
-      }),
+      execute(
+        request,
+        reply,
+        { ...options, now },
+        {
+          type: "create",
+          timezone: request.body.timezone,
+        },
+      ),
   );
 
   app.put<{ Params: SessionParams; Body: RatingInput }>(
@@ -100,15 +111,20 @@ export async function registerSessionRoutes(
     (request, reply) => {
       const version = expectedVersion(request);
       if (!version) return reply.status(400).send({ code: "expected_version_required" });
-      return execute(request, reply, { ...options, now }, {
-        type: "baseline",
-        sessionId: request.params.sessionId,
-        expectedVersion: version,
-        value: request.body.value,
-        ...(request.body.clientObservedAt
-          ? { clientObservedAt: request.body.clientObservedAt }
-          : {}),
-      });
+      return execute(
+        request,
+        reply,
+        { ...options, now },
+        {
+          type: "baseline",
+          sessionId: request.params.sessionId,
+          expectedVersion: version,
+          value: request.body.value,
+          ...(request.body.clientObservedAt
+            ? { clientObservedAt: request.body.clientObservedAt }
+            : {}),
+        },
+      );
     },
   );
 
@@ -122,13 +138,18 @@ export async function registerSessionRoutes(
       if (!Number.isInteger(stepIndex) || stepIndex < 0) {
         return reply.status(400).send({ code: "invalid_step_index" });
       }
-      return execute(request, reply, { ...options, now }, {
-        type: "task",
-        sessionId: request.params.sessionId,
-        expectedVersion: version,
-        stepIndex,
-        ...request.body,
-      });
+      return execute(
+        request,
+        reply,
+        { ...options, now },
+        {
+          type: "task",
+          sessionId: request.params.sessionId,
+          expectedVersion: version,
+          stepIndex,
+          ...request.body,
+        },
+      );
     },
   );
 
@@ -138,15 +159,20 @@ export async function registerSessionRoutes(
     (request, reply) => {
       const version = expectedVersion(request);
       if (!version) return reply.status(400).send({ code: "expected_version_required" });
-      return execute(request, reply, { ...options, now }, {
-        type: "post_rating",
-        sessionId: request.params.sessionId,
-        expectedVersion: version,
-        value: request.body.value,
-        ...(request.body.clientObservedAt
-          ? { clientObservedAt: request.body.clientObservedAt }
-          : {}),
-      });
+      return execute(
+        request,
+        reply,
+        { ...options, now },
+        {
+          type: "post_rating",
+          sessionId: request.params.sessionId,
+          expectedVersion: version,
+          value: request.body.value,
+          ...(request.body.clientObservedAt
+            ? { clientObservedAt: request.body.clientObservedAt }
+            : {}),
+        },
+      );
     },
   );
 
@@ -154,23 +180,30 @@ export async function registerSessionRoutes(
     "/api/v1/sessions/:sessionId/follow-up",
     { schema: { body: FollowUpInputSchema } },
     (request, reply) =>
-      execute(request, reply, { ...options, now }, {
-        type: "follow_up",
-        sessionId: request.params.sessionId,
-        outcome: request.body.outcome,
-      }),
+      execute(
+        request,
+        reply,
+        { ...options, now },
+        {
+          type: "follow_up",
+          sessionId: request.params.sessionId,
+          outcome: request.body.outcome,
+        },
+      ),
   );
 
-  app.post<{ Params: SessionParams }>(
-    "/api/v1/sessions/:sessionId/abandon",
-    (request, reply) => {
-      const version = expectedVersion(request);
-      if (!version) return reply.status(400).send({ code: "expected_version_required" });
-      return execute(request, reply, { ...options, now }, {
+  app.post<{ Params: SessionParams }>("/api/v1/sessions/:sessionId/abandon", (request, reply) => {
+    const version = expectedVersion(request);
+    if (!version) return reply.status(400).send({ code: "expected_version_required" });
+    return execute(
+      request,
+      reply,
+      { ...options, now },
+      {
         type: "abandon",
         sessionId: request.params.sessionId,
         expectedVersion: version,
-      });
-    },
-  );
+      },
+    );
+  });
 }

@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 test("пользователь подтверждает удаление и начинает с чистого профиля", async ({ page }) => {
+  await page.route("https://telegram.org/js/telegram-web-app.js*", (route) =>
+    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
+  );
   await page.addInitScript(() => {
     window.Telegram = {
       WebApp: {
@@ -29,8 +32,20 @@ test("пользователь подтверждает удаление и на
       body: JSON.stringify({
         methodVersion: "analytics-v1",
         computedAt: "2026-08-28T06:00:00.000Z",
-        averageDelta: { key: "average-delta", value: null, evidenceCount: 0, evidenceIds: [], confidence: "insufficient" },
-        riseSuccess: { key: "rise-success", value: null, evidenceCount: 0, evidenceIds: [], confidence: "insufficient" },
+        averageDelta: {
+          key: "average-delta",
+          value: null,
+          evidenceCount: 0,
+          evidenceIds: [],
+          confidence: "insufficient",
+        },
+        riseSuccess: {
+          key: "rise-success",
+          value: null,
+          evidenceCount: 0,
+          evidenceIds: [],
+          confidence: "insufficient",
+        },
         protocolEffects: [],
         factorEffects: [],
       }),
@@ -41,8 +56,8 @@ test("пользователь подтверждает удаление и на
   await page.goto("/");
   await page.getByRole("button", { name: "Статистика" }).click();
   await page.getByRole("button", { name: "Удалить мой профиль" }).click();
-  const deletion = page.waitForRequest((request) =>
-    request.url().includes("/api/v1/me") && request.method() === "DELETE",
+  const deletion = page.waitForRequest(
+    (request) => request.url().includes("/api/v1/me") && request.method() === "DELETE",
   );
   await page.getByRole("button", { name: "Да, удалить всё" }).click();
   await deletion;

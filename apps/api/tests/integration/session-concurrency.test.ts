@@ -20,9 +20,24 @@ describe("идемпотентность и конфликт версий", () =
     const cookie = await authenticateTestUser(app);
     const headers = { cookie, "idempotency-key": "create-0001" };
 
-    const first = await app.inject({ method: "POST", url: "/api/v1/sessions", headers, payload: { timezone: "UTC" } });
-    const retry = await app.inject({ method: "POST", url: "/api/v1/sessions", headers, payload: { timezone: "UTC" } });
-    const changed = await app.inject({ method: "POST", url: "/api/v1/sessions", headers, payload: { timezone: "Europe/Moscow" } });
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/v1/sessions",
+      headers,
+      payload: { timezone: "UTC" },
+    });
+    const retry = await app.inject({
+      method: "POST",
+      url: "/api/v1/sessions",
+      headers,
+      payload: { timezone: "UTC" },
+    });
+    const changed = await app.inject({
+      method: "POST",
+      url: "/api/v1/sessions",
+      headers,
+      payload: { timezone: "Europe/Moscow" },
+    });
 
     expect(first.statusCode).toBe(201);
     expect(retry.statusCode).toBe(201);

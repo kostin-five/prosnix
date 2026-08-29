@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 test("mobile user resumes from the next confirmed task", async ({ page }) => {
+  await page.route("https://telegram.org/js/telegram-web-app.js*", (route) =>
+    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
+  );
   await page.addInitScript(() => {
     window.Telegram = {
       WebApp: {
@@ -10,9 +13,7 @@ test("mobile user resumes from the next confirmed task", async ({ page }) => {
       },
     };
   });
-  await page.route("**/api/v1/auth/telegram", (route) =>
-    route.fulfill({ status: 204 }),
-  );
+  await page.route("**/api/v1/auth/telegram", (route) => route.fulfill({ status: 204 }));
   await page.route("**/api/v1/bootstrap", (route) =>
     route.fulfill({
       status: 200,
@@ -56,6 +57,9 @@ test("mobile user resumes from the next confirmed task", async ({ page }) => {
 });
 
 test("пользователь может серверно закрыть прерванную сессию и начать заново", async ({ page }) => {
+  await page.route("https://telegram.org/js/telegram-web-app.js*", (route) =>
+    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
+  );
   await page.addInitScript(() => {
     window.Telegram = {
       WebApp: {
@@ -74,7 +78,12 @@ test("пользователь может серверно закрыть пре
         user: { id: "user-1", locale: "ru", timezone: "Europe/Moscow" },
         activeSession: {
           session: { id: "session-1", status: "in_progress", currentStepIndex: 1, version: 3 },
-          protocol: { key: "learning", version: 1, title: "Тест", steps: [{ index: 0, taskId: "math", category: "cognitive" }] },
+          protocol: {
+            key: "learning",
+            version: 1,
+            title: "Тест",
+            steps: [{ index: 0, taskId: "math", category: "cognitive" }],
+          },
           assignment: { strategyVersion: "learning-v1", phase: "learning", hypothesis: "Тест" },
           baseline: 3,
           postRating: null,

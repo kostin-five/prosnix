@@ -1,10 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type {
-  SessionCommand,
-  SessionCommandRepository,
-  SessionCommandResult,
-} from "@awc/domain";
+import type { SessionCommand, SessionCommandRepository, SessionCommandResult } from "@awc/domain";
 
 function commandHash(command: SessionCommand): string {
   return createHash("sha256").update(JSON.stringify(command)).digest("hex");

@@ -18,14 +18,18 @@ for (const name of ["TELEGRAM_BOT_TOKEN", "DEEPSEEK_API_KEY", "DATABASE_URL", "S
 
 async function files(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
-  const nested = await Promise.all(entries.map((entry) => {
-    const path = join(directory, entry.name);
-    return entry.isDirectory() ? files(path) : [path];
-  }));
+  const nested = await Promise.all(
+    entries.map((entry) => {
+      const path = join(directory, entry.name);
+      return entry.isDirectory() ? files(path) : [path];
+    }),
+  );
   return nested.flat();
 }
 
-const assets = (await files(root)).filter((file) => [".js", ".css", ".html"].includes(extname(file)));
+const assets = (await files(root)).filter((file) =>
+  [".js", ".css", ".html"].includes(extname(file)),
+);
 const violations = [];
 for (const file of assets) {
   const content = await readFile(file, "utf8");

@@ -21,32 +21,16 @@ export const sessionStatus = pgEnum("session_status", [
   "protocol_completed",
   "abandoned",
 ]);
-export const experimentPhase = pgEnum("experiment_phase", [
-  "learning",
-  "adaptive",
-  "fallback",
-]);
+export const experimentPhase = pgEnum("experiment_phase", ["learning", "adaptive", "fallback"]);
 export const taskCategory = pgEnum("task_category", [
   "cognitive",
   "movement",
   "behavioral",
   "environment",
 ]);
-export const ratingKind = pgEnum("rating_kind", [
-  "baseline",
-  "post_protocol",
-]);
-export const followUpOutcome = pgEnum("follow_up_outcome", [
-  "up",
-  "back",
-  "drowsy",
-]);
-export const confidence = pgEnum("confidence", [
-  "insufficient",
-  "low",
-  "medium",
-  "high",
-]);
+export const ratingKind = pgEnum("rating_kind", ["baseline", "post_protocol"]);
+export const followUpOutcome = pgEnum("follow_up_outcome", ["up", "back", "drowsy"]);
+export const confidence = pgEnum("confidence", ["insufficient", "low", "medium", "high"]);
 
 export const users = pgTable(
   "users",
@@ -78,10 +62,7 @@ export const protocolDefinitions = pgTable(
     retiredAt: timestamp("retired_at", { withTimezone: true }),
   },
   (table) => [
-    unique("protocol_definitions_key_version_unique").on(
-      table.protocolKey,
-      table.version,
-    ),
+    unique("protocol_definitions_key_version_unique").on(table.protocolKey, table.version),
     check("protocol_definitions_version_positive", sql`${table.version} > 0`),
   ],
 );
@@ -90,8 +71,12 @@ export const experimentAssignments = pgTable(
   "experiment_assignments",
   {
     id: uuid().defaultRandom().primaryKey(),
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    protocolDefinitionId: uuid("protocol_definition_id").notNull().references(() => protocolDefinitions.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    protocolDefinitionId: uuid("protocol_definition_id")
+      .notNull()
+      .references(() => protocolDefinitions.id),
     strategyVersion: text("strategy_version").notNull(),
     phase: experimentPhase().notNull(),
     hypothesis: text().notNull(),
@@ -108,8 +93,12 @@ export const wakeSessions = pgTable(
   "wake_sessions",
   {
     id: uuid().defaultRandom().primaryKey(),
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    assignmentId: uuid("assignment_id").notNull().references(() => experimentAssignments.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => experimentAssignments.id),
     status: sessionStatus().notNull().default("assigned"),
     currentStepIndex: integer("current_step_index").notNull().default(0),
     version: integer().notNull().default(1),
@@ -134,8 +123,12 @@ export const ratingObservations = pgTable(
   "rating_observations",
   {
     id: uuid().defaultRandom().primaryKey(),
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    sessionId: uuid("session_id").notNull().references(() => wakeSessions.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => wakeSessions.id, { onDelete: "cascade" }),
     kind: ratingKind().notNull(),
     value: integer().notNull(),
     observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
@@ -153,8 +146,12 @@ export const taskObservations = pgTable(
   "task_observations",
   {
     id: uuid().defaultRandom().primaryKey(),
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    sessionId: uuid("session_id").notNull().references(() => wakeSessions.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => wakeSessions.id, { onDelete: "cascade" }),
     protocolStepIndex: integer("protocol_step_index").notNull(),
     taskId: text("task_id").notNull(),
     category: taskCategory().notNull(),
@@ -167,7 +164,10 @@ export const taskObservations = pgTable(
   (table) => [
     unique("task_observations_session_step_unique").on(table.sessionId, table.protocolStepIndex),
     unique("task_observations_user_operation_unique").on(table.userId, table.operationId),
-    check("task_observations_values_valid", sql`${table.protocolStepIndex} >= 0 and ${table.correct} >= 0 and ${table.total} >= ${table.correct} and ${table.durationMs} >= 0`),
+    check(
+      "task_observations_values_valid",
+      sql`${table.protocolStepIndex} >= 0 and ${table.correct} >= 0 and ${table.total} >= ${table.correct} and ${table.durationMs} >= 0`,
+    ),
   ],
 );
 
@@ -175,8 +175,12 @@ export const followUpObservations = pgTable(
   "follow_up_observations",
   {
     id: uuid().defaultRandom().primaryKey(),
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    sessionId: uuid("session_id").notNull().references(() => wakeSessions.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => wakeSessions.id, { onDelete: "cascade" }),
     outcome: followUpOutcome().notNull(),
     observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
     minutesAfterCompletion: integer("minutes_after_completion").notNull(),
@@ -192,7 +196,9 @@ export const followUpObservations = pgTable(
 export const idempotencyRecords = pgTable(
   "idempotency_records",
   {
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     operationId: text("operation_id").notNull(),
     commandType: text("command_type").notNull(),
     requestHash: text("request_hash").notNull(),
@@ -208,7 +214,9 @@ export const analyticsProjections = pgTable(
   "analytics_projections",
   {
     id: uuid().defaultRandom().primaryKey(),
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     metricKey: text("metric_key").notNull(),
     subjectKey: text("subject_key").notNull(),
     methodVersion: text("method_version").notNull(),

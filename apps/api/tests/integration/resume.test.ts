@@ -30,7 +30,10 @@ describe("resume after application restart", () => {
         key: "learning-cognitive",
         version: 1,
         title: "Attention start",
-        steps: [{ index: 0, taskId: "math" }, { index: 1, taskId: "memory" }],
+        steps: [
+          { index: 0, taskId: "math" },
+          { index: 1, taskId: "memory" },
+        ],
       },
       assignment: {
         strategyVersion: "learning-v1",

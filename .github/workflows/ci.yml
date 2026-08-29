@@ -11,7 +11,23 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: postgres://awc:awc@localhost:5432/awc
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: awc
+          POSTGRES_USER: awc
+          POSTGRES_PASSWORD: awc
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U awc -d awc"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -22,7 +38,12 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
       - run: pnpm typecheck
+      - run: pnpm db:migrate
       - run: pnpm test
+      - run: pnpm test:integration
       - run: pnpm build
       - run: pnpm verify:production
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e

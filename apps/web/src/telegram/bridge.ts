@@ -10,9 +10,7 @@ declare global {
   }
 }
 
-export type LaunchContext =
-  | { mode: "telegram"; initData: string }
-  | { mode: "demo" };
+export type LaunchContext = { mode: "telegram"; initData: string } | { mode: "demo" };
 
 export function getLaunchContext(locationSearch = window.location.search): LaunchContext {
   const webApp = window.Telegram?.WebApp;

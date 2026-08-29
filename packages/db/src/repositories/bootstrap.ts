@@ -25,10 +25,7 @@ export class PostgresBootstrapRepository implements BootstrapRepository {
         protocol: protocolDefinitions,
       })
       .from(wakeSessions)
-      .innerJoin(
-        experimentAssignments,
-        eq(wakeSessions.assignmentId, experimentAssignments.id),
-      )
+      .innerJoin(experimentAssignments, eq(wakeSessions.assignmentId, experimentAssignments.id))
       .innerJoin(
         protocolDefinitions,
         eq(experimentAssignments.protocolDefinitionId, protocolDefinitions.id),
@@ -79,10 +76,7 @@ export class PostgresBootstrapRepository implements BootstrapRepository {
     const [dueFollowUp] = await this.db
       .select({ id: wakeSessions.id })
       .from(wakeSessions)
-      .leftJoin(
-        followUpObservations,
-        eq(followUpObservations.sessionId, wakeSessions.id),
-      )
+      .leftJoin(followUpObservations, eq(followUpObservations.sessionId, wakeSessions.id))
       .where(
         and(
           eq(wakeSessions.userId, userId),

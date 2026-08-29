@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createApp } from "../../src/app/create-app.js";
-import {
-  authenticateTestUser,
-  createMemoryDependencies,
-  testConfig,
-  testNow,
-} from "../helpers.js";
+import { authenticateTestUser, createMemoryDependencies, testConfig, testNow } from "../helpers.js";
 
 describe("удаление данных пользователя", () => {
   it("удаляет только владельца текущей сессии и очищает cookie", async () => {

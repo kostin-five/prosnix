@@ -32,12 +32,18 @@ import {
 import type { Database } from "./types.js";
 
 const TASK_IDS = new Set<TaskId>([
-  "math", "memory", "stroop", "reaction", "steps", "squats",
-  "shake", "water", "window", "curtains",
+  "math",
+  "memory",
+  "stroop",
+  "reaction",
+  "steps",
+  "squats",
+  "shake",
+  "water",
+  "window",
+  "curtains",
 ]);
-const CATEGORIES = new Set<TaskCategory>([
-  "cognitive", "movement", "behavioral", "environment",
-]);
+const CATEGORIES = new Set<TaskCategory>(["cognitive", "movement", "behavioral", "environment"]);
 function parseSteps(value: unknown): readonly ProtocolStep[] {
   if (!Array.isArray(value)) throw new Error("Protocol steps are not an array");
   return value.map((item, index) => {
@@ -68,23 +74,39 @@ async function loadSession(
   sessionId: string,
 ): Promise<WakeSession | null> {
   const [aggregate] = await db
-    .select({ session: wakeSessions, assignment: experimentAssignments, protocol: protocolDefinitions })
+    .select({
+      session: wakeSessions,
+      assignment: experimentAssignments,
+      protocol: protocolDefinitions,
+    })
     .from(wakeSessions)
     .innerJoin(experimentAssignments, eq(wakeSessions.assignmentId, experimentAssignments.id))
-    .innerJoin(protocolDefinitions, eq(experimentAssignments.protocolDefinitionId, protocolDefinitions.id))
+    .innerJoin(
+      protocolDefinitions,
+      eq(experimentAssignments.protocolDefinitionId, protocolDefinitions.id),
+    )
     .where(and(eq(wakeSessions.userId, userId), eq(wakeSessions.id, sessionId)))
     .limit(1);
   if (!aggregate) return null;
 
   const [ratings, tasks, followUps] = await Promise.all([
     db.select().from(ratingObservations).where(eq(ratingObservations.sessionId, sessionId)),
-    db.select().from(taskObservations).where(eq(taskObservations.sessionId, sessionId)).orderBy(asc(taskObservations.protocolStepIndex)),
-    db.select().from(followUpObservations).where(eq(followUpObservations.sessionId, sessionId)).limit(1),
+    db
+      .select()
+      .from(taskObservations)
+      .where(eq(taskObservations.sessionId, sessionId))
+      .orderBy(asc(taskObservations.protocolStepIndex)),
+    db
+      .select()
+      .from(followUpObservations)
+      .where(eq(followUpObservations.sessionId, sessionId))
+      .limit(1),
   ]);
   const comparison: ExperimentAssignment["comparison"] =
     aggregate.assignment.comparisonGroupKey &&
     aggregate.assignment.evaluatedFactor &&
-    (aggregate.assignment.comparisonLevel === "with" || aggregate.assignment.comparisonLevel === "without")
+    (aggregate.assignment.comparisonLevel === "with" ||
+      aggregate.assignment.comparisonLevel === "without")
       ? {
           groupKey: aggregate.assignment.comparisonGroupKey,
           factorKey: aggregate.assignment.evaluatedFactor,
@@ -136,7 +158,12 @@ async function canonicalForCommand(
   const [active] = await db
     .select({ id: wakeSessions.id })
     .from(wakeSessions)
-    .where(and(eq(wakeSessions.userId, userId), inArray(wakeSessions.status, ["assigned", "in_progress"])))
+    .where(
+      and(
+        eq(wakeSessions.userId, userId),
+        inArray(wakeSessions.status, ["assigned", "in_progress"]),
+      ),
+    )
     .limit(1);
   return active ? loadSession(db, userId, active.id) : null;
 }
@@ -157,10 +184,13 @@ async function createSession(
     .limit(1);
   if (!user) throw new SessionCommandConflict("session_not_found", "Профиль не найден", null);
   const planned = selectLearningAssignment(user.learningSessionCount);
-  await db.update(users).set({
-    timezone: envelope.command.timezone,
-    updatedAt: envelope.observedAt,
-  }).where(eq(users.id, envelope.userId));
+  await db
+    .update(users)
+    .set({
+      timezone: envelope.command.timezone,
+      updatedAt: envelope.observedAt,
+    })
+    .where(eq(users.id, envelope.userId));
 
   const inserted = await db
     .insert(protocolDefinitions)
@@ -178,10 +208,12 @@ async function createSession(
         await db
           .select({ id: protocolDefinitions.id })
           .from(protocolDefinitions)
-          .where(and(
-            eq(protocolDefinitions.protocolKey, planned.protocolKey),
-            eq(protocolDefinitions.version, planned.protocolVersion),
-          ))
+          .where(
+            and(
+              eq(protocolDefinitions.protocolKey, planned.protocolKey),
+              eq(protocolDefinitions.version, planned.protocolVersion),
+            ),
+          )
           .limit(1)
       )[0];
   const protocolId = inserted[0]?.id ?? existingProtocol?.id;
@@ -230,11 +262,13 @@ async function updateSnapshot(
       abandonedAt: next.abandonedAt ? new Date(next.abandonedAt) : null,
       updatedAt: observedAt,
     })
-    .where(and(
-      eq(wakeSessions.id, previous.id),
-      eq(wakeSessions.userId, previous.userId),
-      eq(wakeSessions.version, previous.version),
-    ))
+    .where(
+      and(
+        eq(wakeSessions.id, previous.id),
+        eq(wakeSessions.userId, previous.userId),
+        eq(wakeSessions.version, previous.version),
+      ),
+    )
     .returning({ id: wakeSessions.id });
   if (!rows[0]) {
     throw new SessionCommandConflict(
@@ -258,7 +292,11 @@ async function mutateSession(
   try {
     let next: WakeSession;
     if (command.type === "baseline") {
-      next = acceptBaseline(current, { expectedVersion: command.expectedVersion, value: command.value, observedAt });
+      next = acceptBaseline(current, {
+        expectedVersion: command.expectedVersion,
+        value: command.value,
+        observedAt,
+      });
       await updateSnapshot(db, current, next, envelope.observedAt);
       await db.insert(ratingObservations).values({
         userId: envelope.userId,
@@ -266,7 +304,9 @@ async function mutateSession(
         kind: "baseline",
         value: command.value,
         observedAt: envelope.observedAt,
-        ...(command.clientObservedAt ? { clientObservedAt: new Date(command.clientObservedAt) } : {}),
+        ...(command.clientObservedAt
+          ? { clientObservedAt: new Date(command.clientObservedAt) }
+          : {}),
         operationId: envelope.operationId,
       });
     } else if (command.type === "task") {
@@ -300,7 +340,9 @@ async function mutateSession(
         kind: "post_protocol",
         value: command.value,
         observedAt: envelope.observedAt,
-        ...(command.clientObservedAt ? { clientObservedAt: new Date(command.clientObservedAt) } : {}),
+        ...(command.clientObservedAt
+          ? { clientObservedAt: new Date(command.clientObservedAt) }
+          : {}),
         operationId: envelope.operationId,
       });
       await db
@@ -324,7 +366,10 @@ async function mutateSession(
         sessionId: current.id,
         outcome: command.outcome,
         observedAt: envelope.observedAt,
-        minutesAfterCompletion: Math.max(0, Math.floor((envelope.observedAt.getTime() - completedAt) / 60_000)),
+        minutesAfterCompletion: Math.max(
+          0,
+          Math.floor((envelope.observedAt.getTime() - completedAt) / 60_000),
+        ),
         operationId: envelope.operationId,
       });
     } else {
@@ -355,10 +400,12 @@ export class PostgresSessionCommandRepository implements SessionCommandRepositor
       const [stored] = await db
         .select()
         .from(idempotencyRecords)
-        .where(and(
-          eq(idempotencyRecords.userId, envelope.userId),
-          eq(idempotencyRecords.operationId, envelope.operationId),
-        ))
+        .where(
+          and(
+            eq(idempotencyRecords.userId, envelope.userId),
+            eq(idempotencyRecords.operationId, envelope.operationId),
+          ),
+        )
         .limit(1);
       if (stored) {
         if (stored.requestHash !== envelope.requestHash) {
@@ -375,9 +422,10 @@ export class PostgresSessionCommandRepository implements SessionCommandRepositor
         };
       }
 
-      const accepted = envelope.command.type === "create"
-        ? await createSession(db, envelope)
-        : await mutateSession(db, envelope);
+      const accepted =
+        envelope.command.type === "create"
+          ? await createSession(db, envelope)
+          : await mutateSession(db, envelope);
       await db.insert(idempotencyRecords).values({
         userId: envelope.userId,
         operationId: envelope.operationId,

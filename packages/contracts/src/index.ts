@@ -13,19 +13,12 @@ export const TASK_IDS = [
   "curtains",
 ] as const;
 
-export const TASK_CATEGORIES = [
-  "cognitive",
-  "movement",
-  "behavioral",
-  "environment",
-] as const;
+export const TASK_CATEGORIES = ["cognitive", "movement", "behavioral", "environment"] as const;
 
 export const FOLLOW_UP_OUTCOMES = ["up", "back", "drowsy"] as const;
 
 export const TaskIdSchema = Type.Union(TASK_IDS.map((value) => Type.Literal(value)));
-export const TaskCategorySchema = Type.Union(
-  TASK_CATEGORIES.map((value) => Type.Literal(value)),
-);
+export const TaskCategorySchema = Type.Union(TASK_CATEGORIES.map((value) => Type.Literal(value)));
 export const FollowUpOutcomeSchema = Type.Union(
   FOLLOW_UP_OUTCOMES.map((value) => Type.Literal(value)),
 );

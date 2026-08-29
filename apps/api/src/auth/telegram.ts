@@ -46,9 +46,7 @@ function parseUser(value: string): TelegramUser {
     firstName: user.first_name,
     ...(typeof user.last_name === "string" ? { lastName: user.last_name } : {}),
     ...(typeof user.username === "string" ? { username: user.username } : {}),
-    ...(typeof user.language_code === "string"
-      ? { languageCode: user.language_code }
-      : {}),
+    ...(typeof user.language_code === "string" ? { languageCode: user.language_code } : {}),
   };
 }
 
@@ -70,12 +68,8 @@ export function validateTelegramInitData(
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([key, value]) => `${key}=${value}`)
     .join("\n");
-  const secret = createHmac("sha256", "WebAppData")
-    .update(options.botToken)
-    .digest();
-  const expectedHash = createHmac("sha256", secret)
-    .update(dataCheckString)
-    .digest();
+  const secret = createHmac("sha256", "WebAppData").update(options.botToken).digest();
+  const expectedHash = createHmac("sha256", secret).update(dataCheckString).digest();
   if (!timingSafeEqual(Buffer.from(suppliedHash, "hex"), expectedHash)) {
     throw new TelegramAuthError("Telegram signature is invalid");
   }

@@ -32,19 +32,38 @@ export function DeleteProfile() {
           Удалить мой профиль
         </button>
       ) : (
-        <div role="alertdialog" aria-modal="true" aria-labelledby="delete-profile-title" className="mt-3 flex flex-col gap-2">
-          <p id="delete-profile-title" className="text-xs text-red-300">Точно удалить все данные?</p>
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="delete-profile-title"
+          className="mt-3 flex flex-col gap-2"
+        >
+          <p id="delete-profile-title" className="text-xs text-red-300">
+            Точно удалить все данные?
+          </p>
           <div className="flex gap-2">
-            <button disabled={busy} className="flex-1 rounded-xl bg-red-500 px-3 py-2 text-sm font-semibold text-white" onClick={() => void remove()}>
+            <button
+              disabled={busy}
+              className="flex-1 rounded-xl bg-red-500 px-3 py-2 text-sm font-semibold text-white"
+              onClick={() => void remove()}
+            >
               {busy ? "Удаляем…" : "Да, удалить всё"}
             </button>
-            <button disabled={busy} className="flex-1 rounded-xl bg-secondary px-3 py-2 text-sm" onClick={() => setConfirming(false)}>
+            <button
+              disabled={busy}
+              className="flex-1 rounded-xl bg-secondary px-3 py-2 text-sm"
+              onClick={() => setConfirming(false)}
+            >
               Отмена
             </button>
           </div>
         </div>
       )}
-      {error && <p role="alert" className="mt-2 text-xs text-red-400">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-2 text-xs text-red-400">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

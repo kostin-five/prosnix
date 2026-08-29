@@ -20,6 +20,12 @@ pnpm db:migrate
 ```
 
 Остановка: `pnpm db:stop`. Именованный volume сохраняется после обычной остановки.
+Если порт `5432` занят, запустите контейнер с другим портом и используйте его же в URL базы:
+
+```bash
+POSTGRES_PORT=55432 pnpm db:start
+DATABASE_URL=postgres://awc:awc@localhost:55432/awc pnpm db:migrate
+```
 
 ## Совместимость схемы и откат
 

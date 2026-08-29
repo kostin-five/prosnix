@@ -86,9 +86,7 @@ export async function createApp(
         ? (error as { statusCode?: unknown; code?: unknown })
         : {};
     const statusCode =
-      typeof details.statusCode === "number" && details.statusCode < 500
-        ? details.statusCode
-        : 500;
+      typeof details.statusCode === "number" && details.statusCode < 500 ? details.statusCode : 500;
     void reply.status(statusCode).send({
       error:
         statusCode === 500

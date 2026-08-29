@@ -18,11 +18,7 @@ import {
 } from "../schema.js";
 import type { Database } from "./types.js";
 
-function projectionRows(
-  userId: string,
-  profile: AnalyticsProfile,
-  computedAt: Date,
-) {
+function projectionRows(userId: string, profile: AnalyticsProfile, computedAt: Date) {
   const metrics: Array<{ metric: Metric; subjectKey: string }> = [
     { metric: profile.averageDelta, subjectKey: "profile" },
     { metric: profile.riseSuccess, subjectKey: "profile" },
@@ -58,20 +54,12 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
           comparisonLevel: experimentAssignments.comparisonLevel,
         })
         .from(wakeSessions)
-        .innerJoin(
-          experimentAssignments,
-          eq(wakeSessions.assignmentId, experimentAssignments.id),
-        )
+        .innerJoin(experimentAssignments, eq(wakeSessions.assignmentId, experimentAssignments.id))
         .innerJoin(
           protocolDefinitions,
           eq(experimentAssignments.protocolDefinitionId, protocolDefinitions.id),
         )
-        .where(
-          and(
-            eq(wakeSessions.userId, userId),
-            eq(wakeSessions.status, "protocol_completed"),
-          ),
-        );
+        .where(and(eq(wakeSessions.userId, userId), eq(wakeSessions.status, "protocol_completed")));
 
       let evidence: CompletedSessionEvidence[] = [];
       if (sessions.length > 0) {
@@ -95,20 +83,16 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
         ]);
         evidence = sessions.flatMap((session) => {
           const baseline = ratings.find(
-            (rating) =>
-              rating.sessionId === session.sessionId && rating.kind === "baseline",
+            (rating) => rating.sessionId === session.sessionId && rating.kind === "baseline",
           )?.value;
           const postRating = ratings.find(
-            (rating) =>
-              rating.sessionId === session.sessionId &&
-              rating.kind === "post_protocol",
+            (rating) => rating.sessionId === session.sessionId && rating.kind === "post_protocol",
           )?.value;
           if (baseline === undefined || postRating === undefined) return [];
           const comparison: ExperimentAssignment["comparison"] =
             session.evaluatedFactor &&
             session.comparisonGroupKey &&
-            (session.comparisonLevel === "with" ||
-              session.comparisonLevel === "without")
+            (session.comparisonLevel === "with" || session.comparisonLevel === "without")
               ? {
                   factorKey: session.evaluatedFactor,
                   groupKey: session.comparisonGroupKey,
@@ -123,8 +107,7 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
               baseline,
               postRating,
               followUp:
-                followUps.find(({ sessionId }) => sessionId === session.sessionId)
-                  ?.outcome ?? null,
+                followUps.find(({ sessionId }) => sessionId === session.sessionId)?.outcome ?? null,
               ...(comparison ? { comparison } : {}),
             },
           ];
@@ -132,12 +115,8 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
       }
 
       const profile = computeAnalyticsProfile(evidence, now.toISOString());
-      await db
-        .delete(analyticsProjections)
-        .where(eq(analyticsProjections.userId, userId));
-      await db.insert(analyticsProjections).values(
-        projectionRows(userId, profile, now),
-      );
+      await db.delete(analyticsProjections).where(eq(analyticsProjections.userId, userId));
+      await db.insert(analyticsProjections).values(projectionRows(userId, profile, now));
       return profile;
     });
   }

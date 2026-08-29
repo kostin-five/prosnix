@@ -17,8 +17,9 @@ describe("план первоначальных экспериментов", () 
       factorKey: "movement",
       level: "without",
     });
-    expect(withMovement.steps.filter(({ category }) => category !== "movement"))
-      .toEqual(withoutMovement.steps);
+    expect(withMovement.steps.filter(({ category }) => category !== "movement")).toEqual(
+      withoutMovement.steps,
+    );
   });
 
   it("возвращает безопасный fallback после периода изучения", () => {
@@ -29,14 +30,13 @@ describe("план первоначальных экспериментов", () 
   });
 
   it("за семь сессий накапливает три независимых сравнения одного фактора", () => {
-    const comparisons = Array.from({ length: 7 }, (_, index) =>
-      selectLearningAssignment(index).comparison,
+    const comparisons = Array.from(
+      { length: 7 },
+      (_, index) => selectLearningAssignment(index).comparison,
     ).filter((comparison) => comparison !== undefined);
 
     expect(comparisons.filter(({ level }) => level === "with")).toHaveLength(3);
     expect(comparisons.filter(({ level }) => level === "without")).toHaveLength(3);
-    expect(new Set(comparisons.map(({ groupKey }) => groupKey))).toEqual(
-      new Set(["movement-a"]),
-    );
+    expect(new Set(comparisons.map(({ groupKey }) => groupKey))).toEqual(new Set(["movement-a"]));
   });
 });

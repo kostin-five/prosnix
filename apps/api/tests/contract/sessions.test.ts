@@ -59,7 +59,11 @@ describe("контракт команд wake-сессии", () => {
       headers: { cookie, "idempotency-key": "rating-00001", "if-match": "4" },
       payload: { value: 7 },
     });
-    expect(completed.json()).toMatchObject({ status: "protocol_completed", version: 5, postRating: 7 });
+    expect(completed.json()).toMatchObject({
+      status: "protocol_completed",
+      version: 5,
+      postRating: 7,
+    });
 
     const followUp = await app.inject({
       method: "PUT",

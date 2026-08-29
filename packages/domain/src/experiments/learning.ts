@@ -25,47 +25,40 @@ function plan(
 }
 
 const LEARNING_ASSIGNMENTS: readonly PlannedAssignment[] = [
-  plan(
-    "cognitive-baseline",
-    "Измеряем стартовую реакцию на короткий когнитивный протокол",
-    CORE,
-  ),
+  plan("cognitive-baseline", "Измеряем стартовую реакцию на короткий когнитивный протокол", CORE),
   plan(
     "movement-plus",
     "Проверяем, усиливает ли короткое движение эффект того же когнитивного протокола",
     [...CORE, { index: 2, taskId: "steps", category: "movement" }],
     { groupKey: "movement-a", factorKey: "movement", level: "with" },
   ),
-  plan(
-    "cognitive-core",
-    "Контрольное наблюдение без движения",
-    CORE,
-    { groupKey: "movement-a", factorKey: "movement", level: "without" },
-  ),
+  plan("cognitive-core", "Контрольное наблюдение без движения", CORE, {
+    groupKey: "movement-a",
+    factorKey: "movement",
+    level: "without",
+  }),
   plan(
     "movement-plus",
     "Повторяем наблюдение с движением для независимого сравнения",
     [...CORE, { index: 2, taskId: "steps", category: "movement" }],
     { groupKey: "movement-a", factorKey: "movement", level: "with" },
   ),
-  plan(
-    "cognitive-core",
-    "Повторяем контрольное наблюдение без движения",
-    CORE,
-    { groupKey: "movement-a", factorKey: "movement", level: "without" },
-  ),
+  plan("cognitive-core", "Повторяем контрольное наблюдение без движения", CORE, {
+    groupKey: "movement-a",
+    factorKey: "movement",
+    level: "without",
+  }),
   plan(
     "movement-plus",
     "Завершаем третье независимое наблюдение с движением",
     [...CORE, { index: 2, taskId: "steps", category: "movement" }],
     { groupKey: "movement-a", factorKey: "movement", level: "with" },
   ),
-  plan(
-    "cognitive-core",
-    "Завершаем третье контрольное наблюдение без движения",
-    CORE,
-    { groupKey: "movement-a", factorKey: "movement", level: "without" },
-  ),
+  plan("cognitive-core", "Завершаем третье контрольное наблюдение без движения", CORE, {
+    groupKey: "movement-a",
+    factorKey: "movement",
+    level: "without",
+  }),
 ];
 
 const FALLBACK: PlannedAssignment = {
@@ -81,9 +74,7 @@ const FALLBACK: PlannedAssignment = {
   ],
 };
 
-export function selectLearningAssignment(
-  completedLearningSessions: number,
-): PlannedAssignment {
+export function selectLearningAssignment(completedLearningSessions: number): PlannedAssignment {
   if (
     Number.isInteger(completedLearningSessions) &&
     completedLearningSessions >= 0 &&

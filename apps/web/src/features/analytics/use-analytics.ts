@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
 
-import {
-  loadAnalyticsProfile,
-  type AnalyticsProfileResponse,
-} from "../../shared/api/client.js";
+import { loadAnalyticsProfile, type AnalyticsProfileResponse } from "../../shared/api/client.js";
 
 export type AnalyticsState =
   | { status: "idle" | "loading" }
@@ -25,10 +22,7 @@ export function useAnalyticsProfile(enabled: boolean): AnalyticsState {
         if (!cancelled) {
           setState({
             status: "error",
-            message:
-              error instanceof Error
-                ? error.message
-                : "Не удалось загрузить аналитику",
+            message: error instanceof Error ? error.message : "Не удалось загрузить аналитику",
           });
         }
       });
