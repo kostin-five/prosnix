@@ -225,7 +225,7 @@ Render сам устанавливает `NODE_ENV=production` и `PORT`. Код
 После `Save, rebuild and deploy` откройте выданный адрес вида:
 
 ```text
-https://adaptive-wake-api-staging.onrender.com/health
+https://wake-coach.onrender.com/health
 ```
 
 Ответ должен быть `{"status":"ok"}`. Сохраните адрес API: он понадобится для rewrite frontend.
@@ -245,11 +245,11 @@ https://adaptive-wake-api-staging.onrender.com/health
 6. Секретные environment variables этому Static Site не добавляйте.
 7. После создания откройте `Redirects/Rewrites` и добавьте правила именно в таком порядке:
 
-| Source    | Destination                             | Action    |
-| --------- | --------------------------------------- | --------- |
-| `/api/*`  | `https://<ВАШ_API>.onrender.com/api/*`  | `Rewrite` |
-| `/health` | `https://<ВАШ_API>.onrender.com/health` | `Rewrite` |
-| `/*`      | `/index.html`                           | `Rewrite` |
+| Source    | Destination                              | Action    |
+| --------- | ---------------------------------------- | --------- |
+| `/api/*`  | `https://wake-coach.onrender.com/api/*`  | `Rewrite` |
+| `/health` | `https://wake-coach.onrender.com/health` | `Rewrite` |
+| `/*`      | `/index.html`                            | `Rewrite` |
 
 Первые два правила сохраняют один публичный origin для web и API; последнее обеспечивает работу
 React-маршрутов. После настройки откройте `/health` уже на адресе Static Site и убедитесь, что
