@@ -4,6 +4,9 @@ import { TelegramBotGateway } from "./telegram.js";
 import { runNotificationWorker } from "./worker.js";
 
 const config = loadConfig();
+if (!config.telegramWebAppUrl) {
+  throw new Error("TELEGRAM_WEB_APP_URL is required for notification delivery");
+}
 const database = connectDatabase(config.databaseUrl);
 try {
   await runNotificationWorker(

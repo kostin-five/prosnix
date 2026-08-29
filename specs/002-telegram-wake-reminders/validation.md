@@ -6,7 +6,7 @@
 
 - `pnpm format:check` — PASS.
 - `pnpm typecheck` — PASS для пяти workspace-пакетов.
-- `pnpm test` — PASS: domain 15, web 4, API 16; PostgreSQL tests отдельно.
+- `pnpm test` — PASS: domain 15, web 4, API 18; PostgreSQL tests отдельно.
 - `DATABASE_URL=... pnpm test:integration` на локальной PostgreSQL 17 — PASS: 6 тестов,
   включая параллельный claim одной доставки.
 - `pnpm build` — PASS.
@@ -24,3 +24,5 @@
 - Требуется создать Render Cron Job и перенести в его Environment серверные значения по инструкции.
 - Реальное due-срабатывание и сообщение проверяются после deploy; текущий smoke-test намеренно не
   создавал расписание и не отправлял Telegram-сообщения.
+- API Web Service может безопасно стартовать до добавления URL; notification worker проверяет
+  наличие `TELEGRAM_WEB_APP_URL` и завершится с ошибкой до доступа к очереди, если URL не задан.
