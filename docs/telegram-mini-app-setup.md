@@ -301,6 +301,17 @@ Render API Web Service → `Environment`. В GitHub, Render Static Site и BotFa
 7. Введите текст кнопки `Открыть Wake Coach`.
 8. Вставьте тот же URL `https://wake-coach-1.onrender.com/`.
 
+После публикации приложения откройте в BotFather настройки политики конфиденциальности бота и
+укажите:
+
+```text
+https://wake-coach-1.onrender.com/privacy
+```
+
+Не используйте для этого `/setprivacy`: эта команда изменяет режим получения групповых сообщений,
+а не политику Mini App. До публичной беты на странице нужно заменить staging-описание разработчика
+на полные реквизиты фактического оператора данных.
+
 Ссылка для запуска Main Mini App:
 
 ```text

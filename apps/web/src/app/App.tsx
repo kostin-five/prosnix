@@ -1858,6 +1858,12 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
           </p>
         )}
       </div>
+      <a
+        href="/privacy"
+        className="mb-4 block text-center text-xs text-muted-foreground underline underline-offset-4"
+      >
+        Политика конфиденциальности
+      </a>
       {!demo && <DeleteProfile />}
     </div>
   );
@@ -2232,6 +2238,12 @@ export default function App() {
           <AlertCircle className="w-10 h-10 text-primary mx-auto mb-4" />
           <h1 className="text-xl font-bold">Не удалось безопасно войти</h1>
           <p className="text-sm text-muted-foreground mt-2">{bootstrap.message}</p>
+          <a
+            href="/privacy"
+            className="mt-4 block text-sm text-muted-foreground underline underline-offset-4"
+          >
+            Политика конфиденциальности
+          </a>
           <button
             onClick={bootstrap.retry}
             className="mt-6 w-full rounded-2xl bg-primary py-3 font-bold text-white"
