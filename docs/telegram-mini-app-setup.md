@@ -304,8 +304,11 @@ Render API Web Service → `Environment`. В GitHub, Render Static Site и BotFa
 Ссылка для запуска Main Mini App:
 
 ```text
-https://t.me/<USERNAME_ВАШЕГО_БОТА>?startapp
+https://t.me/wake_coach_bot?startapp
 ```
+
+Текущий staging-бот: [@wake_coach_bot](https://t.me/wake_coach_bot). Запуск Mini App и реальная
+Telegram-аутентификация через него подтверждены 29 августа 2026 года.
 
 Webhook и long polling пока не нужны: текущий бот запускает Mini App, но ещё не отвечает на
 сообщения и не отправляет напоминания.
