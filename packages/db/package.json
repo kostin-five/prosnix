@@ -12,7 +12,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "migrate": "drizzle-kit migrate"
+    "migrate": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs migrate"
   },
   "dependencies": {
     "@awc/domain": "workspace:*",

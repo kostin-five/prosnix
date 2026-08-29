@@ -12,7 +12,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (!(["development", "test", "production"] as const).includes(nodeEnv as AppConfig["nodeEnv"])) {
     throw new Error("NODE_ENV must be development, test or production");
   }
-  const port = Number(env.API_PORT ?? 3001);
+  const port = Number(env.API_PORT ?? env.PORT ?? 3001);
   const telegramAuthMaxAgeSeconds = Number(env.TELEGRAM_AUTH_MAX_AGE_SECONDS ?? 900);
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     throw new Error("API_PORT must be a valid port");

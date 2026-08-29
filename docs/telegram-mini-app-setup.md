@@ -29,10 +29,8 @@ API-сервиса, который обычно называется **Variables
 ## Что у нас есть сейчас, а чего ещё нет
 
 Уже есть рабочие web, API, PostgreSQL-миграции, Telegram-аутентификация и production-сборка.
-
-Ещё нужно выбрать конкретный хостинг и добавить deployment-конфигурацию для него. Поэтому сейчас
-можно создать бота и подготовить ключи, но постоянный URL для BotFather появится только после
-развёртывания. Не указывайте в BotFather `localhost`.
+В качестве понятного первого варианта ниже выбран Render для приложения и Neon для базы.
+Постоянный URL для BotFather появится после их настройки. Не указывайте в BotFather `localhost`.
 
 ## Шаг 1. Сохранить полученный токен локально
 
@@ -46,7 +44,7 @@ API-сервиса, который обычно называется **Variables
 
 ```dotenv
 NODE_ENV=development
-API_PORT=3001
+API_PORT=3002
 DATABASE_URL=postgres://awc:awc@localhost:5432/awc
 POSTGRES_PORT=5432
 
@@ -77,29 +75,29 @@ git status --ignored --short .env
 
 Ожидаемый результат начинается с `!! .env` — это означает, что Git игнорирует файл.
 
-Важно: текущий dev-скрипт не загружает `.env` автоматически. Перед локальным запуском выполните в
-том же окне Terminal:
-
-```bash
-cd "/Users/developer/Desktop/sleeep"
-set -a
-source .env
-set +a
-```
-
-Эти команды загружают значения только в текущее окно Terminal. После его закрытия секреты нужно
-загрузить снова.
+API dev-скрипт автоматически читает корневой `.env`. Команды `set -a`, `source .env`, `set +a`
+больше выполнять не нужно. После изменения `.env` достаточно остановить `pnpm dev` сочетанием
+`Control+C` и запустить его снова.
 
 ## Шаг 2. Запустить проект локально
 
-В том же Terminal:
+Откройте Terminal и выполните:
 
 ```bash
+cd "/Users/developer/Desktop/sleeep"
 pnpm install
 pnpm db:start
 pnpm db:migrate
 pnpm dev
 ```
+
+`pnpm install` нужен после первого скачивания проекта и после изменения зависимостей. Каждый день
+его повторять не обязательно. `pnpm db:start` поднимает локальную PostgreSQL, `pnpm db:migrate`
+применяет схему, а `pnpm dev` запускает web и API. После изменения `.env` перезапускайте
+`pnpm dev`; миграции повторять нужно только после изменения схемы базы.
+
+На этом Mac порт `3001` уже занят другим процессом, поэтому для проекта в `.env` используется
+`API_PORT=3002`. Это нормально и на настройки Render не влияет.
 
 Локальный прототип без Telegram открывается по адресу:
 
@@ -117,88 +115,150 @@ POSTGRES_PORT=55432
 DATABASE_URL=postgres://awc:awc@localhost:55432/awc
 ```
 
-После изменения снова загрузите `.env` и запустите базу.
+После изменения остановите процессы и снова выполните `pnpm db:start`, `pnpm db:migrate`,
+`pnpm dev`.
 
-## Шаг 3. Подготовить значения для хостинга
+## Шаг 3. Где взять хостинг
 
-Когда хостинг будет выбран, создаём там **отдельный API-сервис**. Откройте его раздел
-`Variables / Environment / Secrets` и добавьте следующие строки по одной:
+Для первого staging предлагается следующая связка:
 
-| Имя переменной                  | Откуда взять значение                                        | Куда добавить         |
-| ------------------------------- | ------------------------------------------------------------ | --------------------- |
-| `NODE_ENV`                      | Введите `production`                                         | Только API-сервис     |
-| `API_PORT`                      | Порт, который требует хостинг; иногда выдаётся автоматически | Только API-сервис     |
-| `DATABASE_URL`                  | Скопировать из созданной на хостинге PostgreSQL              | API и задача миграции |
-| `TELEGRAM_BOT_TOKEN`            | Уже полученный токен BotFather                               | Только API-сервис     |
-| `SESSION_SECRET`                | Новый результат `openssl rand -hex 32`                       | Только API-сервис     |
-| `TELEGRAM_AUTH_MAX_AGE_SECONDS` | Введите `900`                                                | Только API-сервис     |
-| `DEEPSEEK_API_KEY`              | Ключ DeepSeek; пока можно не добавлять                       | В будущем только API  |
-| `DEEPSEEK_BASE_URL`             | `https://api.deepseek.com`                                   | В будущем только API  |
-| `DEEPSEEK_MODEL`                | `deepseek-chat`                                              | В будущем только API  |
+- [Render](https://render.com/) — размещение Fastify API и статического React-приложения;
+- [Neon](https://neon.com/) — управляемая PostgreSQL;
+- GitHub — приватный репозиторий, из которого Render забирает код.
+
+Render и Neon не являются обязательными навсегда, но подходят для первого пилота. Не нужно
+покупать обычный файловый «хостинг сайтов»: нам нужен Node.js web service для API и PostgreSQL.
+
+У проекта сейчас нет Git remote. Перед Render нужно создать приватный репозиторий на GitHub,
+добавить его как `origin` и отправить ветку `dev`. Токены и `.env` в GitHub не отправляются.
+
+Важное ограничение: бесплатный Render Web Service засыпает после периода без запросов, а Neon Free
+при бездействии приостанавливает compute. Для разработки это нормально, но первый запуск после
+паузы может быть медленнее. Требование «открывается быстро в любое время» проверяем на staging, а
+для production используем always-on Render instance и конфигурацию Neon без scale-to-zero, если
+измерения покажут заметную задержку.
+
+## Шаг 4. Создать базу в Neon
+
+Это действие выполняется на [console.neon.tech](https://console.neon.tech/).
+
+1. Зарегистрируйтесь и нажмите `New Project`.
+2. Назовите проект `adaptive-wake-coach-staging`.
+3. Выберите регион как можно ближе к будущему региону Render.
+4. Откройте проект и нажмите `Connect`.
+5. Для первого staging выберите обычное direct connection, а не pooled connection: эта же строка
+   будет использоваться миграциями.
+6. Скопируйте всю строку, начинающуюся с `postgresql://` и содержащую `sslmode=require`.
+7. Не вставляйте строку в Git, документацию, BotFather или React.
+
+Эта строка и есть `DATABASE_URL`. Позже добавьте её в Render API Service → `Environment`.
+В разделе Neon `Backup & Restore` проверьте доступное вашему тарифу окно восстановления. Для
+будущего production создадим отдельный Neon project или отдельную строго изолированную базу.
+
+## Шаг 5. Создать API Web Service в Render
+
+Это действие выполняется на [dashboard.render.com](https://dashboard.render.com/).
+
+1. Нажмите `New` → `Web Service`.
+2. Подключите GitHub и выберите приватный репозиторий Adaptive Wake Coach.
+3. В поле `Branch` выберите `dev`.
+4. `Root Directory` оставьте пустым: сборка использует весь pnpm monorepo.
+5. Выберите Node runtime.
+6. В `Build Command` укажите:
+
+   ```bash
+   corepack enable && pnpm install --frozen-lockfile && pnpm db:migrate && pnpm build
+   ```
+
+7. В `Start Command` укажите:
+
+   ```bash
+   pnpm start:api
+   ```
+
+8. В `Health Check Path` укажите `/health`.
+9. Для первых экспериментов можно проверить бесплатный instance, но для доступности без сна нужен
+   платный always-on instance.
+10. До первого deploy откройте слева `Environment` → `Add Environment Variable`.
+
+Добавьте в **API Web Service**, по одной строке:
+
+| Key                             | Value                                  |
+| ------------------------------- | -------------------------------------- |
+| `DATABASE_URL`                  | Строка подключения из Neon             |
+| `TELEGRAM_BOT_TOKEN`            | Уже полученный токен BotFather         |
+| `SESSION_SECRET`                | Новый результат `openssl rand -hex 32` |
+| `TELEGRAM_AUTH_MAX_AGE_SECONDS` | `900`                                  |
+
+Render сам устанавливает `NODE_ENV=production` и `PORT`. Код API умеет читать Render `PORT`,
+поэтому `API_PORT` на Render добавлять не нужно. DeepSeek-переменные пока тоже не нужны.
+
+В Render «менеджер секретов» — это именно страница сервиса `Environment`. Можно нажать
+`Add from .env`, но безопаснее добавить только перечисленные серверные переменные и не переносить
+локальные `NODE_ENV`, `API_PORT` и `POSTGRES_PORT`.
+
+После `Save, rebuild and deploy` откройте выданный адрес вида:
+
+```text
+https://adaptive-wake-api-staging.onrender.com/health
+```
+
+Ответ должен быть `{"status":"ok"}`. Сохраните адрес API: он понадобится для rewrite frontend.
+
+## Шаг 6. Создать React Static Site в Render
+
+1. В Render нажмите `New` → `Static Site`.
+2. Выберите тот же GitHub-репозиторий и ветку `dev`.
+3. `Root Directory` оставьте пустым.
+4. В `Build Command` укажите:
+
+   ```bash
+   corepack enable && pnpm install --frozen-lockfile && pnpm --filter @awc/web build
+   ```
+
+5. В `Publish Directory` укажите `apps/web/dist`.
+6. Секретные environment variables этому Static Site не добавляйте.
+7. После создания откройте `Redirects/Rewrites` и добавьте правила именно в таком порядке:
+
+| Source    | Destination                             | Action    |
+| --------- | --------------------------------------- | --------- |
+| `/api/*`  | `https://<ВАШ_API>.onrender.com/api/*`  | `Rewrite` |
+| `/health` | `https://<ВАШ_API>.onrender.com/health` | `Rewrite` |
+| `/*`      | `/index.html`                           | `Rewrite` |
+
+Первые два правила сохраняют один публичный origin для web и API; последнее обеспечивает работу
+React-маршрутов. После настройки откройте `/health` уже на адресе Static Site и убедитесь, что
+получен `{"status":"ok"}`. Затем пройдите Telegram smoke-test и отдельно проверьте, что secure
+cookie сохраняется через Render rewrite. Если Render не передаст cookie корректно, объединим web
+и API в один Web Service вместо ослабления защиты.
+
+Render выдаёт бесплатный HTTPS-адрес `*.onrender.com`; покупать домен для первого staging не
+обязательно. Собственный домен понадобится ближе к production. Render автоматически обслуживает
+HTTPS и позволяет позже добавить домен в `Settings` → `Custom Domains`.
+
+## Какие переменные куда помещаются
+
+| Имя переменной                  | Откуда взять значение                           | Куда добавить         |
+| ------------------------------- | ----------------------------------------------- | --------------------- |
+| `NODE_ENV`                      | Render устанавливает `production` автоматически | Не добавлять вручную  |
+| `PORT`                          | Render добавляет автоматически                  | Не добавлять вручную  |
+| `DATABASE_URL`                  | Скопировать из созданной на хостинге PostgreSQL | API и задача миграции |
+| `TELEGRAM_BOT_TOKEN`            | Уже полученный токен BotFather                  | Только API-сервис     |
+| `SESSION_SECRET`                | Новый результат `openssl rand -hex 32`          | Только API-сервис     |
+| `TELEGRAM_AUTH_MAX_AGE_SECONDS` | Введите `900`                                   | Только API-сервис     |
+| `DEEPSEEK_API_KEY`              | Ключ DeepSeek; пока можно не добавлять          | В будущем только API  |
+| `DEEPSEEK_BASE_URL`             | `https://api.deepseek.com`                      | В будущем только API  |
+| `DEEPSEEK_MODEL`                | `deepseek-chat`                                 | В будущем только API  |
 
 Статическому web-сервису секреты не передаются. В частности, нельзя создавать
 `VITE_TELEGRAM_BOT_TOKEN`, `VITE_SESSION_SECRET` или `VITE_DEEPSEEK_API_KEY`: всё с префиксом
 `VITE_` может попасть в браузер пользователя.
 
 Локальный `.env` не загружается на хостинг автоматически. Значения нужно вручную перенести в
-раздел переменных API-сервиса или использовать безопасный импорт, если его предлагает провайдер.
+Render API Web Service → `Environment`. В GitHub, Render Static Site и BotFather секреты не
+добавляются.
 
-## Шаг 4. Создать PostgreSQL на хостинге
-
-Это действие выполняется **в панели хостинга**, а не в BotFather.
-
-1. Создайте управляемую PostgreSQL 17 для staging.
-2. Откройте её раздел подключения.
-3. Скопируйте connection string вида `postgres://USER:PASSWORD@HOST:5432/DATABASE`.
-4. Вставьте его как `DATABASE_URL` в переменные API-сервиса.
-5. Не публикуйте порт PostgreSQL в интернете, если доступна внутренняя сеть.
-6. Включите автоматические backup.
-7. Перед запуском API выполните `pnpm db:migrate` с тем же `DATABASE_URL`.
-
-Для staging и будущего production нужны разные базы.
-
-## Шаг 5. Развернуть приложение
-
-Рекомендуемая схема первого релиза — один публичный HTTPS origin:
-
-```text
-https://wake.example.com/          → собранный React из apps/web/dist
-https://wake.example.com/api/*     → Fastify API
-https://wake.example.com/health    → Fastify API
-Fastify API                        → закрытая PostgreSQL
-```
-
-Это важно, потому что браузерная сессия использует secure HTTP-only cookie, а web обращается к
-относительным `/api/*` адресам. Разные публичные домены потребуют дополнительной реализации CORS
-и cross-site cookie.
-
-Команды проверки и сборки:
-
-```bash
-pnpm install --frozen-lockfile
-pnpm format:check
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm verify:production
-pnpm db:migrate
-```
-
-API запускается командой `pnpm start:api`, а web после сборки находится в `apps/web/dist`.
-На HTTPS-адресе откройте:
-
-```text
-https://wake.example.com/health
-```
-
-Ответ должен быть `{"status":"ok"}`.
-
-Точная последовательность кнопок развёртывания зависит от выбранного провайдера. До выбора
-хостинга следующий технический шаг — добавить Dockerfile/reverse proxy или другой
-deployment-адаптер. После выбора провайдера инструкцию нужно дополнить его конкретными экранами и
-командами, не угадывая несовместимую схему заранее.
-
-## Шаг 6. Привязать HTTPS URL в BotFather
+## Шаг 7. Привязать HTTPS URL в BotFather
 
 Это действие выполняется **в Telegram в чате с BotFather**, только после успешной проверки
 `/health`.
@@ -221,7 +281,7 @@ https://t.me/<USERNAME_ВАШЕГО_БОТА>?startapp
 Webhook и long polling пока не нужны: текущий бот запускает Mini App, но ещё не отвечает на
 сообщения и не отправляет напоминания.
 
-## Шаг 7. Проверить реальный Telegram-вход
+## Шаг 8. Проверить реальный Telegram-вход
 
 Откройте ссылку `https://t.me/<BOT_USERNAME>?startapp` внутри Telegram.
 
@@ -272,3 +332,13 @@ AI-запросы. Это будущий этап после накоплени�
 - [Telegram Mini Apps](https://core.telegram.org/bots/webapps)
 - [Main Mini Apps](https://core.telegram.org/api/bots/webapps#main-mini-apps)
 - [Введение в Telegram Bots](https://core.telegram.org/bots)
+
+## Официальные источники Render и Neon
+
+- [Первое развёртывание на Render](https://render.com/docs/your-first-deploy)
+- [Переменные и секреты Render](https://render.com/docs/configure-environment-variables)
+- [Render Static Sites](https://render.com/docs/static-sites)
+- [Redirects и Rewrites на Render](https://render.com/docs/redirects-rewrites)
+- [Health checks на Render](https://render.com/docs/health-checks)
+- [Подключение через Neon connection string](https://neon.com/docs/connect/connection-pooling)
+- [Neon Scale to Zero](https://neon.com/docs/introduction/scale-to-zero)
