@@ -257,6 +257,10 @@ React-маршрутов. После настройки откройте `/healt
 cookie сохраняется через Render rewrite. Если Render не передаст cookie корректно, объединим web
 и API в один Web Service вместо ослабления защиты.
 
+Для текущего staging используется `https://wake-coach-1.onrender.com/`. Публичная проверка
+подтвердила React, health rewrite, Telegram-аутентификацию, secure cookie, bootstrap и безопасное
+удаление временного тестового профиля.
+
 Render выдаёт бесплатный HTTPS-адрес `*.onrender.com`; покупать домен для первого staging не
 обязательно. Собственный домен понадобится ближе к production. Render автоматически обслуживает
 HTTPS и позволяет позже добавить домен в `Settings` → `Custom Domains`.
@@ -291,11 +295,11 @@ Render API Web Service → `Environment`. В GitHub, Render Static Site и BotFa
 1. Отправьте `/mybots`.
 2. Выберите уже созданного бота.
 3. Откройте `Bot Settings` → `Configure Mini App` → `Enable Mini App`.
-4. Вставьте полный адрес, например `https://wake.example.com/`.
+4. Вставьте staging-адрес `https://wake-coach-1.onrender.com/`.
 5. Настройте название, иконку и splash screen.
 6. Откройте `Menu Button` либо отправьте `/setmenubutton`.
 7. Введите текст кнопки `Открыть Wake Coach`.
-8. Вставьте тот же HTTPS URL.
+8. Вставьте тот же URL `https://wake-coach-1.onrender.com/`.
 
 Ссылка для запуска Main Mini App:
 
