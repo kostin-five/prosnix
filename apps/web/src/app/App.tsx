@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import {
   Bell,
   Home,
@@ -31,6 +30,8 @@ import {
   saveTaskResult,
 } from "../features/session/session-api.js";
 import type { BootstrapResponse, WakeSessionResponse } from "../shared/api/client.js";
+
+const DemoWakeChart = lazy(() => import("../features/analytics/demo-wake-chart.js"));
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Screen = "home" | "alarm" | "startRating" | "tasks" | "endRating" | "results" | "stats";
@@ -1748,66 +1749,17 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
       {demo && valid.length > 0 && (
         <div className="bg-card border border-border rounded-2xl p-4 mb-5">
           <p className="text-sm font-semibold mb-4">Прирост бодрости по дням</p>
-          <div className="h-36">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData}
-                barSize={28}
-                margin={{ top: 0, right: 0, left: -24, bottom: 0 }}
-              >
-                <XAxis
-                  dataKey="label"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#7878A0", fontSize: 12, fontFamily: "inherit" }}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#7878A0", fontSize: 11, fontFamily: "inherit" }}
-                  tickCount={4}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "#12121E",
-                    border: "1px solid rgba(255,255,255,0.07)",
-                    borderRadius: 12,
-                    color: "#ECEDF5",
-                    fontFamily: "inherit",
-                    fontSize: 13,
-                  }}
-                  cursor={{ fill: "rgba(255,255,255,0.03)" }}
-                  formatter={(v: number) => [v > 0 ? `+${v}` : v, "Прирост бодрости"]}
-                />
-                <Bar
-                  dataKey="value"
-                  shape={(rawProps: unknown) => {
-                    const {
-                      x = 0,
-                      y = 0,
-                      width = 0,
-                      height = 0,
-                      value = 0,
-                    } = rawProps as Partial<
-                      Record<"x" | "y" | "width" | "height" | "value", number>
-                    >;
-                    if (!height || height <= 0) return <g />;
-                    const fill =
-                      value >= 5
-                        ? "#22C55E"
-                        : value >= 3
-                          ? "#F97316"
-                          : value >= 0
-                            ? "#EAB308"
-                            : "#EF4444";
-                    return (
-                      <rect x={x} y={y} width={width} height={height} fill={fill} rx={5} ry={5} />
-                    );
-                  }}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <Suspense
+            fallback={
+              <div
+                className="h-36 animate-pulse rounded-xl bg-muted"
+                role="status"
+                aria-label="Загружаем график"
+              />
+            }
+          >
+            <DemoWakeChart data={chartData} />
+          </Suspense>
         </div>
       )}
 

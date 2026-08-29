@@ -13,6 +13,7 @@
     "dev:api": "pnpm --filter @awc/api dev",
     "start:api": "pnpm --filter @awc/api start",
     "build": "pnpm -r --if-present build",
+    "verify:web-bundle": "node scripts/verify-web-bundle.mjs",
     "verify:production": "node scripts/verify-production-boundaries.mjs",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
