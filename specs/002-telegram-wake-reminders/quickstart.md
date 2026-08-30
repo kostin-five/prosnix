@@ -43,8 +43,8 @@ pnpm test:e2e
 ## Настройка cron-job.org
 
 - URL: `https://wake-coach.onrender.com/internal/notifications/dispatch`.
-- Method: `POST`; body пустой; timeout 30 секунд.
-- Header: `Authorization: Bearer <CRON_SECRET>`.
+- Method: `POST`; body `{}`; timeout 30 секунд.
+- Headers: `Authorization: Bearer <CRON_SECRET>` и `Content-Type: application/json`.
 - Schedule: `*/5 * * * *`.
 
 В Render API Environment хранится само значение `CRON_SECRET`. cron-job.org получает только этот
