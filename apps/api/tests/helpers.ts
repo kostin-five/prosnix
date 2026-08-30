@@ -33,6 +33,7 @@ export const testConfig: AppConfig = {
   sessionSecret: testSessionSecret,
   telegramAuthMaxAgeSeconds: 900,
   telegramWebAppUrl: "https://wake-coach.example/",
+  cronSecret: "test-cron-secret-that-is-longer-than-32-chars",
 };
 
 export function signedInitData(userId = 42): string {

@@ -3,6 +3,18 @@ info:
   title: Adaptive Wake Coach — расписание пробуждения
   version: 0.2.0
 paths:
+  /internal/notifications/dispatch:
+    post:
+      summary: Запустить ограниченную обработку наступивших Telegram-напоминаний
+      security: [{ cronBearer: [] }]
+      responses:
+        "200":
+          description: Сводка обработки; повторный вызов безопасен благодаря журналу доставок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DispatchSummary" }
+        "401": { description: Bearer-секрет отсутствует или неверен }
+        "503": { description: CRON_SECRET или URL Mini App ещё не настроен на API }
   /api/v1/me/wake-schedule:
     get:
       summary: Получить расписание текущего пользователя
@@ -36,6 +48,9 @@ components:
       type: apiKey
       in: cookie
       name: awc_session
+    cronBearer:
+      type: http
+      scheme: bearer
   schemas:
     WakeScheduleInput:
       type: object
@@ -63,3 +78,13 @@ components:
           oneOf:
             - { $ref: "#/components/schemas/WakeSchedule" }
             - { type: "null" }
+    DispatchSummary:
+      type: object
+      additionalProperties: false
+      required: [claimed, sent, retryWait, blocked, failed]
+      properties:
+        claimed: { type: integer, minimum: 0, maximum: 10 }
+        sent: { type: integer, minimum: 0 }
+        retryWait: { type: integer, minimum: 0 }
+        blocked: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }

@@ -2,7 +2,7 @@
 
 ## Предварительные условия
 
-- `.env` содержит `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `SESSION_SECRET` и
+- `.env` содержит `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `SESSION_SECRET`, `CRON_SECRET` и
   `TELEGRAM_WEB_APP_URL=https://wake-coach-1.onrender.com/`.
 - Миграции применены к тестовой/локальной БД.
 - Пользователь открыл личный чат с `@wake_coach_bot`.
@@ -34,18 +34,18 @@ pnpm test:e2e
 ## Проверка доставки на staging
 
 1. В Neon staging сохранить тестовому пользователю время не позже пяти минут от текущего.
-2. В Render вручную запустить Notification Cron Job или дождаться очередного запуска.
+2. В cron-job.org выполнить тестовый POST-запуск или дождаться очередного запуска.
 3. Убедиться, что пришло одно сообщение с кнопкой запуска приложения.
 4. Запустить job повторно: второго сообщения для того же `scheduled_for` быть не должно.
 5. Заблокировать тестового бота, создать следующее due-срабатывание и запустить job.
 6. После открытия Mini App проверить статус «бот не может отправить сообщение».
 
-## Настройка Render Cron Job
+## Настройка cron-job.org
 
-- Environment: тот же `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEB_APP_URL`, что у API.
-- Build Command: `pnpm install --frozen-lockfile && pnpm build`.
-- Command: `pnpm --filter @awc/api notifications:dispatch`.
-- Schedule: каждые пять минут.
+- URL: `https://wake-coach.onrender.com/internal/notifications/dispatch`.
+- Method: `POST`; body пустой; timeout 30 секунд.
+- Header: `Authorization: Bearer <CRON_SECRET>`.
+- Schedule: `*/5 * * * *`.
 
-Секреты добавляются в раздел Environment конкретного Cron Job в Render Dashboard. Они не
-добавляются в GitHub и не имеют префикса `VITE_`.
+В Render API Environment хранится само значение `CRON_SECRET`. cron-job.org получает только этот
+отдельный секрет; доступ к Neon и токен Telegram ему не передаются.

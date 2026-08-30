@@ -4,10 +4,12 @@ import {
   PostgresBootstrapRepository,
   PostgresSessionCommandRepository,
   PostgresUserDeletionRepository,
+  PostgresWakeNotificationRepository,
   PostgresWakeScheduleRepository,
 } from "@awc/db";
 import { createApp } from "./app/create-app.js";
 import { loadConfig } from "./app/config.js";
+import { TelegramBotGateway } from "./notifications/telegram.js";
 
 const config = loadConfig();
 const database = connectDatabase(config.databaseUrl);
@@ -18,6 +20,8 @@ const app = await createApp(config, {
   analyticsRepository: new PostgresAnalyticsRepository(database.db),
   userDeletionRepository: new PostgresUserDeletionRepository(database.db),
   wakeScheduleRepository: new PostgresWakeScheduleRepository(database.db),
+  wakeNotificationRepository: new PostgresWakeNotificationRepository(database.db),
+  notificationGateway: new TelegramBotGateway(config.botToken, config.telegramWebAppUrl),
 });
 app.addHook("onClose", async () => database.close());
 

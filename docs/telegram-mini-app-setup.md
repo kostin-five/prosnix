@@ -221,6 +221,7 @@ Render и Neon не являются обязательными навсегда
 | `SESSION_SECRET`                | Новый результат `openssl rand -hex 32` |
 | `TELEGRAM_AUTH_MAX_AGE_SECONDS` | `900`                                  |
 | `TELEGRAM_WEB_APP_URL`          | `https://wake-coach-1.onrender.com/`   |
+| `CRON_SECRET`                   | Новый результат `openssl rand -hex 32` |
 
 Render сам устанавливает `NODE_ENV=production` и `PORT`. Код API умеет читать Render `PORT`,
 поэтому `API_PORT` на Render добавлять не нужно. DeepSeek-переменные пока тоже не нужны.
@@ -272,44 +273,77 @@ Render выдаёт бесплатный HTTPS-адрес `*.onrender.com`; по
 обязательно. Собственный домен понадобится ближе к production. Render автоматически обслуживает
 HTTPS и позволяет позже добавить домен в `Settings` → `Custom Domains`.
 
-## Шаг 6.1. Создать Render Cron Job для напоминаний
+## Шаг 6.1. Настроить бесплатный запуск через cron-job.org
 
-Cron Job — это отдельная короткая задача на Render. Она просыпается по расписанию, проверяет due
-записи в Neon, отправляет сообщения и завершается. Это надёжнее таймера внутри бесплатного API,
-который может заснуть.
+cron-job.org будет только раз в пять минут обращаться к API. Доступ к Neon и токен Telegram ему не
+нужны: они остаются в Render API Web Service. Для запроса используется отдельный `CRON_SECRET`.
 
-1. В [Render Dashboard](https://dashboard.render.com/) нажмите `New` → `Cron Job`.
-2. Выберите репозиторий `wake-coach` и ветку `dev`.
-3. `Root Directory` оставьте пустым.
-4. В `Build Command` вставьте:
+### 1. Где создать секрет
 
-   ```bash
-   corepack enable && pnpm install --frozen-lockfile && pnpm build
-   ```
+В Terminal на Mac выполните один раз:
 
-5. В `Command` вставьте:
+```bash
+openssl rand -hex 32
+```
 
-   ```bash
-   pnpm --filter @awc/api notifications:dispatch
-   ```
+Скопируйте результат. Затем откройте Render Dashboard → сервис `wake-coach` → `Environment` →
+`Add Environment Variable`:
 
-6. В `Schedule` задайте запуск каждые пять минут. Если Render просит cron expression, используйте
-   `*/5 * * * *`.
-7. Откройте **Environment именно этого Cron Job** и добавьте:
+- Key: `CRON_SECRET`
+- Value: только полученная строка, без `Bearer`, кавычек и пробелов
 
-| Key                    | Откуда взять Value                                  |
-| ---------------------- | --------------------------------------------------- |
-| `DATABASE_URL`         | Скопировать значение из Environment API Web Service |
-| `TELEGRAM_BOT_TOKEN`   | Скопировать значение из Environment API Web Service |
-| `SESSION_SECRET`       | Скопировать значение из Environment API Web Service |
-| `TELEGRAM_WEB_APP_URL` | Ввести `https://wake-coach-1.onrender.com/`         |
+Нажмите `Save, rebuild and deploy`. Это новый отдельный секрет; второй токен Telegram получать не
+нужно.
 
-`SESSION_SECRET` worker сейчас не использует напрямую, но production-конфигурация проверяет полный
-набор серверных секретов. Не добавляйте эти значения в Static Site, GitHub или BotFather.
+### 2. Что заполнить в cron-job.org
 
-После deploy откройте Cron Job → `Trigger Run` и проверьте лог. Нормальное завершение выглядит как
-одна JSON-строка `notification.run.completed`; токен, Telegram ID и текст ответов там отсутствуют.
-Если due-записей нет, `claimed` и `sent` будут равны нулю — это нормальный результат.
+Откройте [cron-job.org](https://console.cron-job.org/) → `Cron задания` → `Создать cron задание`.
+
+На вкладке **Общее**:
+
+| Поле                      | Значение                                                          |
+| ------------------------- | ----------------------------------------------------------------- |
+| Заголовок                 | `Adaptive Wake Coach — отправка напоминаний`                      |
+| URL                       | `https://wake-coach.onrender.com/internal/notifications/dispatch` |
+| Включить задание          | Пока выключить; включить после успешного тестового запуска        |
+| Сохранять ответы в архив  | Необязательно, для staging можно выключить                        |
+| График                    | Каждые 5 минут                                                    |
+| Crontab                   | `*/5 * * * *`                                                     |
+| Уведомить после провалов  | Включить после 2 последовательных ошибок                          |
+| Успех после прошлого сбоя | Включить                                                          |
+| Отключение после ошибок   | Включить                                                          |
+
+На вкладке **Расширенное**:
+
+| Поле                     | Значение                                                           |
+| ------------------------ | ------------------------------------------------------------------ |
+| HTTP-аутентификация      | Выключена — это Basic Auth, она здесь не используется              |
+| Заголовок, ключ          | `Authorization`                                                    |
+| Заголовок, значение      | `Bearer ВАШ_CRON_SECRET` — слово Bearer, пробел и строка из Render |
+| Часовой пояс             | `Europe/Moscow` (на `*/5` результат от часового пояса не зависит)  |
+| Метод запроса            | `POST`                                                             |
+| Тело запроса             | Оставить пустым                                                    |
+| Тайм-аут                 | `30` секунд — cron-job.org не принимает значение больше 30         |
+| Считать HTTP 3xx успехом | Выключено                                                          |
+
+В Render хранится только сама строка секрета. В cron-job.org перед этой строкой обязательно стоит
+`Bearer ` с одним пробелом. `TELEGRAM_BOT_TOKEN`, `DATABASE_URL` и `SESSION_SECRET` в cron-job.org
+не добавляются.
+
+### 3. Как проверить и включить
+
+1. Дождитесь успешного deploy Render из ветки `dev`.
+2. В cron-job.org оставьте задачу выключенной и нажмите `Тестовый запуск`.
+3. Ожидаемый HTTP-код — `200`. Нормальный ответ без наступивших напоминаний:
+   `{"claimed":0,"sent":0,"retryWait":0,"blocked":0,"failed":0}`.
+4. `401` означает, что значение после `Bearer ` не совпадает с `CRON_SECRET` в Render.
+5. `503` означает, что в Render API отсутствует `CRON_SECRET` или `TELEGRAM_WEB_APP_URL`; добавьте
+   переменную и выполните новый deploy.
+6. После ответа `200` включите задание и нажмите `Создать`/`Сохранить`.
+
+Первый запрос к бесплатному Render после сна иногда может не уложиться в 30 секунд. Следующий
+запуск через пять минут разбудит сервис; уведомление после двух последовательных ошибок поможет
+отличить обычный холодный старт от реальной неисправности.
 
 ## Какие переменные куда помещаются
 
@@ -321,7 +355,8 @@ Cron Job — это отдельная короткая задача на Render
 | `TELEGRAM_BOT_TOKEN`            | Уже полученный токен BotFather                  | Только API-сервис     |
 | `SESSION_SECRET`                | Новый результат `openssl rand -hex 32`          | Только API-сервис     |
 | `TELEGRAM_AUTH_MAX_AGE_SECONDS` | Введите `900`                                   | Только API-сервис     |
-| `TELEGRAM_WEB_APP_URL`          | `https://wake-coach-1.onrender.com/`            | API и Render Cron Job |
+| `TELEGRAM_WEB_APP_URL`          | `https://wake-coach-1.onrender.com/`            | Только API-сервис     |
+| `CRON_SECRET`                   | Новый результат `openssl rand -hex 32`          | API и cron-job.org    |
 | `DEEPSEEK_API_KEY`              | Ключ DeepSeek; пока можно не добавлять          | В будущем только API  |
 | `DEEPSEEK_BASE_URL`             | `https://api.deepseek.com`                      | В будущем только API  |
 | `DEEPSEEK_MODEL`                | `deepseek-chat`                                 | В будущем только API  |
@@ -331,8 +366,8 @@ Cron Job — это отдельная короткая задача на Render
 `VITE_` может попасть в браузер пользователя.
 
 Локальный `.env` не загружается на хостинг автоматически. Значения нужно вручную перенести в
-Render API Web Service → `Environment`, а перечисленные выше три секрета и URL — также в
-Render Cron Job → `Environment`. В GitHub, Render Static Site и BotFather секреты не добавляются.
+Render API Web Service → `Environment`. В cron-job.org добавляется только `CRON_SECRET` в виде
+Bearer-заголовка. В GitHub, Render Static Site и BotFather секреты не добавляются.
 
 ## Шаг 7. Привязать HTTPS URL в BotFather
 
@@ -368,8 +403,8 @@ https://t.me/wake_coach_bot?startapp
 Текущий staging-бот: [@wake_coach_bot](https://t.me/wake_coach_bot). Запуск Mini App и реальная
 Telegram-аутентификация через него подтверждены 29 августа 2026 года.
 
-Webhook и long polling пока не нужны: текущий бот запускает Mini App, но ещё не отвечает на
-сообщения и не отправляет напоминания.
+Webhook и long polling пока не нужны: напоминания отправляет защищённый серверный обработчик через
+Telegram Bot API, а cron-job.org только запускает его по времени.
 
 ## Шаг 8. Проверить реальный Telegram-вход
 

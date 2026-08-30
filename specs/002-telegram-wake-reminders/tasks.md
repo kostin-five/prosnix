@@ -72,6 +72,15 @@
 - [x] T030 [P] Обновить текущий и будущий этап roadmap в `docs/release-roadmap.md`
 - [x] T031 Выполнить миграцию, format, typecheck, unit/integration/E2E tests, build и production checks по `specs/002-telegram-wake-reminders/quickstart.md`
 
+## Этап 7: Бесплатный внешний запуск через cron-job.org
+
+- [x] T032 Обновить план, исследование и HTTP-контракт для защищённого cron-job.org триггера
+- [x] T033 Добавить серверную переменную `CRON_SECRET` и безопасную проверку Bearer-заголовка
+- [x] T034 [P] Написать контрактные тесты 401/200/503 для внутреннего endpoint
+- [x] T035 Реализовать `POST /internal/notifications/dispatch` с ограниченным batch и параллельностью
+- [x] T036 [P] Обновить русскую инструкцию, roadmap, quickstart и validation под cron-job.org
+- [x] T037 Выполнить format, typecheck, API tests, build и production boundary checks
+
 ## Зависимости и порядок
 
 - Этап 2 зависит от T001–T003 и блокирует пользовательские истории.
@@ -79,6 +88,7 @@
 - US2 зависит от T005, T007–T011 и может выполняться независимо от UI после foundation.
 - US3 зависит от US1 и результата доставки US2.
 - Этап 6 выполняется после выбранных пользовательских историй.
+- Этап 7 заменяет платный Render Cron Job, не меняя доменную модель и гарантии дедупликации.
 
 ## Стратегия реализации
 

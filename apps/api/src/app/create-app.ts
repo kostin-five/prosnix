@@ -7,6 +7,7 @@ import type {
   SessionCommandRepository,
   UnitOfWork,
   UserDeletionRepository,
+  WakeNotificationRepository,
   WakeScheduleRepository,
 } from "@awc/domain";
 import { registerAuthRoutes } from "../auth/routes.js";
@@ -19,6 +20,8 @@ import type { AppConfig } from "./config.js";
 import { registerObservability } from "../observability/register.js";
 import { registerWakeScheduleRoutes } from "../notifications/routes.js";
 import { WakeScheduleService } from "../notifications/service.js";
+import { registerNotificationDispatchRoute } from "../notifications/dispatch-route.js";
+import type { TelegramNotificationGateway } from "../notifications/telegram.js";
 
 export interface AppDependencies {
   unitOfWork: UnitOfWork;
@@ -27,6 +30,8 @@ export interface AppDependencies {
   analyticsRepository?: AnalyticsRepository;
   userDeletionRepository?: UserDeletionRepository;
   wakeScheduleRepository?: WakeScheduleRepository;
+  wakeNotificationRepository?: WakeNotificationRepository;
+  notificationGateway?: TelegramNotificationGateway;
   now?: () => Date;
 }
 
@@ -88,6 +93,14 @@ export async function createApp(
           dependencies.wakeScheduleRepository,
           dependencies.now ?? (() => new Date()),
         ),
+        ...(dependencies.now ? { now: dependencies.now } : {}),
+      });
+    }
+    if (dependencies.wakeNotificationRepository && dependencies.notificationGateway) {
+      await registerNotificationDispatchRoute(app, {
+        config,
+        repository: dependencies.wakeNotificationRepository,
+        gateway: dependencies.notificationGateway,
         ...(dependencies.now ? { now: dependencies.now } : {}),
       });
     }

@@ -6,6 +6,7 @@ export interface AppConfig {
   sessionSecret: string;
   telegramAuthMaxAgeSeconds: number;
   telegramWebAppUrl: string;
+  cronSecret: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -23,6 +24,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   }
   const botToken = env.TELEGRAM_BOT_TOKEN ?? "";
   const sessionSecret = env.SESSION_SECRET ?? "";
+  const cronSecret = env.CRON_SECRET ?? "";
   const databaseUrl = env.DATABASE_URL ?? "postgres://awc:awc@localhost:5432/awc";
   const telegramWebAppUrl =
     env.TELEGRAM_WEB_APP_URL ?? (nodeEnv === "development" ? "http://localhost:5190/" : "");
@@ -37,6 +39,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (nodeEnv === "production" && (!botToken || sessionSecret.length < 32)) {
     throw new Error("Production authentication secrets are missing or unsafe");
   }
+  if (cronSecret && cronSecret.length < 32) {
+    throw new Error("CRON_SECRET must contain at least 32 characters");
+  }
   if (nodeEnv === "production" && parsedWebAppUrl && parsedWebAppUrl.protocol !== "https:") {
     throw new Error("TELEGRAM_WEB_APP_URL must use HTTPS in production");
   }
@@ -48,5 +53,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     sessionSecret,
     telegramAuthMaxAgeSeconds,
     telegramWebAppUrl: parsedWebAppUrl?.toString() ?? "",
+    cronSecret,
   };
 }
