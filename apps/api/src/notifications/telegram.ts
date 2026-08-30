@@ -9,7 +9,12 @@ interface TelegramResponse {
 }
 
 export interface TelegramNotificationGateway {
-  send(input: { chatId: bigint; attempt: number; now: Date }): Promise<NotificationResult>;
+  send(input: {
+    kind: "wake" | "follow_up";
+    chatId: bigint;
+    attempt: number;
+    now: Date;
+  }): Promise<NotificationResult>;
 }
 
 export class TelegramBotGateway implements TelegramNotificationGateway {
@@ -19,7 +24,12 @@ export class TelegramBotGateway implements TelegramNotificationGateway {
     private readonly fetcher: typeof fetch = fetch,
   ) {}
 
-  async send(input: { chatId: bigint; attempt: number; now: Date }): Promise<NotificationResult> {
+  async send(input: {
+    kind: "wake" | "follow_up";
+    chatId: bigint;
+    attempt: number;
+    now: Date;
+  }): Promise<NotificationResult> {
     let response: Response;
     try {
       response = await this.fetcher(`https://api.telegram.org/bot${this.token}/sendMessage`, {
@@ -27,9 +37,19 @@ export class TelegramBotGateway implements TelegramNotificationGateway {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           chat_id: input.chatId.toString(),
-          text: "Доброе утро! Пора запустить твой протокол пробуждения ☀️",
+          text:
+            input.kind === "wake"
+              ? "Доброе утро! Пора запустить твой протокол пробуждения ☀️"
+              : "Как ты себя чувствуешь спустя 15 минут? Ответ поможет улучшить твой следующий протокол.",
           reply_markup: {
-            inline_keyboard: [[{ text: "Начать пробуждение", web_app: { url: this.webAppUrl } }]],
+            inline_keyboard: [
+              [
+                {
+                  text: input.kind === "wake" ? "Начать пробуждение" : "Ответить на follow-up",
+                  web_app: { url: this.webAppUrl },
+                },
+              ],
+            ],
           },
         }),
         signal: AbortSignal.timeout(10_000),

@@ -41,7 +41,8 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("notification delivery con
 
     const first = new PostgresWakeNotificationRepository(database.db);
     const second = new PostgresWakeNotificationRepository(database.db);
-    const claims = (await Promise.all([first.claimDue(now, 10), second.claimDue(now, 10)])).flat();
+    const batches = await Promise.all([first.claimDue(now, 10), second.claimDue(now, 10)]);
+    const claims = batches.flatMap((batch) => batch.notifications);
     expect(claims).toHaveLength(1);
     expect(claims[0]).toMatchObject({ telegramChatId: telegramUserId, scheduledFor: dueAt });
 
@@ -55,7 +56,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("notification delivery con
       botStatus: "available",
       nextTriggerAt: new Date("2026-08-30T04:00:00Z"),
     });
-    expect(await first.claimDue(now, 10)).toHaveLength(0);
+    expect((await first.claimDue(now, 10)).notifications).toHaveLength(0);
     await deletion.deleteUser(freshUser.id, "notification-cleanup-after");
   });
 });

@@ -4,6 +4,8 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type {
   AnalyticsRepository,
   BootstrapRepository,
+  FollowUpNotificationRepository,
+  NotificationMaintenanceRepository,
   SessionCommandRepository,
   UnitOfWork,
   UserDeletionRepository,
@@ -31,6 +33,8 @@ export interface AppDependencies {
   userDeletionRepository?: UserDeletionRepository;
   wakeScheduleRepository?: WakeScheduleRepository;
   wakeNotificationRepository?: WakeNotificationRepository;
+  followUpNotificationRepository?: FollowUpNotificationRepository;
+  notificationMaintenanceRepository?: NotificationMaintenanceRepository;
   notificationGateway?: TelegramNotificationGateway;
   now?: () => Date;
 }
@@ -100,6 +104,12 @@ export async function createApp(
       await registerNotificationDispatchRoute(app, {
         config,
         repository: dependencies.wakeNotificationRepository,
+        ...(dependencies.followUpNotificationRepository
+          ? { followUpRepository: dependencies.followUpNotificationRepository }
+          : {}),
+        ...(dependencies.notificationMaintenanceRepository
+          ? { maintenanceRepository: dependencies.notificationMaintenanceRepository }
+          : {}),
         gateway: dependencies.notificationGateway,
         ...(dependencies.now ? { now: dependencies.now } : {}),
       });

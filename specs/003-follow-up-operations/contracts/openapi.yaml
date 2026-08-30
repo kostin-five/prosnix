@@ -1,0 +1,59 @@
+openapi: 3.1.0
+info:
+  title: Adaptive Wake Coach — служебная доставка уведомлений
+  version: 0.3.0
+paths:
+  /internal/notifications/dispatch:
+    post:
+      summary: Обработать утренние и follow-up напоминания и очистить старые журналы
+      security: [{ cronBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        "200":
+          description: Privacy-safe сводка завершённого запуска
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotificationRunSummary" }
+        "401": { description: Неверный или отсутствующий Bearer-секрет }
+        "409": { description: Предыдущий запуск ещё выполняется в этом процессе }
+        "503": { description: Серверная доставка не настроена }
+components:
+  securitySchemes:
+    cronBearer:
+      type: http
+      scheme: bearer
+  schemas:
+    DispatchSummary:
+      type: object
+      additionalProperties: false
+      required: [claimed, sent, retryWait, blocked, failed, skipped, maxLagMs]
+      properties:
+        claimed: { type: integer, minimum: 0 }
+        sent: { type: integer, minimum: 0 }
+        retryWait: { type: integer, minimum: 0 }
+        blocked: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        skipped: { type: integer, minimum: 0 }
+        maxLagMs: { type: integer, minimum: 0 }
+    NotificationRunSummary:
+      type: object
+      additionalProperties: false
+      required: [wake, followUp, total, maintenance, durationMs, maxLagMs]
+      properties:
+        wake: { $ref: "#/components/schemas/DispatchSummary" }
+        followUp: { $ref: "#/components/schemas/DispatchSummary" }
+        total: { $ref: "#/components/schemas/DispatchSummary" }
+        maintenance:
+          type: object
+          required: [wakeDeleted, followUpDeleted]
+          properties:
+            wakeDeleted: { type: integer, minimum: 0 }
+            followUpDeleted: { type: integer, minimum: 0 }
+        durationMs: { type: integer, minimum: 0 }
+        maxLagMs: { type: integer, minimum: 0 }

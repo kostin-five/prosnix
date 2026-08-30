@@ -15,6 +15,13 @@
       "when": 1788018000000,
       "tag": "0001_wake_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788084000000,
+      "tag": "0002_follow_up_notifications",
+      "breakpoints": true
     }
   ]
 }

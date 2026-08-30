@@ -20,6 +20,21 @@ export interface ClaimedWakeNotification {
   attempt: number;
 }
 
+export interface ClaimedFollowUpNotification {
+  deliveryId: string;
+  sessionId: string;
+  userId: string;
+  telegramChatId: bigint;
+  scheduledFor: Date;
+  attempt: number;
+}
+
+export interface NotificationClaimBatch<T> {
+  notifications: T[];
+  skipped: number;
+  maxLagMs: number;
+}
+
 export type NotificationResult =
   | { status: "sent"; telegramMessageId: bigint; sentAt: Date }
   | { status: "retry_wait"; retryAt: Date; errorCode: "rate_limited" }
@@ -28,6 +43,16 @@ export type NotificationResult =
   | { status: "failed"; errorCode: "telegram_4xx" };
 
 export interface WakeNotificationRepository {
-  claimDue(now: Date, limit: number): Promise<ClaimedWakeNotification[]>;
+  claimDue(now: Date, limit: number): Promise<NotificationClaimBatch<ClaimedWakeNotification>>;
   complete(deliveryId: string, result: NotificationResult, now: Date): Promise<void>;
+}
+
+export interface FollowUpNotificationRepository {
+  claimDue(now: Date, limit: number): Promise<NotificationClaimBatch<ClaimedFollowUpNotification>>;
+  prepareToSend(deliveryId: string, now: Date): Promise<boolean>;
+  complete(deliveryId: string, result: NotificationResult, now: Date): Promise<void>;
+}
+
+export interface NotificationMaintenanceRepository {
+  pruneBefore(cutoff: Date): Promise<{ wakeDeleted: number; followUpDeleted: number }>;
 }

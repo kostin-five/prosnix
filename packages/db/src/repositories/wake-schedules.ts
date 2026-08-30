@@ -66,10 +66,12 @@ export class PostgresWakeScheduleRepository implements WakeScheduleRepository {
 export class PostgresWakeNotificationRepository implements WakeNotificationRepository {
   constructor(private readonly db: Database) {}
 
-  async claimDue(now: Date, limit: number): Promise<ClaimedWakeNotification[]> {
+  async claimDue(now: Date, limit: number) {
     return this.db.transaction(async (transaction) => {
       const db = transaction as Database;
       const claimed: ClaimedWakeNotification[] = [];
+      let skipped = 0;
+      let maxLagMs = 0;
       const dueSchedules = await db
         .select({ schedule: wakeSchedules, telegramChatId: users.telegramUserId })
         .from(wakeSchedules)
@@ -81,6 +83,7 @@ export class PostgresWakeNotificationRepository implements WakeNotificationRepos
       for (const due of dueSchedules) {
         if (!due.schedule.nextTriggerAt) continue;
         const scheduledFor = due.schedule.nextTriggerAt;
+        maxLagMs = Math.max(maxLagMs, now.getTime() - scheduledFor.getTime());
         const nextTriggerAt = nextDailyTrigger(
           due.schedule.localTime,
           due.schedule.timezone,
@@ -120,11 +123,13 @@ export class PostgresWakeNotificationRepository implements WakeNotificationRepos
             scheduledFor,
             attempt: 1,
           });
+        } else if (delivery && late) {
+          skipped += 1;
         }
       }
 
       const remaining = Math.max(0, limit - claimed.length);
-      if (remaining === 0) return claimed;
+      if (remaining === 0) return { notifications: claimed, skipped, maxLagMs };
       const retries = await db
         .select({
           id: notificationDeliveries.id,
@@ -147,6 +152,7 @@ export class PostgresWakeNotificationRepository implements WakeNotificationRepos
 
       for (const retry of retries) {
         if (!retry.retryAt || retry.attempts >= 2) continue;
+        maxLagMs = Math.max(maxLagMs, now.getTime() - retry.scheduledFor.getTime());
         const updated = await db
           .update(notificationDeliveries)
           .set({
@@ -173,7 +179,7 @@ export class PostgresWakeNotificationRepository implements WakeNotificationRepos
           });
         }
       }
-      return claimed;
+      return { notifications: claimed, skipped, maxLagMs };
     });
   }
 

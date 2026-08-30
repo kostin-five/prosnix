@@ -18,6 +18,8 @@ export { PostgresBootstrapRepository } from "./bootstrap.js";
 export { PostgresSessionCommandRepository } from "./sessions.js";
 export { PostgresAnalyticsRepository } from "./analytics.js";
 export { PostgresUserDeletionRepository } from "./delete-user.js";
+export { PostgresFollowUpNotificationRepository } from "./follow-up-notifications.js";
+export { PostgresNotificationMaintenanceRepository } from "./notification-maintenance.js";
 export {
   PostgresWakeNotificationRepository,
   PostgresWakeScheduleRepository,

@@ -1,29 +1,9 @@
-import type { WakeNotificationRepository } from "@awc/domain";
+import type { FollowUpNotificationRepository } from "@awc/domain";
+import type { DispatchEvent, DispatchSummary } from "./dispatch.js";
 import type { TelegramNotificationGateway } from "./telegram.js";
 
-export interface DispatchSummary {
-  claimed: number;
-  sent: number;
-  retryWait: number;
-  blocked: number;
-  failed: number;
-  skipped: number;
-  maxLagMs: number;
-}
-
-export type DispatchEvent = {
-  kind: "wake" | "follow_up";
-  event:
-    | "notification.sent"
-    | "notification.retry_wait"
-    | "notification.blocked"
-    | "notification.skipped"
-    | "notification.failed";
-  deliveryId: string;
-};
-
-export async function dispatchWakeNotifications(
-  repository: WakeNotificationRepository,
+export async function dispatchFollowUpNotifications(
+  repository: FollowUpNotificationRepository,
   gateway: TelegramNotificationGateway,
   options: {
     now?: Date;
@@ -50,8 +30,17 @@ export async function dispatchWakeNotifications(
       const notification = notifications[cursor++];
       if (!notification) return;
       try {
+        if (!(await repository.prepareToSend(notification.deliveryId, new Date()))) {
+          summary.skipped += 1;
+          options.onEvent?.({
+            kind: "follow_up",
+            event: "notification.skipped",
+            deliveryId: notification.deliveryId,
+          });
+          continue;
+        }
         const result = await gateway.send({
-          kind: "wake",
+          kind: "follow_up",
           chatId: notification.telegramChatId,
           attempt: notification.attempt,
           now: new Date(),
@@ -62,14 +51,14 @@ export async function dispatchWakeNotifications(
         else if (result.status === "blocked") summary.blocked += 1;
         else summary.failed += 1;
         options.onEvent?.({
-          kind: "wake",
+          kind: "follow_up",
           event: `notification.${result.status === "ambiguous" ? "failed" : result.status}`,
           deliveryId: notification.deliveryId,
         });
       } catch {
         summary.failed += 1;
         options.onEvent?.({
-          kind: "wake",
+          kind: "follow_up",
           event: "notification.failed",
           deliveryId: notification.deliveryId,
         });

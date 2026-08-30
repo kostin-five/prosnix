@@ -13,7 +13,7 @@ describe("notification dispatcher", () => {
       attempt: 1,
     }));
     const repository: WakeNotificationRepository = {
-      claimDue: vi.fn(async () => notifications),
+      claimDue: vi.fn(async () => ({ notifications, skipped: 2, maxLagMs: 4_000 })),
       complete: vi.fn(async () => undefined),
     };
     let active = 0;
@@ -39,7 +39,14 @@ describe("notification dispatcher", () => {
     });
 
     expect(maximumActive).toBe(5);
-    expect(summary).toMatchObject({ claimed: 10, sent: 10, failed: 0 });
+    expect(summary).toMatchObject({
+      claimed: 10,
+      sent: 10,
+      failed: 0,
+      skipped: 2,
+      maxLagMs: 4_000,
+    });
+    expect(gateway.send).toHaveBeenCalledWith(expect.objectContaining({ kind: "wake" }));
     expect(repository.complete).toHaveBeenCalledTimes(10);
   });
 });

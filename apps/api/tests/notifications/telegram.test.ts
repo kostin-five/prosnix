@@ -9,7 +9,12 @@ describe("Telegram notification gateway", () => {
     ) as unknown as typeof fetch;
     const gateway = new TelegramBotGateway("token", "https://example.com/", fetcher);
     await expect(
-      gateway.send({ chatId: 42n, attempt: 1, now: new Date("2026-08-29T04:00:00Z") }),
+      gateway.send({
+        kind: "wake",
+        chatId: 42n,
+        attempt: 1,
+        now: new Date("2026-08-29T04:00:00Z"),
+      }),
     ).resolves.toEqual({
       status: "sent",
       telegramMessageId: 123n,
@@ -26,10 +31,20 @@ describe("Telegram notification gateway", () => {
     ) as unknown as typeof fetch;
     const gateway = new TelegramBotGateway("token", "https://example.com/", fetcher);
     await expect(
-      gateway.send({ chatId: 42n, attempt: 1, now: new Date("2026-08-29T04:00:00Z") }),
+      gateway.send({
+        kind: "wake",
+        chatId: 42n,
+        attempt: 1,
+        now: new Date("2026-08-29T04:00:00Z"),
+      }),
     ).resolves.toMatchObject({ status: "retry_wait", errorCode: "rate_limited" });
     await expect(
-      gateway.send({ chatId: 42n, attempt: 2, now: new Date("2026-08-29T04:00:00Z") }),
+      gateway.send({
+        kind: "wake",
+        chatId: 42n,
+        attempt: 2,
+        now: new Date("2026-08-29T04:00:00Z"),
+      }),
     ).resolves.toEqual({ status: "failed", errorCode: "telegram_4xx" });
   });
 
@@ -39,6 +54,7 @@ describe("Telegram notification gateway", () => {
     ) as unknown as typeof fetch;
     await expect(
       new TelegramBotGateway("token", "https://example.com/", blocked).send({
+        kind: "wake",
         chatId: 42n,
         attempt: 1,
         now: new Date(),
@@ -49,10 +65,28 @@ describe("Telegram notification gateway", () => {
     }) as unknown as typeof fetch;
     await expect(
       new TelegramBotGateway("token", "https://example.com/", network).send({
+        kind: "wake",
         chatId: 42n,
         attempt: 1,
         now: new Date(),
       }),
     ).resolves.toEqual({ status: "ambiguous", errorCode: "network" });
+  });
+
+  it("uses a dedicated follow-up message and button", async () => {
+    let capturedRequest: RequestInit | undefined;
+    const fetcher = (async (_input: unknown, request?: RequestInit) => {
+      capturedRequest = request;
+      return Response.json({ ok: true, result: { message_id: 321 } });
+    }) as typeof fetch;
+    const gateway = new TelegramBotGateway("token", "https://example.com/", fetcher);
+    await gateway.send({ kind: "follow_up", chatId: 42n, attempt: 1, now: new Date() });
+
+    const body = JSON.parse(String(capturedRequest?.body)) as {
+      text: string;
+      reply_markup: { inline_keyboard: Array<Array<{ text: string }>> };
+    };
+    expect(body.text).toContain("спустя 15 минут");
+    expect(body.reply_markup.inline_keyboard[0]?.[0]?.text).toBe("Ответить на follow-up");
   });
 });

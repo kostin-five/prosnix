@@ -113,6 +113,7 @@ export const notificationDeliveries = pgTable(
       table.scheduledFor,
     ),
     index("notification_deliveries_retry_idx").on(table.status, table.retryAt),
+    index("notification_deliveries_created_idx").on(table.createdAt),
     check("notification_deliveries_attempts_range", sql`${table.attempts} between 1 and 2`),
   ],
 );
@@ -257,6 +258,37 @@ export const followUpObservations = pgTable(
     unique("follow_up_observations_session_unique").on(table.sessionId),
     unique("follow_up_observations_user_operation_unique").on(table.userId, table.operationId),
     check("follow_up_delay_nonnegative", sql`${table.minutesAfterCompletion} >= 0`),
+  ],
+);
+
+export const followUpNotificationDeliveries = pgTable(
+  "follow_up_notification_deliveries",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => wakeSessions.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }).notNull(),
+    status: notificationDeliveryStatus().notNull(),
+    attempts: integer().notNull().default(1),
+    retryAt: timestamp("retry_at", { withTimezone: true }),
+    telegramMessageId: bigint("telegram_message_id", { mode: "bigint" }),
+    errorCode: text("error_code"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+  },
+  (table) => [
+    unique("follow_up_notification_deliveries_session_unique").on(table.sessionId),
+    index("follow_up_notification_deliveries_due_idx").on(table.status, table.retryAt),
+    index("follow_up_notification_deliveries_created_idx").on(table.createdAt),
+    check(
+      "follow_up_notification_deliveries_attempts_range",
+      sql`${table.attempts} between 1 and 2`,
+    ),
   ],
 );
 

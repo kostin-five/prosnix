@@ -1,5 +1,7 @@
 import {
   connectDatabase,
+  PostgresFollowUpNotificationRepository,
+  PostgresNotificationMaintenanceRepository,
   PostgresAnalyticsRepository,
   PostgresBootstrapRepository,
   PostgresSessionCommandRepository,
@@ -22,6 +24,8 @@ const app = await createApp(config, {
   wakeScheduleRepository: new PostgresWakeScheduleRepository(database.db),
   wakeNotificationRepository: new PostgresWakeNotificationRepository(database.db),
   notificationGateway: new TelegramBotGateway(config.botToken, config.telegramWebAppUrl),
+  followUpNotificationRepository: new PostgresFollowUpNotificationRepository(database.db),
+  notificationMaintenanceRepository: new PostgresNotificationMaintenanceRepository(database.db),
 });
 app.addHook("onClose", async () => database.close());
 
