@@ -15,6 +15,9 @@ import type {
   UserDeletionRepository,
   WakeNotificationRepository,
   WakeScheduleRepository,
+  AdminGrowthRepository,
+  BillingRepository,
+  LegalAcceptanceRepository,
 } from "@awc/domain";
 import { registerAuthRoutes } from "../auth/routes.js";
 import { registerBootstrapRoute } from "./bootstrap-route.js";
@@ -32,6 +35,11 @@ import { registerCoachRoutes } from "../coach/routes.js";
 import { CoachService } from "../coach/service.js";
 import type { CoachGateway } from "../coach/deepseek.js";
 import { registerSessionHistoryRoutes } from "../sessions/history-routes.js";
+import { registerAdminRoutes } from "../admin/routes.js";
+import { registerLegalRoutes } from "../legal/routes.js";
+import { registerBillingRoutes } from "../billing/routes.js";
+import { BillingService } from "../billing/service.js";
+import type { TelegramStarsGateway } from "../billing/telegram-stars.js";
 
 export interface AppDependencies {
   unitOfWork: UnitOfWork;
@@ -48,6 +56,10 @@ export interface AppDependencies {
   notificationMaintenanceRepository?: NotificationMaintenanceRepository;
   notificationGateway?: TelegramNotificationGateway;
   readinessCheck?: () => Promise<void>;
+  adminGrowthRepository?: AdminGrowthRepository;
+  legalAcceptanceRepository?: LegalAcceptanceRepository;
+  billingRepository?: BillingRepository;
+  telegramStarsGateway?: TelegramStarsGateway;
   now?: () => Date;
 }
 
@@ -202,6 +214,38 @@ export async function createApp(
           ? { maintenanceRepository: dependencies.notificationMaintenanceRepository }
           : {}),
         gateway: dependencies.notificationGateway,
+        ...(dependencies.now ? { now: dependencies.now } : {}),
+      });
+    }
+    if (dependencies.adminGrowthRepository) {
+      await registerAdminRoutes(app, {
+        config,
+        repository: dependencies.adminGrowthRepository,
+        ...(dependencies.now ? { now: dependencies.now } : {}),
+      });
+    }
+    if (dependencies.legalAcceptanceRepository) {
+      await registerLegalRoutes(app, {
+        config,
+        repository: dependencies.legalAcceptanceRepository,
+        ...(dependencies.now ? { now: dependencies.now } : {}),
+      });
+    }
+    if (
+      dependencies.billingRepository &&
+      dependencies.legalAcceptanceRepository &&
+      dependencies.telegramStarsGateway
+    ) {
+      await registerBillingRoutes(app, {
+        config,
+        repository: dependencies.billingRepository,
+        service: new BillingService(
+          config,
+          dependencies.billingRepository,
+          dependencies.legalAcceptanceRepository,
+          dependencies.telegramStarsGateway,
+          dependencies.now ?? (() => new Date()),
+        ),
         ...(dependencies.now ? { now: dependencies.now } : {}),
       });
     }

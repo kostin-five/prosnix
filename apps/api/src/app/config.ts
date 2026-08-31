@@ -15,6 +15,12 @@ export interface AppConfig {
   shutdownTimeoutMs: number;
   authRateLimitMax: number;
   coachRateLimitMax: number;
+  adminTelegramUserIds: readonly bigint[];
+  legalPrivacyVersion: string;
+  legalTermsVersion: string;
+  telegramStarsMonthlyPrice: number;
+  telegramWebhookSecret: string;
+  billingRateLimitMax: number;
 }
 
 function boundedInteger(
@@ -56,6 +62,25 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const shutdownTimeoutMs = boundedInteger(env, "SHUTDOWN_TIMEOUT_MS", 9_000, 1_000, 10_000);
   const authRateLimitMax = boundedInteger(env, "AUTH_RATE_LIMIT_MAX", 30, 1, 1_000);
   const coachRateLimitMax = boundedInteger(env, "COACH_RATE_LIMIT_MAX", 10, 1, 1_000);
+  const billingRateLimitMax = boundedInteger(env, "BILLING_RATE_LIMIT_MAX", 10, 1, 100);
+  const legalPrivacyVersion = env.LEGAL_PRIVACY_VERSION?.trim() || "2026-08-31";
+  const legalTermsVersion = env.LEGAL_TERMS_VERSION?.trim() || "2026-08-31";
+  const telegramStarsMonthlyPrice = boundedInteger(
+    env,
+    "TELEGRAM_STARS_MONTHLY_PRICE",
+    0,
+    0,
+    100_000,
+  );
+  const telegramWebhookSecret = env.TELEGRAM_WEBHOOK_SECRET?.trim() ?? "";
+  const adminTelegramUserIds = (env.ADMIN_TELEGRAM_USER_IDS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => {
+      if (!/^\d+$/.test(value)) throw new Error("ADMIN_TELEGRAM_USER_IDS must contain numeric IDs");
+      return BigInt(value);
+    });
   const telegramWebAppUrl =
     env.TELEGRAM_WEB_APP_URL ?? (nodeEnv === "development" ? "http://localhost:5190/" : "");
   let parsedWebAppUrl: URL | null = null;
@@ -71,6 +96,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   }
   if (cronSecret && cronSecret.length < 32) {
     throw new Error("CRON_SECRET must contain at least 32 characters");
+  }
+  if (telegramWebhookSecret && !/^[A-Za-z0-9_-]{32,256}$/.test(telegramWebhookSecret)) {
+    throw new Error("TELEGRAM_WEBHOOK_SECRET must contain 32-256 safe characters");
+  }
+  if (telegramStarsMonthlyPrice > 0 && !telegramWebhookSecret) {
+    throw new Error("TELEGRAM_WEBHOOK_SECRET is required when Telegram Stars billing is enabled");
+  }
+  if (telegramStarsMonthlyPrice > 0 && adminTelegramUserIds.length === 0) {
+    throw new Error("ADMIN_TELEGRAM_USER_IDS is required when Telegram Stars billing is enabled");
+  }
+  if (telegramStarsMonthlyPrice > 0 && !parsedWebAppUrl) {
+    throw new Error("TELEGRAM_WEB_APP_URL is required when Telegram Stars billing is enabled");
   }
   if (
     !Number.isInteger(deepseekTimeoutMs) ||
@@ -108,5 +145,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     shutdownTimeoutMs,
     authRateLimitMax,
     coachRateLimitMax,
+    adminTelegramUserIds,
+    legalPrivacyVersion,
+    legalTermsVersion,
+    telegramStarsMonthlyPrice,
+    telegramWebhookSecret,
+    billingRateLimitMax,
   };
 }

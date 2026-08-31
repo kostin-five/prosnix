@@ -47,6 +47,16 @@ async function installTelegram(page: Page) {
 test("полный wake-up цикл подтверждается сервером до показа успеха", async ({ page }) => {
   await installTelegram(page);
   await page.route("**/api/v1/auth/telegram", (route) => route.fulfill({ status: 204 }));
+  await page.route("**/api/v1/legal/status", (route) =>
+    route.fulfill({
+      json: {
+        privacyVersion: "2026-08-31",
+        termsVersion: "2026-08-31",
+        accepted: true,
+        acceptedAt: "2026-08-31T00:00:00.000Z",
+      },
+    }),
+  );
   await page.route("**/api/v1/bootstrap", (route) =>
     json(route, {
       user: { id: baseSession.userId, locale: "ru", timezone: "Europe/Moscow" },

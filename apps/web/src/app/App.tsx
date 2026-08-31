@@ -38,6 +38,7 @@ import {
   type WakeSchedule,
 } from "../features/schedule/schedule-api.js";
 import { SettingsScreen } from "../features/settings/settings-screen.js";
+import { LegalGate } from "../features/legal/legal-gate.js";
 
 const DemoWakeChart = lazy(() => import("../features/analytics/demo-wake-chart.js"));
 
@@ -1032,7 +1033,7 @@ function HomeScreen({
     <div className="flex flex-col flex-1 px-5 pt-14 pb-28 overflow-y-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold">Adaptive Wake Coach</h1>
+          <h1 className="text-xl font-bold">Prosnix</h1>
           <p className="text-sm text-muted-foreground">Учится будить тебя лучше каждое утро</p>
         </div>
         <div className="flex items-center gap-1.5 bg-card border border-border rounded-full px-3 py-1.5">
@@ -2519,6 +2520,10 @@ export default function App() {
         </div>
       </div>
     );
+  }
+
+  if (bootstrap.mode === "telegram" && !bootstrap.legal.accepted) {
+    return <LegalGate legal={bootstrap.legal} onAccepted={bootstrap.retry} />;
   }
 
   if (

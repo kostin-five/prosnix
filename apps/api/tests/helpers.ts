@@ -42,6 +42,12 @@ export const testConfig: AppConfig = {
   shutdownTimeoutMs: 9_000,
   authRateLimitMax: 30,
   coachRateLimitMax: 10,
+  adminTelegramUserIds: [42n],
+  legalPrivacyVersion: "2026-08-31",
+  legalTermsVersion: "2026-08-31",
+  telegramStarsMonthlyPrice: 0,
+  telegramWebhookSecret: "test-telegram-webhook-secret-32-chars",
+  billingRateLimitMax: 10,
 };
 
 export function signedInitData(userId = 42): string {

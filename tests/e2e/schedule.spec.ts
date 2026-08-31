@@ -23,6 +23,16 @@ test("расписание сохраняется на сервере и пок�
   const enabledRequests: boolean[] = [];
   await installTelegram(page);
   await page.route("**/api/v1/auth/telegram", (route) => route.fulfill({ status: 204 }));
+  await page.route("**/api/v1/legal/status", (route) =>
+    route.fulfill({
+      json: {
+        privacyVersion: "2026-08-31",
+        termsVersion: "2026-08-31",
+        accepted: true,
+        acceptedAt: "2026-08-31T00:00:00.000Z",
+      },
+    }),
+  );
   await page.route("**/api/v1/bootstrap", (route) =>
     json(route, {
       user: { id: "00000000-0000-4000-8000-000000000042", locale: "ru", timezone: "UTC" },

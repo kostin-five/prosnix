@@ -10,12 +10,16 @@ import {
   PostgresUserDeletionRepository,
   PostgresWakeNotificationRepository,
   PostgresWakeScheduleRepository,
+  PostgresAdminGrowthRepository,
+  PostgresBillingRepository,
+  PostgresLegalAcceptanceRepository,
 } from "@awc/db";
 import { createApp } from "./app/create-app.js";
 import { loadConfig } from "./app/config.js";
 import { TelegramBotGateway } from "./notifications/telegram.js";
 import { DeepSeekCoachGateway } from "./coach/deepseek.js";
 import { createGracefulShutdown, type ShutdownSignal } from "./runtime/graceful-shutdown.js";
+import { TelegramBotStarsGateway } from "./billing/telegram-stars.js";
 
 const config = loadConfig();
 const database = connectDatabase(config.databaseUrl);
@@ -41,6 +45,10 @@ const app = await createApp(config, {
   followUpNotificationRepository: new PostgresFollowUpNotificationRepository(database.db),
   notificationMaintenanceRepository: new PostgresNotificationMaintenanceRepository(database.db),
   readinessCheck: database.check,
+  adminGrowthRepository: new PostgresAdminGrowthRepository(database.db),
+  legalAcceptanceRepository: new PostgresLegalAcceptanceRepository(database.db),
+  billingRepository: new PostgresBillingRepository(database.db),
+  telegramStarsGateway: new TelegramBotStarsGateway(config.botToken),
 });
 app.addHook("onClose", async () => database.close());
 

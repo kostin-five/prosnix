@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
   authenticateTelegram,
+  loadLegalStatus,
   loadBootstrap,
   type BootstrapResponse,
 } from "../../shared/api/client.js";
@@ -11,7 +12,12 @@ export type BootstrapState =
   | { status: "loading" }
   | { status: "error"; message: string }
   | { status: "ready"; mode: "demo"; data: null }
-  | { status: "ready"; mode: "telegram"; data: BootstrapResponse };
+  | {
+      status: "ready";
+      mode: "telegram";
+      data: BootstrapResponse;
+      legal: Awaited<ReturnType<typeof loadLegalStatus>>;
+    };
 
 export function useBootstrap(): BootstrapState & { retry: () => void } {
   const [attempt, setAttempt] = useState(0);
@@ -29,8 +35,8 @@ export function useBootstrap(): BootstrapState & { retry: () => void } {
           return;
         }
         await authenticateTelegram(launch.initData);
-        const data = await loadBootstrap();
-        if (!cancelled) setState({ status: "ready", mode: "telegram", data });
+        const [data, legal] = await Promise.all([loadBootstrap(), loadLegalStatus()]);
+        if (!cancelled) setState({ status: "ready", mode: "telegram", data, legal });
       } catch (error) {
         if (!cancelled) {
           setState({

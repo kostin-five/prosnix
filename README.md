@@ -1,7 +1,8 @@
-# Adaptive Wake Coach
+# Prosnix
 
-Telegram Mini App, которое экспериментально определяет, какие короткие действия помогают
-конкретному пользователю стать бодрее и не вернуться в кровать.
+Telegram Mini App, который проводит контролируемые эксперименты пробуждения и учится подбирать
+последовательность действий по подтверждённым данным пользователя. Рабочее имя раннего прототипа —
+Adaptive Wake Coach; production-бот — `@prosnix_bot`.
 
 Текущий MVP уже работает в Telegram: wake-сессии сохраняются на сервере, прерванный сценарий
 восстанавливается, follow-up приходит через 15 минут, ежедневное напоминание можно отложить,
@@ -24,7 +25,7 @@ apps/api (Fastify)
        └── DeepSeek          — только объяснение агрегатов
 ```
 
-- `apps/web` — интерфейс Mini App и публичная политика `/privacy`;
+- `apps/web` — интерфейс Mini App, `/privacy`, `/terms` и приватный `/admin`;
 - `apps/api` — Telegram-аутентификация, API, cron-dispatch, readiness и graceful shutdown;
 - `packages/domain` — независимые детерминированные правила;
 - `packages/db` — Drizzle/PostgreSQL repositories и forward-only миграции;
@@ -116,6 +117,8 @@ GitHub Actions повторяет полный набор на чистой Post
 - [настройка Telegram, Render, Neon и cron-job.org](docs/telegram-mini-app-setup.md);
 - [эксплуатация, smoke-test, backup, диагностика и rollback](docs/operations.md);
 - [текущая дорожная карта](docs/release-roadmap.md).
+- [переход на production-бота Prosnix](docs/prosnix-production.md);
+- [юридический launch-checklist](docs/legal-launch-checklist.md).
 
 ## Статус безопасности
 

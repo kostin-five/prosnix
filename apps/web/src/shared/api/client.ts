@@ -173,3 +173,31 @@ export async function loadSessionHistory(limit = 10): Promise<SessionHistoryResp
 export async function deleteProfile(): Promise<void> {
   await expectSuccess(await fetch("/api/v1/me", { method: "DELETE", credentials: "same-origin" }));
 }
+
+export interface LegalStatusResponse {
+  privacyVersion: string;
+  termsVersion: string;
+  accepted: boolean;
+  acceptedAt: string | null;
+}
+
+export async function loadLegalStatus(): Promise<LegalStatusResponse> {
+  const response = await expectSuccess(
+    await fetch("/api/v1/legal/status", { credentials: "same-origin" }),
+  );
+  return (await response.json()) as LegalStatusResponse;
+}
+
+export async function acceptLegalDocuments(input: {
+  privacyVersion: string;
+  termsVersion: string;
+}): Promise<void> {
+  await expectSuccess(
+    await fetch("/api/v1/legal/accept", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+  );
+}

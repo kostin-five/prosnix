@@ -13,6 +13,15 @@ test("политика конфиденциальности доступна б�
 
   await expect(page.getByRole("heading", { name: "Политика конфиденциальности" })).toBeVisible();
   await expect(page.getByText("Какие данные мы обрабатываем")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Открыть @wake_coach_bot" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Открыть @prosnix_bot" })).toBeVisible();
   expect(authRequests).toBe(0);
+});
+
+test("пользовательское соглашение доступно без Telegram-авторизации", async ({ page }) => {
+  await page.route("https://telegram.org/js/telegram-web-app.js*", (route) =>
+    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
+  );
+  await page.goto("/terms");
+  await expect(page.getByRole("heading", { name: "Пользовательское соглашение" })).toBeVisible();
+  await expect(page.getByText("Не медицинская услуга")).toBeVisible();
 });

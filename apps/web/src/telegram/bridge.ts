@@ -2,6 +2,16 @@ interface TelegramWebApp {
   initData: string;
   ready(): void;
   expand(): void;
+  openInvoice?(url: string, callback?: (status: string) => void): void;
+}
+
+export async function openTelegramInvoice(url: string): Promise<string> {
+  const webApp = window.Telegram?.WebApp;
+  if (!webApp?.openInvoice) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return "opened";
+  }
+  return new Promise((resolve) => webApp.openInvoice!(url, resolve));
 }
 
 declare global {

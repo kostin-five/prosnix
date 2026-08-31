@@ -22,6 +22,9 @@ export { PostgresFollowUpNotificationRepository } from "./follow-up-notification
 export { PostgresNotificationMaintenanceRepository } from "./notification-maintenance.js";
 export { PostgresCoachInsightRepository } from "./coach-insights.js";
 export { PostgresSessionHistoryRepository } from "./session-history.js";
+export { PostgresAdminGrowthRepository } from "./admin-analytics.js";
+export { PostgresBillingRepository } from "./billing.js";
+export { PostgresLegalAcceptanceRepository } from "./legal.js";
 export {
   PostgresWakeNotificationRepository,
   PostgresWakeScheduleRepository,

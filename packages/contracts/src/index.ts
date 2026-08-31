@@ -110,3 +110,50 @@ export interface SessionHistoryItemResponse {
 export interface SessionHistoryResponse {
   sessions: SessionHistoryItemResponse[];
 }
+
+export const LegalAcceptanceInputSchema = Type.Object(
+  {
+    privacyVersion: Type.String({ minLength: 1, maxLength: 40 }),
+    termsVersion: Type.String({ minLength: 1, maxLength: 40 }),
+  },
+  { additionalProperties: false },
+);
+
+export type LegalAcceptanceInput = Static<typeof LegalAcceptanceInputSchema>;
+
+export interface LegalStatusResponse {
+  privacyVersion: string;
+  termsVersion: string;
+  accepted: boolean;
+  acceptedAt: string | null;
+}
+
+export type GrowthPeriodDays = 7 | 30 | 90;
+
+export interface AdminGrowthResponse {
+  period: { days: GrowthPeriodDays; from: string; to: string };
+  computedAt: string;
+  users: { total: number; new: number; active: number };
+  sessions: { started: number; completed: number; abandoned: number; completionRate: number };
+  followUp: { answered: number; up: number; back: number; drowsy: number };
+  retention: {
+    d1: { eligible: number; retained: number; rate: number };
+    d7: { eligible: number; retained: number; rate: number };
+  };
+  deliveries: { dailySent: number; followUpSent: number; failed: number; blocked: number };
+  billing: { enabled: boolean; activeSubscriptions: number; grossStars: number };
+}
+
+export interface BillingStatusResponse {
+  enabled: boolean;
+  plan: { key: "pro-monthly-v1"; priceStars: number | null; periodDays: 30 };
+  entitlement: {
+    status: "free" | "active" | "canceled" | "past_due" | "expired" | "refunded";
+    currentPeriodEnd: string | null;
+  };
+}
+
+export interface BillingCheckoutResponse {
+  invoiceUrl: string;
+  expiresAt: string;
+}

@@ -69,4 +69,35 @@ describe("application config", () => {
       "COACH_RATE_LIMIT_MAX",
     );
   });
+
+  it("keeps billing fail-closed and validates admin IDs and webhook secret", () => {
+    expect(loadConfig(production)).toMatchObject({
+      adminTelegramUserIds: [],
+      telegramStarsMonthlyPrice: 0,
+      telegramWebhookSecret: "",
+      billingRateLimitMax: 10,
+    });
+    expect(() => loadConfig({ ...production, ADMIN_TELEGRAM_USER_IDS: "42,wrong" })).toThrow(
+      "numeric IDs",
+    );
+    expect(() => loadConfig({ ...production, TELEGRAM_STARS_MONTHLY_PRICE: "149" })).toThrow(
+      "WEBHOOK_SECRET",
+    );
+    expect(() =>
+      loadConfig({
+        ...production,
+        TELEGRAM_STARS_MONTHLY_PRICE: "149",
+        TELEGRAM_WEBHOOK_SECRET: "w".repeat(32),
+      }),
+    ).toThrow("ADMIN_TELEGRAM_USER_IDS");
+    expect(
+      loadConfig({
+        ...production,
+        TELEGRAM_STARS_MONTHLY_PRICE: "149",
+        TELEGRAM_WEBHOOK_SECRET: "w".repeat(32),
+        ADMIN_TELEGRAM_USER_IDS: "42",
+        TELEGRAM_WEB_APP_URL: "https://wake-coach.example/",
+      }),
+    ).toMatchObject({ telegramStarsMonthlyPrice: 149, adminTelegramUserIds: [42n] });
+  });
 });

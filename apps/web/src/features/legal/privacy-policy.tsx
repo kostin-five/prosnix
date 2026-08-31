@@ -1,24 +1,35 @@
 const UPDATED_AT = "31 августа 2026 года";
+const OPERATOR_NAME = import.meta.env.VITE_LEGAL_OPERATOR_NAME || "Владелец сервиса Prosnix";
+const OPERATOR_CONTACT = import.meta.env.VITE_LEGAL_CONTACT || "@prosnix_bot";
 
 export function PrivacyPolicy() {
   return (
     <main className="min-h-screen bg-background px-5 py-10 text-foreground">
       <article className="mx-auto max-w-2xl rounded-3xl border border-border bg-card p-6 sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-          Adaptive Wake Coach
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary">Prosnix</p>
         <h1 className="mt-2 text-3xl font-bold">Политика конфиденциальности</h1>
         <p className="mt-2 text-sm text-muted-foreground">Обновлено: {UPDATED_AT}</p>
 
         <section className="mt-8 space-y-3">
           <h2 className="text-lg font-bold">Кто управляет приложением</h2>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Adaptive Wake Coach — независимое приложение, не связанное с Telegram. На этапе
-            закрытого тестирования связаться с разработчиком можно через{" "}
-            <a className="text-primary underline" href="https://t.me/wake_coach_bot">
-              @wake_coach_bot
+            Оператор: {OPERATOR_NAME}. Prosnix — независимое приложение, не связанное с Telegram.
+            Связаться по вопросам данных можно через{" "}
+            <a className="text-primary underline" href="https://t.me/prosnix_bot">
+              {OPERATOR_CONTACT}
             </a>
-            . Полные реквизиты оператора будут опубликованы до публичной беты.
+            . До публичного продвижения оператор обязан дополнить этот раздел применимыми
+            реквизитами и адресом.
+          </p>
+        </section>
+
+        <section className="mt-7 space-y-3">
+          <h2 className="text-lg font-bold">Необходимые cookie</h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Cookie <code>awc_session</code> нужен только для защищённого входа и связи запросов с
+            Telegram-профилем. Он хранится до 30 дней, недоступен JavaScript, передаётся только по
+            HTTPS в production и имеет режим SameSite=Strict. Рекламных cookie и сторонних трекеров
+            сейчас нет.
           </p>
         </section>
 
@@ -93,8 +104,8 @@ export function PrivacyPolicy() {
         <section className="mt-7 space-y-3">
           <h2 className="text-lg font-bold">Не медицинская услуга</h2>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Adaptive Wake Coach помогает проводить личные эксперименты с пробуждением, но не ставит
-            диагнозы и не заменяет врача. При устойчивых проблемах со сном следует обратиться к
+            Prosnix помогает проводить личные эксперименты с пробуждением, но не ставит диагнозы и
+            не заменяет врача. При устойчивых проблемах со сном следует обратиться к
             квалифицированному специалисту.
           </p>
         </section>
@@ -108,8 +119,11 @@ export function PrivacyPolicy() {
         </section>
 
         <div className="mt-8 flex flex-col gap-3 border-t border-border pt-6 text-sm">
-          <a className="font-semibold text-primary underline" href="https://t.me/wake_coach_bot">
-            Открыть @wake_coach_bot
+          <a className="font-semibold text-primary underline" href="https://t.me/prosnix_bot">
+            Открыть @prosnix_bot
+          </a>
+          <a className="text-muted-foreground underline" href="/terms">
+            Пользовательское соглашение Prosnix
           </a>
           <a
             className="text-muted-foreground underline"

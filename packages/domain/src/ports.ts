@@ -211,3 +211,82 @@ export interface SessionHistoryItem {
 export interface SessionHistoryRepository {
   listCompleted(userId: string, limit: number): Promise<SessionHistoryItem[]>;
 }
+
+export interface LegalAcceptanceRecord {
+  privacyVersion: string;
+  termsVersion: string;
+  acceptedAt: Date;
+}
+
+export interface LegalAcceptanceRepository {
+  find(userId: string): Promise<LegalAcceptanceRecord | null>;
+  accept(input: {
+    userId: string;
+    privacyVersion: string;
+    termsVersion: string;
+    acceptedAt: Date;
+  }): Promise<void>;
+}
+
+export interface AdminGrowthSummary {
+  users: { total: number; new: number; active: number };
+  sessions: { started: number; completed: number; abandoned: number };
+  followUp: { answered: number; up: number; back: number; drowsy: number };
+  retention: { d1Eligible: number; d1Retained: number; d7Eligible: number; d7Retained: number };
+  deliveries: { dailySent: number; followUpSent: number; failed: number; blocked: number };
+  billing: { activeSubscriptions: number; grossStars: number };
+}
+
+export interface AdminGrowthRepository {
+  isAllowed(userId: string, telegramUserIds: readonly bigint[]): Promise<boolean>;
+  summarize(from: Date, now: Date): Promise<AdminGrowthSummary>;
+}
+
+export type SubscriptionState = "active" | "canceled" | "past_due" | "expired" | "refunded";
+
+export interface BillingCheckoutRecord {
+  id: string;
+  userId: string;
+  planKey: string;
+  priceStars: number;
+  status: "pending" | "paid" | "expired" | "canceled";
+  invoiceUrl: string | null;
+  expiresAt: Date;
+}
+
+export interface SubscriptionRecord {
+  status: SubscriptionState;
+  currentPeriodEnd: Date;
+}
+
+export interface BillingRepository {
+  findSubscription(userId: string): Promise<SubscriptionRecord | null>;
+  createCheckout(input: {
+    userId: string;
+    planKey: string;
+    priceStars: number;
+    expiresAt: Date;
+  }): Promise<BillingCheckoutRecord>;
+  setInvoiceUrl(checkoutId: string, invoiceUrl: string): Promise<void>;
+  findCheckout(checkoutId: string): Promise<BillingCheckoutRecord | null>;
+  checkoutBelongsToTelegramUser(checkoutId: string, telegramUserId: bigint): Promise<boolean>;
+  activate(input: {
+    updateId: bigint;
+    checkoutId: string;
+    telegramUserId: bigint;
+    currency: string;
+    totalAmount: number;
+    telegramPaymentChargeId: string;
+    currentPeriodEnd: Date;
+    paidAt: Date;
+    isRecurring: boolean;
+    isFirstRecurring: boolean;
+  }): Promise<"activated" | "duplicate" | "rejected">;
+  updateSubscriptionState(input: {
+    updateId: bigint;
+    checkoutId: string;
+    telegramUserId: bigint;
+    state: "active" | "canceled" | "past_due";
+    observedAt: Date;
+  }): Promise<"updated" | "duplicate" | "rejected">;
+}

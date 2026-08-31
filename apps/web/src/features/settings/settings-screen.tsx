@@ -3,6 +3,7 @@ import { ExternalLink, LockKeyhole, Settings2, Sparkles } from "lucide-react";
 import { DeleteProfile } from "../profile/delete-profile.js";
 import type { WakeSchedule } from "../schedule/schedule-api.js";
 import { WakeScheduleCard } from "../schedule/wake-schedule-card.js";
+import { ProCard } from "../billing/pro-card.js";
 
 export function SettingsScreen({
   alarmTime,
@@ -38,6 +39,8 @@ export function SettingsScreen({
         onSave={onScheduleSave}
       />
 
+      {!demo && <ProCard />}
+
       <section className="mb-4 rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-accent" />
@@ -62,6 +65,12 @@ export function SettingsScreen({
           className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary"
         >
           Открыть политику <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+        <a
+          href="/terms"
+          className="ml-4 mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary"
+        >
+          Соглашение <ExternalLink className="h-3.5 w-3.5" />
         </a>
       </section>
 

@@ -42,6 +42,19 @@ export const notificationDeliveryStatus = pgEnum("notification_delivery_status",
   "failed",
   "skipped",
 ]);
+export const billingCheckoutStatus = pgEnum("billing_checkout_status", [
+  "pending",
+  "paid",
+  "expired",
+  "canceled",
+]);
+export const subscriptionStatus = pgEnum("subscription_status", [
+  "active",
+  "canceled",
+  "past_due",
+  "expired",
+  "refunded",
+]);
 
 export const users = pgTable(
   "users",
@@ -345,6 +358,86 @@ export const coachInsights = pgTable("coach_insights", {
   generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const legalAcceptances = pgTable("legal_acceptances", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  privacyVersion: text("privacy_version").notNull(),
+  termsVersion: text("terms_version").notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const billingCheckouts = pgTable(
+  "billing_checkouts",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    planKey: text("plan_key").notNull(),
+    priceStars: integer("price_stars").notNull(),
+    status: billingCheckoutStatus().notNull().default("pending"),
+    invoiceUrl: text("invoice_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("billing_checkouts_user_idx").on(table.userId, table.createdAt),
+    check("billing_checkouts_price_positive", sql`${table.priceStars} > 0`),
+  ],
+);
+
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    planKey: text("plan_key").notNull(),
+    status: subscriptionStatus().notNull(),
+    priceStars: integer("price_stars").notNull(),
+    telegramPaymentChargeId: text("telegram_payment_charge_id").notNull(),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("subscriptions_charge_unique").on(table.telegramPaymentChargeId),
+    check("subscriptions_price_positive", sql`${table.priceStars} > 0`),
+  ],
+);
+
+export const telegramPaymentUpdates = pgTable("telegram_payment_updates", {
+  updateId: bigint("update_id", { mode: "bigint" }).primaryKey(),
+  eventType: text("event_type").notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const telegramStarPayments = pgTable(
+  "telegram_star_payments",
+  {
+    telegramPaymentChargeId: text("telegram_payment_charge_id").primaryKey(),
+    updateId: bigint("update_id", { mode: "bigint" }).notNull(),
+    checkoutId: uuid("checkout_id")
+      .notNull()
+      .references(() => billingCheckouts.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    amountStars: integer("amount_stars").notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    isRecurring: boolean("is_recurring").notNull(),
+  },
+  (table) => [
+    unique("telegram_star_payments_update_unique").on(table.updateId),
+    index("telegram_star_payments_user_paid_idx").on(table.userId, table.paidAt),
+    check("telegram_star_payments_amount_positive", sql`${table.amountStars} > 0`),
+  ],
+);
 
 export const auditEvents = pgTable(
   "audit_events",

@@ -14,6 +14,16 @@ test("пользователь подтверждает удаление и на
     };
   });
   await page.route("**/api/v1/auth/telegram", (route) => route.fulfill({ status: 204 }));
+  await page.route("**/api/v1/legal/status", (route) =>
+    route.fulfill({
+      json: {
+        privacyVersion: "2026-08-31",
+        termsVersion: "2026-08-31",
+        accepted: true,
+        acceptedAt: "2026-08-31T00:00:00.000Z",
+      },
+    }),
+  );
   await page.route("**/api/v1/bootstrap", (route) =>
     route.fulfill({
       status: 200,
@@ -61,6 +71,6 @@ test("пользователь подтверждает удаление и на
   );
   await page.getByRole("button", { name: "Да, удалить всё" }).click();
   await deletion;
-  await expect(page.getByRole("heading", { name: "Adaptive Wake Coach" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Prosnix" })).toBeVisible();
   await expect(page.getByText(/0 из 7 экспериментов/)).toBeVisible();
 });
