@@ -8,7 +8,7 @@ import {
   type WakeScheduleRepository,
   type WakeScheduleValue,
 } from "@awc/domain";
-import { notificationDeliveries, users, wakeSchedules } from "../schema.js";
+import { idempotencyRecords, notificationDeliveries, users, wakeSchedules } from "../schema.js";
 import type { Database } from "./types.js";
 
 function mapSchedule(row: typeof wakeSchedules.$inferSelect): WakeScheduleValue {
@@ -19,6 +19,30 @@ function mapSchedule(row: typeof wakeSchedules.$inferSelect): WakeScheduleValue 
     enabled: row.enabled,
     nextTriggerAt: row.nextTriggerAt,
     botStatus: row.botStatus,
+    revision: row.revision,
+  };
+}
+
+function storedSchedule(value: unknown): WakeScheduleValue | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  if (
+    typeof row.userId !== "string" ||
+    typeof row.localTime !== "string" ||
+    typeof row.timezone !== "string" ||
+    typeof row.enabled !== "boolean" ||
+    typeof row.revision !== "number" ||
+    !["unknown", "available", "blocked"].includes(String(row.botStatus))
+  ) {
+    return null;
+  }
+  return {
+    userId: row.userId,
+    localTime: row.localTime,
+    timezone: row.timezone,
+    enabled: row.enabled,
+    nextTriggerAt: typeof row.nextTriggerAt === "string" ? new Date(row.nextTriggerAt) : null,
+    botStatus: row.botStatus as WakeScheduleValue["botStatus"],
     revision: row.revision,
   };
 }
@@ -62,17 +86,56 @@ export class PostgresWakeScheduleRepository implements WakeScheduleRepository {
     return mapSchedule(row);
   }
 
-  async snooze(userId: string, nextTriggerAt: Date, now: Date): Promise<WakeScheduleValue | null> {
-    const [row] = await this.db
-      .update(wakeSchedules)
-      .set({
-        nextTriggerAt,
-        revision: sql`${wakeSchedules.revision} + 1`,
-        updatedAt: now,
-      })
-      .where(and(eq(wakeSchedules.userId, userId), eq(wakeSchedules.enabled, true)))
-      .returning();
-    return row ? mapSchedule(row) : null;
+  async snooze(
+    userId: string,
+    operationId: string,
+    nextTriggerAt: Date,
+    now: Date,
+  ): ReturnType<WakeScheduleRepository["snooze"]> {
+    return this.db.transaction(async (transaction) => {
+      const db = transaction as Database;
+      await db.execute(sql`select pg_advisory_xact_lock(hashtextextended(${userId}, 0))`);
+      const [stored] = await db
+        .select()
+        .from(idempotencyRecords)
+        .where(
+          and(
+            eq(idempotencyRecords.userId, userId),
+            eq(idempotencyRecords.operationId, operationId),
+          ),
+        )
+        .limit(1);
+      if (stored) {
+        if (stored.commandType !== "wake_schedule_snooze" || stored.requestHash !== "snooze-v1") {
+          return { status: "idempotency_conflict" as const };
+        }
+        const schedule = storedSchedule(stored.responseBody);
+        return schedule
+          ? { status: "replayed" as const, schedule }
+          : { status: "idempotency_conflict" as const };
+      }
+      const [row] = await db
+        .update(wakeSchedules)
+        .set({
+          nextTriggerAt,
+          revision: sql`${wakeSchedules.revision} + 1`,
+          updatedAt: now,
+        })
+        .where(and(eq(wakeSchedules.userId, userId), eq(wakeSchedules.enabled, true)))
+        .returning();
+      if (!row) return { status: "not_enabled" as const };
+      const schedule = mapSchedule(row);
+      await db.insert(idempotencyRecords).values({
+        userId,
+        operationId,
+        commandType: "wake_schedule_snooze",
+        requestHash: "snooze-v1",
+        responseStatus: 200,
+        responseBody: schedule,
+        expiresAt: new Date(now.getTime() + 30 * 24 * 60 * 60_000),
+      });
+      return { status: "applied" as const, schedule };
+    });
   }
 }
 

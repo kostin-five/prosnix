@@ -366,7 +366,57 @@ function factorLabel(key: string): string {
 }
 
 function protocolLabel(key: string): string {
-  return key.replace(/^protocol:/, "").replace(/@/, " · версия ");
+  const protocolKey = key.replace(/^protocol:/, "").split("@")[0];
+  const labels: Record<string, string> = {
+    "cognitive-baseline": "Короткая разминка для мозга",
+    "cognitive-core": "Разминка для мозга",
+    "movement-plus": "Разминка для мозга + движение",
+    "movement-with": "Разминка для мозга + движение",
+    "movement-without": "Разминка для мозга",
+    "safe-fallback": "Движение + свет + вода",
+  };
+  return labels[protocolKey ?? ""] ?? "Персональный протокол";
+}
+
+function protocolTaskIds(key: string): TaskId[] {
+  const protocolKey = key.replace(/^protocol:/, "").split("@")[0];
+  const tasks: Record<string, TaskId[]> = {
+    "cognitive-baseline": ["math", "memory"],
+    "cognitive-core": ["math", "memory"],
+    "movement-plus": ["math", "memory", "steps"],
+    "movement-with": ["math", "memory", "steps"],
+    "movement-without": ["math", "memory"],
+    "safe-fallback": ["steps", "window", "water"],
+  };
+  return tasks[protocolKey ?? ""] ?? [];
+}
+
+function taskMeta(taskId: string) {
+  return taskId in TASK_META ? TASK_META[taskId as TaskId] : null;
+}
+
+function taskCountLabel(count: number): string {
+  if (count % 10 === 1 && count % 100 !== 11) return `${count} задание`;
+  if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) {
+    return `${count} задания`;
+  }
+  return `${count} заданий`;
+}
+
+function durationLabel(durationMs: number | null): string {
+  if (durationMs === null) return "Время не зафиксировано";
+  const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds} сек`;
+  return seconds === 0 ? `${minutes} мин` : `${minutes} мин ${seconds} сек`;
+}
+
+function followUpLabel(followUp: FollowUp): string {
+  if (followUp === "up") return "Через 15 минут: встал";
+  if (followUp === "back") return "Через 15 минут: лёг обратно";
+  if (followUp === "drowsy") return "Через 15 минут: ещё сонный";
+  return "Проверка через 15 минут не пройдена";
 }
 
 function computeCategoryEffectiveness(sessions: Session[]) {
@@ -939,31 +989,42 @@ function TasksContainer({
 
 // ─── Home Screen ──────────────────────────────────────────────────────────────
 function HomeScreen({
-  alarmTime,
   onStart,
   sessions,
   demo,
 }: {
-  alarmTime: string;
   onStart: () => void;
   sessions: Session[];
   demo: boolean;
 }) {
+  const analytics = useAnalyticsProfile(!demo);
   const history = useSessionHistory(!demo);
   const valid = sessions.filter((s) => s.endAlertness > 0);
   const serverItems = history.status === "ready" ? history.items : [];
-  const experimentCount = demo ? valid.length : serverItems.length;
-  const avgGain = experimentCount
-    ? demo
-      ? (
-          valid.reduce((sum, item) => sum + item.endAlertness - item.startAlertness, 0) /
-          valid.length
-        ).toFixed(1)
-      : (
-          serverItems.reduce((sum, item) => sum + item.postRating - item.baseline, 0) /
-          serverItems.length
-        ).toFixed(1)
-    : "—";
+  const apiProfile = analytics.status === "ready" ? analytics.profile : null;
+  const experimentCount = demo
+    ? valid.length
+    : (apiProfile?.averageDelta.evidenceCount ?? serverItems.length);
+  const averageValue = demo
+    ? valid.length
+      ? valid.reduce((sum, item) => sum + item.endAlertness - item.startAlertness, 0) / valid.length
+      : null
+    : (apiProfile?.averageDelta.value ?? null);
+  const avgGain = averageValue === null ? "—" : averageValue.toFixed(1);
+  const chartItems = demo
+    ? sessions.slice(-7).map((session) => ({
+        key: session.id,
+        label: session.date.split(" ")[0] ?? session.date,
+        delta: session.endAlertness - session.startAlertness,
+      }))
+    : serverItems
+        .slice(0, 7)
+        .reverse()
+        .map((session) => ({
+          key: session.id,
+          label: new Date(session.completedAt).toLocaleDateString("ru-RU", { day: "numeric" }),
+          delta: session.postRating - session.baseline,
+        }));
   const isLearning = experimentCount < 7;
   const lp = Math.min(experimentCount, 7);
 
@@ -1033,28 +1094,24 @@ function HomeScreen({
       </div>
 
       {/* Mini chart */}
-      {valid.length > 0 && (
+      {chartItems.length > 0 && (
         <div className="bg-card border border-border rounded-2xl p-4 mb-6">
           <p className="text-sm font-semibold mb-3">Прирост бодрости по дням</p>
           <div className="flex items-end gap-1.5 h-14">
-            {sessions.slice(-7).map((s, i) => {
-              const delta = s.endAlertness - s.startAlertness;
-              const pct = s.endAlertness > 0 ? Math.max(4, (delta / 8) * 100) : 4;
+            {chartItems.map((item) => {
+              const pct = Math.max(4, (Math.max(0, item.delta) / 8) * 100);
               const color =
-                delta >= 5
+                item.delta >= 5
                   ? "bg-green-500/70"
-                  : delta >= 3
+                  : item.delta >= 3
                     ? "bg-primary/70"
-                    : delta >= 0
+                    : item.delta >= 0
                       ? "bg-yellow-500/50"
                       : "bg-muted";
               return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className={`w-full rounded-sm ${s.endAlertness > 0 ? color : "bg-muted"}`}
-                    style={{ height: `${pct}%` }}
-                  />
-                  <span className="text-xs text-muted-foreground">{s.date.split(" ")[0]}</span>
+                <div key={item.key} className="flex-1 flex flex-col items-center gap-1">
+                  <div className={`w-full rounded-sm ${color}`} style={{ height: `${pct}%` }} />
+                  <span className="text-xs text-muted-foreground">{item.label}</span>
                 </div>
               );
             })}
@@ -1498,9 +1555,26 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
     : apiProfile?.riseSuccess.value === null || apiProfile?.riseSuccess.value === undefined
       ? null
       : Math.round(apiProfile.riseSuccess.value * 100);
-  const avgMinutes = valid.length
-    ? Math.round((valid.reduce((s, v) => s + v.totalMs, 0) / valid.length / 60000) * 10) / 10
-    : null;
+  const serverDurations =
+    history.status === "ready"
+      ? history.items
+          .map((item) => item.durationMs)
+          .filter((duration): duration is number => duration !== null)
+      : [];
+  const avgMinutes = demo
+    ? valid.length
+      ? Math.round(
+          (valid.reduce((sum, item) => sum + item.totalMs, 0) / valid.length / 60000) * 10,
+        ) / 10
+      : null
+    : serverDurations.length
+      ? Math.round(
+          (serverDurations.reduce((sum, duration) => sum + duration, 0) /
+            serverDurations.length /
+            60000) *
+            10,
+        ) / 10
+      : null;
 
   // Category profile
   const eff = computeCategoryEffectiveness(demo ? valid : []);
@@ -1523,6 +1597,7 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
   const bestProtocol = apiProfile?.protocolEffects
     .filter((metric) => metric.value !== null)
     .sort((left, right) => (right.value ?? 0) - (left.value ?? 0))[0];
+  const bestProtocolTasks = bestProtocol ? protocolTaskIds(bestProtocol.key) : [];
 
   // Chart data
   const chartData = sessions.slice(-7).map((s, i) => ({
@@ -1588,8 +1663,11 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
                   {coach.insight.insight.caveat}
                 </p>
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                  Основано на {coach.insight.evidenceCount} подтверждённых сессиях · AI объясняет
-                  расчёты, но не меняет их.
+                  {CONF_LABEL[coach.insight.insight.confidence]} · {coach.insight.evidenceCount}{" "}
+                  подтверждённых сессий ·{" "}
+                  {coach.insight.status === "ready"
+                    ? "AI объясняет расчёты, но не меняет их."
+                    : "Показан безопасный вывод без обращения к AI."}
                 </p>
               </>
             ) : (
@@ -1737,10 +1815,24 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
             <p className="text-sm font-semibold text-green-400">
               {protocolLabel(bestProtocol.key)}
             </p>
+            {bestProtocolTasks.length > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                {bestProtocolTasks.map((taskId, index) => (
+                  <div key={taskId} className="flex items-center gap-1.5">
+                    <span className="rounded-lg bg-secondary px-2 py-1 text-xs font-medium">
+                      {TASK_META[taskId].emoji} {TASK_META[taskId].title}
+                    </span>
+                    {index < bestProtocolTasks.length - 1 && (
+                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             <p className="text-xs text-muted-foreground mt-2">
               Средний прирост бодрости {bestProtocol.value! >= 0 ? "+" : ""}
               {bestProtocol.value!.toFixed(1)} · {CONF_LABEL[bestProtocol.confidence].toLowerCase()}{" "}
-              · {bestProtocol.evidenceCount} сессий.
+              · проверено на {bestProtocol.evidenceCount} сессиях.
             </p>
           </>
         ) : demo && hasBestSeq && bestSession ? (
@@ -1794,15 +1886,17 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
         </div>
       )}
 
-      {/* Next experiment */}
+      {/* Learning plan */}
       <div className="bg-card border border-border rounded-2xl p-4 mb-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-accent" />
-            <p className="text-sm font-semibold">✨ Следующий эксперимент</p>
+            <p className="text-sm font-semibold">
+              {demo ? "✨ Следующий эксперимент" : "Как приложение учится"}
+            </p>
           </div>
           <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-            {demo ? "Прототип" : "План обучения"}
+            {demo ? "Прототип" : "Автоматически"}
           </span>
         </div>
         {demo ? (
@@ -1828,11 +1922,15 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
             <p className="text-xs text-muted-foreground leading-relaxed">{nextPlan.rationale}</p>
           </>
         ) : (
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Следующий протокол назначается сервером по заранее заданному плану сравнений. После
-            достаточного числа сопоставимых сессий здесь появится объяснение выбора; нейросеть
-            сможет сформулировать его, но не изменит исходные метрики.
-          </p>
+          <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
+            <p>
+              Приложение само чередует короткие комбинации заданий и сравнивает, после каких ты
+              становишься бодрее и не ложишься обратно.
+            </p>
+            <p className="font-medium text-foreground">
+              Ничего настраивать не нужно — следующий эксперимент будет выбран автоматически.
+            </p>
+          </div>
         )}
       </div>
 
@@ -1889,38 +1987,73 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
         )}
         {!demo &&
           history.status === "ready" &&
-          history.items.map((item) => {
+          history.items.map((item, index) => {
             const delta = item.postRating - item.baseline;
             const deltaColor =
               delta >= 4 ? "text-green-400" : delta >= 2 ? "text-yellow-300" : "text-red-400";
             return (
-              <div
-                key={item.id}
-                className="flex items-center justify-between py-3 border-b border-border last:border-0"
-              >
-                <div>
-                  <p className="text-sm font-medium">
-                    {new Date(item.completedAt).toLocaleString("ru-RU", {
-                      day: "numeric",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
+              <details key={item.id} className="group border-b border-border last:border-0">
+                <summary
+                  aria-label={`Открыть эксперимент ${index + 1}`}
+                  className="flex cursor-pointer list-none items-center justify-between py-3 [&::-webkit-details-marker]:hidden"
+                >
+                  <div>
+                    <p className="text-sm font-medium">
+                      {new Date(item.completedAt).toLocaleString("ru-RU", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {item.baseline} → {item.postRating} · {taskCountLabel(item.tasks.length)}
+                      {item.followUp === "up"
+                        ? " · встал"
+                        : item.followUp === "back"
+                          ? " · лёг обратно"
+                          : item.followUp === "drowsy"
+                            ? " · ещё сонный"
+                            : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={`text-lg font-black ${deltaColor}`}>
+                      {delta >= 0 ? "+" : ""}
+                      {delta}
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-90" />
+                  </div>
+                </summary>
+                <div className="mb-3 rounded-xl bg-secondary/60 p-3">
+                  <p className="text-xs font-semibold">Что было в эксперименте</p>
+                  <div className="mt-2 flex flex-col gap-2">
+                    {item.tasks.map((task, taskIndex) => {
+                      const meta = taskMeta(task.taskId);
+                      return (
+                        <div
+                          key={`${task.taskId}-${taskIndex}`}
+                          className="flex items-center gap-2 text-xs"
+                        >
+                          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-card">
+                            {meta?.emoji ?? "✓"}
+                          </span>
+                          <span>
+                            {taskIndex + 1}. {meta?.title ?? "Задание"}
+                          </span>
+                        </div>
+                      );
                     })}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {item.baseline} → {item.postRating} · {item.tasks.length} задания
-                    {item.followUp === "up"
-                      ? " · встал"
-                      : item.followUp === "back"
-                        ? " · лёг обратно"
-                        : ""}
-                  </p>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+                    <p>
+                      Бодрость: {item.baseline} → {item.postRating}
+                    </p>
+                    <p>Длительность: {durationLabel(item.durationMs)}</p>
+                    <p className="col-span-2">{followUpLabel(item.followUp)}</p>
+                  </div>
                 </div>
-                <div className={`text-lg font-black ${deltaColor}`}>
-                  {delta >= 0 ? "+" : ""}
-                  {delta}
-                </div>
-              </div>
+              </details>
             );
           })}
         {((demo && valid.length === 0) ||
@@ -2296,14 +2429,7 @@ function PrototypeApp({
             {syncError ?? "Сохраняем подтверждённое состояние…"}
           </div>
         )}
-        {screen === "home" && (
-          <HomeScreen
-            alarmTime={alarmTime}
-            onStart={startSession}
-            sessions={sessions}
-            demo={demo}
-          />
-        )}
+        {screen === "home" && <HomeScreen onStart={startSession} sessions={sessions} demo={demo} />}
         {screen === "stats" && <StatsScreen sessions={sessions} demo={demo} />}
         {screen === "settings" && (
           <SettingsScreen

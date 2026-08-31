@@ -10,8 +10,19 @@ export interface WakeScheduleRepository {
     nextTriggerAt: Date | null;
     now: Date;
   }): Promise<WakeScheduleValue>;
-  snooze(userId: string, nextTriggerAt: Date, now: Date): Promise<WakeScheduleValue | null>;
+  snooze(
+    userId: string,
+    operationId: string,
+    nextTriggerAt: Date,
+    now: Date,
+  ): Promise<WakeScheduleSnoozeResult>;
 }
+
+export type WakeScheduleSnoozeResult =
+  | { status: "applied"; schedule: WakeScheduleValue }
+  | { status: "replayed"; schedule: WakeScheduleValue }
+  | { status: "not_enabled" }
+  | { status: "idempotency_conflict" };
 
 export interface ClaimedWakeNotification {
   deliveryId: string;

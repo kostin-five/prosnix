@@ -8,6 +8,7 @@ describe("wake schedule API contract", () => {
   it("stores one schedule and returns the next trigger", async () => {
     const dependencies = createMemoryDependencies();
     let schedule: WakeScheduleValue | null = null;
+    const snoozes = new Map<string, WakeScheduleValue>();
     const app = await createApp(testConfig, {
       ...dependencies,
       now: () => testNow,
@@ -25,10 +26,13 @@ describe("wake schedule API contract", () => {
           };
           return schedule;
         },
-        snooze: async (userId, nextTriggerAt) => {
-          if (!schedule?.enabled) return null;
+        snooze: async (userId, operationId, nextTriggerAt) => {
+          const replayed = snoozes.get(operationId);
+          if (replayed) return { status: "replayed" as const, schedule: replayed };
+          if (!schedule?.enabled) return { status: "not_enabled" as const };
           schedule = { ...schedule, userId, nextTriggerAt, revision: schedule.revision + 1 };
-          return schedule;
+          snoozes.set(operationId, schedule);
+          return { status: "applied" as const, schedule };
         },
       },
     });
@@ -58,7 +62,7 @@ describe("wake schedule API contract", () => {
     const snoozed = await app.inject({
       method: "POST",
       url: "/api/v1/me/wake-schedule/snooze",
-      headers: { cookie },
+      headers: { cookie, "idempotency-key": "snooze-operation-1" },
     });
     expect(snoozed.statusCode).toBe(200);
     expect(snoozed.json()).toMatchObject({
@@ -66,6 +70,13 @@ describe("wake schedule API contract", () => {
       nextTriggerAt: "2026-08-27T06:05:00.000Z",
       revision: 2,
     });
+    const replayed = await app.inject({
+      method: "POST",
+      url: "/api/v1/me/wake-schedule/snooze",
+      headers: { cookie, "idempotency-key": "snooze-operation-1" },
+    });
+    expect(replayed.json()).toEqual(snoozed.json());
+    expect(snoozes.get("snooze-operation-1")?.revision).toBe(2);
     await app.close();
   });
 
@@ -79,7 +90,7 @@ describe("wake schedule API contract", () => {
         save: async () => {
           throw new Error("must not save");
         },
-        snooze: async () => null,
+        snooze: async () => ({ status: "not_enabled" as const }),
       },
     });
     expect(
@@ -108,6 +119,15 @@ describe("wake schedule API contract", () => {
           method: "POST",
           url: "/api/v1/me/wake-schedule/snooze",
           headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/v1/me/wake-schedule/snooze",
+          headers: { cookie, "idempotency-key": "snooze-operation-2" },
         })
       ).statusCode,
     ).toBe(409);

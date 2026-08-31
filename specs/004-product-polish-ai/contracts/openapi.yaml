@@ -23,8 +23,14 @@ paths:
   /api/v1/me/wake-schedule/snooze:
     post:
       summary: Отложить ближайшее напоминание на пять минут
+      parameters:
+        - in: header
+          name: idempotency-key
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 128 }
       responses:
         "200": { description: Обновлённое расписание }
+        "400": { description: Отсутствует ключ идемпотентности }
         "401": { description: Требуется Telegram-сессия }
         "409": { description: Расписание отсутствует или выключено }
   /api/v1/sessions/{sessionId}/abandon:

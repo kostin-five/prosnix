@@ -11,6 +11,11 @@ export class ScheduleSnoozeError extends Error {
   readonly code = "wake_schedule_not_enabled";
 }
 
+export class ScheduleSnoozeConflictError extends Error {
+  readonly statusCode = 409;
+  readonly code = "idempotency_conflict";
+}
+
 function response(schedule: Awaited<ReturnType<WakeScheduleRepository["findByUserId"]>>) {
   if (!schedule) return null;
   return {
@@ -45,12 +50,20 @@ export class WakeScheduleService {
     return response(saved)!;
   }
 
-  async snooze(userId: string): Promise<WakeScheduleResponse> {
+  async snooze(userId: string, operationId: string): Promise<WakeScheduleResponse> {
     const now = this.now();
-    const saved = await this.repository.snooze(userId, new Date(now.getTime() + 5 * 60_000), now);
-    if (!saved) {
+    const result = await this.repository.snooze(
+      userId,
+      operationId,
+      new Date(now.getTime() + 5 * 60_000),
+      now,
+    );
+    if (result.status === "not_enabled") {
       throw new ScheduleSnoozeError("Сначала включи Telegram-напоминание в настройках");
     }
-    return response(saved)!;
+    if (result.status === "idempotency_conflict") {
+      throw new ScheduleSnoozeConflictError("Ключ операции уже использован другим запросом");
+    }
+    return response(result.schedule)!;
   }
 }

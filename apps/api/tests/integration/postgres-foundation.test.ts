@@ -4,8 +4,11 @@ import {
   connectDatabase,
   PostgresAnalyticsRepository,
   PostgresBootstrapRepository,
+  PostgresCoachInsightRepository,
   PostgresSessionCommandRepository,
+  PostgresSessionHistoryRepository,
   PostgresUserDeletionRepository,
+  PostgresWakeScheduleRepository,
 } from "@awc/db";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -138,8 +141,65 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL фундаме
     expect(profile.averageDelta).toMatchObject({ value: 4, evidenceCount: 1 });
     expect(profile.riseSuccess).toMatchObject({ value: 1, evidenceCount: 1 });
 
+    const history = new PostgresSessionHistoryRepository(database.db);
+    expect(await history.listCompleted(user.id, 10)).toMatchObject([
+      { id: current.id, baseline: 3, postRating: 7, followUp: "up" },
+    ]);
+    expect(await history.listCompleted(untouchedUser.id, 10)).toEqual([]);
+
+    const coach = new PostgresCoachInsightRepository(database.db);
+    await coach.save({
+      userId: user.id,
+      evidenceFingerprint: "fingerprint-1",
+      summary: "Наблюдение",
+      nextExperiment: "Следующий протокол",
+      caveat: "Предварительный вывод",
+      model: "deepseek-v4-flash",
+      evidenceCount: 3,
+      generatedAt: new Date("2026-08-29T06:20:00.000Z"),
+    });
+    expect(await coach.findByUserId(user.id)).toMatchObject({
+      evidenceFingerprint: "fingerprint-1",
+    });
+
+    const schedules = new PostgresWakeScheduleRepository(database.db);
+    await schedules.save({
+      userId: user.id,
+      localTime: "07:00",
+      timezone: "Europe/Moscow",
+      enabled: true,
+      nextTriggerAt: new Date("2026-08-30T04:00:00.000Z"),
+      now: new Date("2026-08-29T06:21:00.000Z"),
+    });
+    const firstSnooze = await schedules.snooze(
+      user.id,
+      "postgres-snooze-0001",
+      new Date("2026-08-29T06:26:00.000Z"),
+      new Date("2026-08-29T06:21:00.000Z"),
+    );
+    const replayedSnooze = await schedules.snooze(
+      user.id,
+      "postgres-snooze-0001",
+      new Date("2026-08-29T06:40:00.000Z"),
+      new Date("2026-08-29T06:35:00.000Z"),
+    );
+    expect(firstSnooze).toMatchObject({
+      status: "applied",
+      schedule: { localTime: "07:00", revision: 2 },
+    });
+    expect(replayedSnooze).toMatchObject({
+      status: "replayed",
+      schedule: {
+        localTime: "07:00",
+        revision: 2,
+        nextTriggerAt: new Date("2026-08-29T06:26:00.000Z"),
+      },
+    });
+
     const deleteRepository = new PostgresUserDeletionRepository(database.db);
     expect(await deleteRepository.deleteUser(user.id, "postgres-delete-user-1")).toBe(true);
+    expect(await coach.findByUserId(user.id)).toBeNull();
+    expect(await history.listCompleted(user.id, 10)).toEqual([]);
     const ownership = await database.unitOfWork.transaction(async ({ users }) => ({
       deleted: await users.findByTelegramId(telegramIds[0]),
       untouched: await users.findByTelegramId(telegramIds[1]),

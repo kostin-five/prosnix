@@ -66,6 +66,7 @@ test("кнопка откладывает ближайшее Telegram-напом
   await page.route("**/api/v1/me/wake-schedule/snooze", async (route, request) => {
     expect(request.method()).toBe("POST");
     expect(request.postData()).toBeNull();
+    expect(request.headers()["idempotency-key"]).toBeTruthy();
     await route.fulfill({
       status: 200,
       contentType: "application/json",

@@ -42,11 +42,14 @@ describe("coach insight contract", () => {
     const cookie = await authenticateTestUser(app);
     const response = await app.inject({ url: "/api/v1/coach/insight", headers: { cookie } });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
+    expect(response.json()).toMatchObject({
       status: "insufficient",
       evidenceCount: 2,
       cached: false,
-      insight: null,
+      insight: {
+        confidence: "insufficient",
+        nextExperiment: expect.any(String),
+      },
     });
     await app.close();
   });

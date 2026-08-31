@@ -58,6 +58,10 @@ describe("CoachService", () => {
     await expect(service.getInsight("user-1")).resolves.toMatchObject({
       status: "insufficient",
       evidenceCount: 2,
+      insight: {
+        confidence: "insufficient",
+        nextExperiment: expect.any(String),
+      },
     });
     expect(gateway.generate).not.toHaveBeenCalled();
   });
@@ -81,7 +85,11 @@ describe("CoachService", () => {
     gateway.generate.mockRejectedValueOnce(new Error("timeout"));
     await expect(service.getInsight("user-1")).resolves.toMatchObject({
       status: "unavailable",
-      insight: null,
+      insight: {
+        summary: expect.stringContaining("По 4 подтверждённым сессиям"),
+        nextExperiment: expect.any(String),
+        caveat: expect.stringContaining("DeepSeek"),
+      },
     });
   });
 });

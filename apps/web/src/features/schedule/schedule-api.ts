@@ -41,12 +41,16 @@ export async function snoozeWakeSchedule(): Promise<WakeSchedule> {
   const response = await fetch("/api/v1/me/wake-schedule/snooze", {
     method: "POST",
     credentials: "same-origin",
+    headers: { "idempotency-key": crypto.randomUUID() },
   });
   if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new ApiError(
       response.status,
       response.status === 409
-        ? "Сначала включи Telegram-напоминание в настройках."
+        ? payload?.error === "idempotency_conflict"
+          ? "Не удалось безопасно повторить snooze. Нажми ещё раз."
+          : "Сначала включи Telegram-напоминание в настройках."
         : `Не удалось отложить напоминание (${response.status})`,
     );
   }

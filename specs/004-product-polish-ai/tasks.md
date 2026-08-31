@@ -64,7 +64,7 @@ invalid/timeout даёт unavailable; внешний payload не содержи
 ## Этап 8: Завершение
 
 - [x] T026 [P] Обновить `.env.example`, русские инструкции и roadmap в `.env.example`, `docs/telegram-mini-app-setup.md`, `docs/release-roadmap.md`
-- [ ] T027 Выполнить миграцию, format, typecheck, unit/integration/E2E, build и production checks по `specs/004-product-polish-ai/quickstart.md`
+- [x] T027 Выполнить миграцию, format, typecheck, unit/integration/E2E, build и production checks по `specs/004-product-polish-ai/quickstart.md`
 - [x] T028 Зафиксировать результаты и оставшийся staging smoke-test в `specs/004-product-polish-ai/validation.md`
 
 ## Зависимости
@@ -81,3 +81,16 @@ invalid/timeout даёт unavailable; внешний payload не содержи
 Сначала устранить блокирующий 400, затем безопасно включить AI, после чего завершить UX-навигацию,
 snooze и историю. Каждая state/data граница получает тест до реализации; релиз выполняется одним
 совместимым миграционным коммитом.
+
+## Этап 9: Convergence
+
+- [x] T029 Реализовать содержательный детерминированный AI fallback для недостаточной выборки и сбоя провайдера по FR-006 (partial)
+- [x] T030 Явно показывать уровень уверенности в AI-карточке по US2/AC1 (partial)
+- [x] T031 Использовать канонические серверные агрегаты и историю для счётчиков, графика и средней длительности после повторного открытия по Constitution II (contradicts)
+- [x] T032 Добавить PostgreSQL integration-тесты изоляции history, cache cascade и сохранения snooze без изменения localTime по Constitution V (missing)
+- [x] T033 Сделать snooze идемпотентным на API, клиенте и PostgreSQL-границе по FR-016 (contradicts)
+
+## Этап 10: Понятное представление экспериментов
+
+- [x] T034 Заменить внутренние ключи протоколов и техническую метку плана обучения на понятные названия, состав и объяснение в `apps/web/src/app/App.tsx`
+- [x] T035 Сделать серверную историю раскрываемой с заданиями, оценками, длительностью и результатом проверки через 15 минут в `apps/web/src/app/App.tsx` и покрыть E2E в `tests/e2e/analytics.spec.ts`

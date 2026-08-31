@@ -92,16 +92,39 @@ test("профиль показывает только воспроизводи�
       },
     }),
   );
-  await page.route("**/api/v1/sessions/history?limit=10", (route) => json(route, { sessions: [] }));
+  await page.route("**/api/v1/sessions/history?limit=10", (route) =>
+    json(route, {
+      sessions: [
+        {
+          id: "history-session-1",
+          completedAt: "2026-08-31T06:00:00.000Z",
+          baseline: 3,
+          postRating: 7,
+          durationMs: 60_000,
+          followUp: "up",
+          tasks: [{ taskId: "math", category: "cognitive" }],
+        },
+      ],
+    }),
+  );
 
   await page.goto("/");
   await page.getByRole("button", { name: "Статистика" }).click();
 
   await expect(page.getByText("+3.5", { exact: true })).toBeVisible();
   await expect(page.getByText("60%", { exact: true })).toBeVisible();
+  await expect(page.getByText("1м", { exact: true })).toBeVisible();
   await expect(page.getByText("Движение", { exact: true })).toBeVisible();
   await expect(page.getByText("Низкая уверенность · 3 парных сравнения")).toBeVisible();
-  await expect(page.getByText("movement-with · версия 1")).toBeVisible();
+  await expect(page.getByText("Разминка для мозга + движение")).toBeVisible();
+  await expect(page.getByText(/Математика/).first()).toBeVisible();
+  await expect(page.getByText("Как приложение учится")).toBeVisible();
+  await expect(page.getByText("Ничего настраивать не нужно", { exact: false })).toBeVisible();
+  await page.getByLabel("Открыть эксперимент 1").click();
+  await expect(page.getByText("Что было в эксперименте")).toBeVisible();
+  await expect(page.getByText("Бодрость: 3 → 7")).toBeVisible();
+  await expect(page.getByText("Длительность: 1 мин")).toBeVisible();
+  await expect(page.getByText("Через 15 минут: встал")).toBeVisible();
   await page.getByText("Как считаются показатели").click();
   await expect(page.getByText(/Прирост бодрости = оценка после/)).toBeVisible();
   await expect(page.getByText(/Сейчас учтено: 6/)).toBeVisible();

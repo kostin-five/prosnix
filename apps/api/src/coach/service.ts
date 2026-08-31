@@ -32,6 +32,37 @@ function fingerprint(payload: CoachAggregatePayload): string {
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
+function deterministicFallback(
+  profile: AnalyticsProfile,
+  status: "insufficient" | "unavailable",
+  now: Date,
+): CoachInsightResponse {
+  const evidenceCount = profile.averageDelta.evidenceCount;
+  const average = profile.averageDelta.value;
+  const summary =
+    average === null
+      ? `Сохранено ${evidenceCount} из 3 пробуждений, необходимых для первого персонального вывода.`
+      : `По ${evidenceCount} подтверждённым сессиям средний прирост бодрости — ${average >= 0 ? "+" : ""}${average.toFixed(1)} балла.`;
+  return {
+    status,
+    evidenceCount,
+    cached: false,
+    insight: {
+      summary,
+      nextExperiment:
+        evidenceCount < 3
+          ? "Пройди следующий назначенный протокол полностью и оцени бодрость до и после."
+          : "Продолжи следующий назначенный протокол: приложение сохранит результат и уточнит вывод.",
+      caveat:
+        status === "unavailable"
+          ? "DeepSeek временно недоступен, поэтому показан воспроизводимый вывод без AI."
+          : "Данных пока недостаточно для сравнения протоколов; это описание прогресса, а не закономерность.",
+      confidence: profile.averageDelta.confidence,
+      generatedAt: now.toISOString(),
+    },
+  };
+}
+
 export class CoachService {
   constructor(
     private readonly analytics: AnalyticsRepository,
@@ -43,7 +74,7 @@ export class CoachService {
     const profile = await this.analytics.recompute(userId, now);
     const evidenceCount = profile.averageDelta.evidenceCount;
     if (evidenceCount < 3) {
-      return { status: "insufficient", evidenceCount, cached: false, insight: null };
+      return deterministicFallback(profile, "insufficient", now);
     }
     const payload = coachPayload(profile);
     const evidenceFingerprint = fingerprint(payload);
@@ -63,7 +94,7 @@ export class CoachService {
       };
     }
     if (!this.gateway) {
-      return { status: "unavailable", evidenceCount, cached: false, insight: null };
+      return deterministicFallback(profile, "unavailable", now);
     }
     try {
       const generated = await this.gateway.generate(payload);
@@ -93,7 +124,7 @@ export class CoachService {
         },
       };
     } catch {
-      return { status: "unavailable", evidenceCount, cached: false, insight: null };
+      return deterministicFallback(profile, "unavailable", now);
     }
   }
 }

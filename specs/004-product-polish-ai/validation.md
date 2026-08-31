@@ -6,12 +6,14 @@
 ## Автоматически подтверждено
 
 - `pnpm -r typecheck` — все пять пакетов прошли проверку типов.
-- `pnpm test` — 37 API-тестов пройдено, 15 domain-тестов и 4 web component-теста пройдены;
-  четыре PostgreSQL integration suite штатно пропущены без `RUN_POSTGRES_TESTS=1`.
+- `pnpm test` — 37 API-тестов пройдено, 15 domain-тестов и 4 web component-теста пройдены.
+- `pnpm test:integration` на отдельной чистой локальной PostgreSQL 17 — 8 из 8 тестов пройдены;
+  подтверждены миграции, изоляция history, cascade AI-кэша и идемпотентный snooze.
 - `pnpm test:e2e` — 8 из 8 mobile Chromium сценариев пройдены, включая restart без 400,
-  Settings, privacy, server snooze, AI/analytics и полный wake-up цикл.
+  Settings, privacy, server snooze, раскрываемую историю экспериментов, AI/analytics и полный
+  wake-up цикл.
 - `pnpm build` — production-сборка всех пакетов успешна.
-- `pnpm verify:web-bundle` — первоначальный JS 230,0 КиБ при лимите 250 КиБ; прежнее
+- `pnpm verify:web-bundle` — первоначальный JS 234,2 КиБ при лимите 250 КиБ; прежнее
   предупреждение о 588 КБ устранено.
 - `pnpm verify:production` — секреты и тестовые данные не обнаружены в web bundle.
 - `pnpm format:check` и `git diff --check` — форматирование и пробелы корректны.
@@ -34,6 +36,6 @@
 4. «Отложить на 5 минут» приводит ровно к одному сообщению через окно cron 5–10 минут и не меняет
    ежедневное время.
 
-Полный PostgreSQL integration-набор и staging smoke-test намеренно не запускаются автоматически
-против пользовательской Neon-базы из рабочего окружения. Их выполнит CI в изолированной PostgreSQL,
-а deploy — после публикации коммита.
+Staging smoke-test не запускается автоматически против пользовательской Neon-базы из рабочего
+окружения. Его нужно повторить после публикации нового коммита; CI дополнительно выполнит тот же
+набор на изолированной PostgreSQL.
