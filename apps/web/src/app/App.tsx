@@ -16,10 +16,12 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
+  Settings,
 } from "lucide-react";
 import { useBootstrap } from "../features/bootstrap/use-bootstrap.js";
 import { useAnalyticsProfile } from "../features/analytics/use-analytics.js";
-import { DeleteProfile } from "../features/profile/delete-profile.js";
+import { useCoachInsight } from "../features/coach/use-coach-insight.js";
+import { useSessionHistory } from "../features/history/use-session-history.js";
 import {
   SessionConflictError,
   abandonWakeSession,
@@ -30,13 +32,18 @@ import {
   saveTaskResult,
 } from "../features/session/session-api.js";
 import type { BootstrapResponse, WakeSessionResponse } from "../shared/api/client.js";
-import { saveWakeSchedule, type WakeSchedule } from "../features/schedule/schedule-api.js";
-import { WakeScheduleCard } from "../features/schedule/wake-schedule-card.js";
+import {
+  saveWakeSchedule,
+  snoozeWakeSchedule,
+  type WakeSchedule,
+} from "../features/schedule/schedule-api.js";
+import { SettingsScreen } from "../features/settings/settings-screen.js";
 
 const DemoWakeChart = lazy(() => import("../features/analytics/demo-wake-chart.js"));
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Screen = "home" | "alarm" | "startRating" | "tasks" | "endRating" | "results" | "stats";
+type Screen =
+  "home" | "alarm" | "startRating" | "tasks" | "endRating" | "results" | "stats" | "settings";
 type TaskId =
   | "math"
   | "memory"
@@ -935,28 +942,30 @@ function HomeScreen({
   alarmTime,
   onStart,
   sessions,
-  wakeSchedule,
-  scheduleSaving,
-  onScheduleSave,
+  demo,
 }: {
   alarmTime: string;
   onStart: () => void;
   sessions: Session[];
-  wakeSchedule: WakeSchedule | null;
-  scheduleSaving: boolean;
-  onScheduleSave: (input: {
-    localTime: string;
-    timezone: string;
-    enabled: boolean;
-  }) => Promise<void>;
+  demo: boolean;
 }) {
+  const history = useSessionHistory(!demo);
   const valid = sessions.filter((s) => s.endAlertness > 0);
-  const streak = valid.length;
-  const avgGain = valid.length
-    ? (valid.reduce((s, v) => s + (v.endAlertness - v.startAlertness), 0) / valid.length).toFixed(1)
+  const serverItems = history.status === "ready" ? history.items : [];
+  const experimentCount = demo ? valid.length : serverItems.length;
+  const avgGain = experimentCount
+    ? demo
+      ? (
+          valid.reduce((sum, item) => sum + item.endAlertness - item.startAlertness, 0) /
+          valid.length
+        ).toFixed(1)
+      : (
+          serverItems.reduce((sum, item) => sum + item.postRating - item.baseline, 0) /
+          serverItems.length
+        ).toFixed(1)
     : "—";
-  const isLearning = valid.length < 7;
-  const lp = Math.min(valid.length, 7);
+  const isLearning = experimentCount < 7;
+  const lp = Math.min(experimentCount, 7);
 
   return (
     <div className="flex flex-col flex-1 px-5 pt-14 pb-28 overflow-y-auto">
@@ -967,8 +976,8 @@ function HomeScreen({
         </div>
         <div className="flex items-center gap-1.5 bg-card border border-border rounded-full px-3 py-1.5">
           <Flame className="w-4 h-4 text-primary" />
-          <span className="text-sm font-bold">{streak}</span>
-          <span className="text-xs text-muted-foreground">дней</span>
+          <span className="text-sm font-bold">{experimentCount}</span>
+          <span className="text-xs text-muted-foreground">сессий</span>
         </div>
       </div>
 
@@ -1003,20 +1012,13 @@ function HomeScreen({
         </p>
       </div>
 
-      <WakeScheduleCard
-        schedule={wakeSchedule}
-        defaultTime={alarmTime}
-        saving={scheduleSaving}
-        onSave={onScheduleSave}
-      />
-
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="text-xs text-muted-foreground mb-1">Средний прирост</p>
           <div className="flex items-end gap-1">
             <span className="text-3xl font-extrabold">{avgGain === "—" ? "—" : `+${avgGain}`}</span>
-            {valid.length > 0 && (
+            {experimentCount > 0 && (
               <span className="text-muted-foreground text-sm mb-0.5">балла</span>
             )}
           </div>
@@ -1024,7 +1026,7 @@ function HomeScreen({
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="text-xs text-muted-foreground mb-1">Экспериментов</p>
           <div className="flex items-end gap-1">
-            <span className="text-3xl font-extrabold">{valid.length}</span>
+            <span className="text-3xl font-extrabold">{experimentCount}</span>
             <span className="text-muted-foreground text-sm mb-0.5">/ {isLearning ? "7" : "∞"}</span>
           </div>
         </div>
@@ -1075,7 +1077,19 @@ function HomeScreen({
 }
 
 // ─── Alarm Screen ─────────────────────────────────────────────────────────────
-function AlarmScreen({ alarmTime, onBegin }: { alarmTime: string; onBegin: () => void }) {
+function AlarmScreen({
+  alarmTime,
+  onBegin,
+  onSnooze,
+  snoozing,
+  snoozedUntil,
+}: {
+  alarmTime: string;
+  onBegin: () => void;
+  onSnooze: () => void;
+  snoozing: boolean;
+  snoozedUntil: string | null;
+}) {
   const [pulse, setPulse] = useState(true);
   useEffect(() => {
     const t = setInterval(() => setPulse((p) => !p), 900);
@@ -1113,8 +1127,16 @@ function AlarmScreen({ alarmTime, onBegin }: { alarmTime: string; onBegin: () =>
         >
           Начать протокол <ArrowRight className="w-5 h-5" />
         </button>
-        <button className="w-full py-3.5 text-muted-foreground text-sm rounded-2xl hover:text-foreground transition-colors">
-          Отложить на 5 минут
+        <button
+          onClick={onSnooze}
+          disabled={snoozing}
+          className="w-full py-3.5 text-muted-foreground text-sm rounded-2xl hover:text-foreground transition-colors disabled:opacity-60"
+        >
+          {snoozing
+            ? "Откладываем…"
+            : snoozedUntil
+              ? `Отложено до ${new Date(snoozedUntil).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`
+              : "Отложить на 5 минут"}
         </button>
       </div>
     </div>
@@ -1455,6 +1477,8 @@ function ResultsScreen({
 // ─── Stats Screen ─────────────────────────────────────────────────────────────
 function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean }) {
   const analytics = useAnalyticsProfile(!demo);
+  const coach = useCoachInsight(!demo);
+  const history = useSessionHistory(!demo);
   const apiProfile = analytics.status === "ready" ? analytics.profile : null;
   const valid = sessions.filter((s) => s.endAlertness > 0);
   const evidenceCount = demo ? valid.length : (apiProfile?.averageDelta.evidenceCount ?? 0);
@@ -1542,6 +1566,43 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
         </div>
       )}
 
+      {!demo && (
+        <section className="mb-5 rounded-2xl border border-accent/25 bg-card p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-accent" />
+            <p className="text-sm font-semibold">AI-наставник</p>
+          </div>
+          {coach.status === "loading" || coach.status === "idle" ? (
+            <p className="text-sm text-muted-foreground">Анализируем подтверждённые результаты…</p>
+          ) : coach.status === "error" ? (
+            <p className="text-sm text-muted-foreground">{coach.message}</p>
+          ) : coach.status === "ready" ? (
+            coach.insight.insight ? (
+              <>
+                <p className="text-sm leading-relaxed">{coach.insight.insight.summary}</p>
+                <div className="mt-3 rounded-xl bg-secondary/60 p-3">
+                  <p className="text-xs font-semibold text-accent">Следующий эксперимент</p>
+                  <p className="mt-1 text-sm">{coach.insight.insight.nextExperiment}</p>
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                  {coach.insight.insight.caveat}
+                </p>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Основано на {coach.insight.evidenceCount} подтверждённых сессиях · AI объясняет
+                  расчёты, но не меняет их.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {coach.insight.status === "insufficient"
+                  ? `Нужно минимум 3 завершённые сессии. Сейчас: ${coach.insight.evidenceCount}.`
+                  : "DeepSeek временно недоступен. Исходные показатели продолжают считаться без AI."}
+              </p>
+            )
+          ) : null}
+        </section>
+      )}
+
       {/* Three key metrics */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
@@ -1569,17 +1630,19 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
 
       {!demo && apiProfile && (
         <details className="bg-card border border-border rounded-2xl p-4 mb-5">
-          <summary className="cursor-pointer text-sm font-semibold">Источники расчёта</summary>
+          <summary className="cursor-pointer text-sm font-semibold">
+            Как считаются показатели
+          </summary>
           <p className="mt-2 text-xs text-muted-foreground">
-            Метод {apiProfile.methodVersion} · пересчитано{" "}
-            {new Date(apiProfile.computedAt).toLocaleString("ru-RU")}
+            Прирост бодрости = оценка после протокола − оценка до него. В среднем участвуют только
+            полностью завершённые сессии с обеими оценками.
           </p>
-          <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
-            {apiProfile.averageDelta.evidenceIds.map((id) => (
-              <li key={id}>Сессия {id}</li>
-            ))}
-          </ul>
-          {apiProfile.averageDelta.evidenceIds.length === 0 && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Сейчас учтено: {apiProfile.averageDelta.evidenceCount}. Уверенность:{" "}
+            {CONF_LABEL[apiProfile.averageDelta.confidence].toLowerCase()}. Пересчитано{" "}
+            {new Date(apiProfile.computedAt).toLocaleString("ru-RU")}.
+          </p>
+          {apiProfile.averageDelta.evidenceCount === 0 && (
             <p className="mt-3 text-xs text-muted-foreground">Подтверждённых сессий пока нет.</p>
           )}
         </details>
@@ -1818,21 +1881,53 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
                 </div>
               );
             })}
-        {(!demo || valid.length === 0) && (
-          <p className="text-sm text-muted-foreground">
-            {demo
-              ? "Ещё нет завершённых сессий."
-              : "Подробная история появится после подключения серверного списка сессий."}
-          </p>
+        {!demo && history.status === "loading" && (
+          <p className="text-sm text-muted-foreground">Загружаем сохранённые сессии…</p>
+        )}
+        {!demo && history.status === "error" && (
+          <p className="text-sm text-red-400">{history.message}</p>
+        )}
+        {!demo &&
+          history.status === "ready" &&
+          history.items.map((item) => {
+            const delta = item.postRating - item.baseline;
+            const deltaColor =
+              delta >= 4 ? "text-green-400" : delta >= 2 ? "text-yellow-300" : "text-red-400";
+            return (
+              <div
+                key={item.id}
+                className="flex items-center justify-between py-3 border-b border-border last:border-0"
+              >
+                <div>
+                  <p className="text-sm font-medium">
+                    {new Date(item.completedAt).toLocaleString("ru-RU", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {item.baseline} → {item.postRating} · {item.tasks.length} задания
+                    {item.followUp === "up"
+                      ? " · встал"
+                      : item.followUp === "back"
+                        ? " · лёг обратно"
+                        : ""}
+                  </p>
+                </div>
+                <div className={`text-lg font-black ${deltaColor}`}>
+                  {delta >= 0 ? "+" : ""}
+                  {delta}
+                </div>
+              </div>
+            );
+          })}
+        {((demo && valid.length === 0) ||
+          (!demo && history.status === "ready" && history.items.length === 0)) && (
+          <p className="text-sm text-muted-foreground">Ещё нет завершённых сессий.</p>
         )}
       </div>
-      <a
-        href="/privacy"
-        className="mb-4 block text-center text-xs text-muted-foreground underline underline-offset-4"
-      >
-        Политика конфиденциальности
-      </a>
-      {!demo && <DeleteProfile />}
     </div>
   );
 }
@@ -1842,8 +1937,8 @@ function BottomNav({
   current,
   onTab,
 }: {
-  current: "home" | "stats";
-  onTab: (t: "home" | "stats") => void;
+  current: "home" | "stats" | "settings";
+  onTab: (t: "home" | "stats" | "settings") => void;
 }) {
   return (
     <div
@@ -1857,6 +1952,7 @@ function BottomNav({
       {[
         { key: "home" as const, icon: <Home className="w-5 h-5" />, label: "Главная" },
         { key: "stats" as const, icon: <BarChart2 className="w-5 h-5" />, label: "Статистика" },
+        { key: "settings" as const, icon: <Settings className="w-5 h-5" />, label: "Настройки" },
       ].map((tab) => (
         <button
           key={tab.key}
@@ -1895,12 +1991,14 @@ function PrototypeApp({
           : "tasks"
       : "home",
   );
-  const [navTab, setNavTab] = useState<"home" | "stats">("home");
+  const [navTab, setNavTab] = useState<"home" | "stats" | "settings">("home");
   const [alarmTime, setAlarmTime] = useState(initialWakeSchedule?.localTime ?? "07:00");
   const [wakeSchedule, setWakeSchedule] = useState<WakeSchedule | null>(
     initialWakeSchedule ?? null,
   );
   const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [snoozing, setSnoozing] = useState(false);
+  const [snoozedUntil, setSnoozedUntil] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>(demo ? MOCK_SESSIONS : []);
   const [serverSession, setServerSession] = useState<WakeSessionResponse | null>(
     resume ? resumedServerSession(resume) : null,
@@ -1944,6 +2042,30 @@ function PrototypeApp({
     }
   }
 
+  async function handleSnooze(): Promise<void> {
+    setSnoozing(true);
+    setSyncError(null);
+    try {
+      const saved = demo
+        ? {
+            localTime: wakeSchedule?.localTime ?? alarmTime,
+            timezone:
+              wakeSchedule?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC",
+            enabled: true,
+            nextTriggerAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+            botStatus: "available" as const,
+            revision: (wakeSchedule?.revision ?? 0) + 1,
+          }
+        : await snoozeWakeSchedule();
+      setWakeSchedule(saved);
+      setSnoozedUntil(saved.nextTriggerAt);
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "Не удалось отложить напоминание");
+    } finally {
+      setSnoozing(false);
+    }
+  }
+
   function applyConflict(error: unknown): void {
     if (error instanceof SessionConflictError && error.canonicalSession) {
       setServerSession(error.canonicalSession);
@@ -1959,6 +2081,7 @@ function PrototypeApp({
 
   async function startSession() {
     setSyncError(null);
+    setSnoozedUntil(null);
     sessionStartRef.current = Date.now();
     if (demo) {
       const ids = selectTasks(sessions.length, sessions);
@@ -2115,12 +2238,12 @@ function PrototypeApp({
     }
   }
 
-  function handleNavTab(tab: "home" | "stats") {
+  function handleNavTab(tab: "home" | "stats" | "settings") {
     setNavTab(tab);
     setScreen(tab);
   }
 
-  const showNav = screen === "home" || screen === "stats";
+  const showNav = screen === "home" || screen === "stats" || screen === "settings";
 
   if (dueFollowUp && !serverSession) {
     return (
@@ -2178,14 +2301,27 @@ function PrototypeApp({
             alarmTime={alarmTime}
             onStart={startSession}
             sessions={sessions}
-            wakeSchedule={wakeSchedule}
-            scheduleSaving={scheduleSaving}
-            onScheduleSave={saveScheduleSetting}
+            demo={demo}
           />
         )}
         {screen === "stats" && <StatsScreen sessions={sessions} demo={demo} />}
+        {screen === "settings" && (
+          <SettingsScreen
+            alarmTime={alarmTime}
+            schedule={wakeSchedule}
+            saving={scheduleSaving}
+            demo={demo}
+            onScheduleSave={saveScheduleSetting}
+          />
+        )}
         {screen === "alarm" && (
-          <AlarmScreen alarmTime={alarmTime} onBegin={() => setScreen("startRating")} />
+          <AlarmScreen
+            alarmTime={alarmTime}
+            onBegin={() => setScreen("startRating")}
+            onSnooze={() => void handleSnooze()}
+            snoozing={snoozing}
+            snoozedUntil={snoozedUntil}
+          />
         )}
         {screen === "startRating" && <StartRatingScreen onDone={handleStartRating} />}
         {screen === "tasks" && (

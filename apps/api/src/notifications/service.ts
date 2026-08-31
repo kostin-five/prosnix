@@ -6,6 +6,11 @@ export class ScheduleInputError extends Error {
   readonly code = "invalid_wake_schedule";
 }
 
+export class ScheduleSnoozeError extends Error {
+  readonly statusCode = 409;
+  readonly code = "wake_schedule_not_enabled";
+}
+
 function response(schedule: Awaited<ReturnType<WakeScheduleRepository["findByUserId"]>>) {
   if (!schedule) return null;
   return {
@@ -37,6 +42,15 @@ export class WakeScheduleService {
       throw new ScheduleInputError("Проверь время и часовой пояс");
     }
     const saved = await this.repository.save({ ...input, userId, nextTriggerAt, now });
+    return response(saved)!;
+  }
+
+  async snooze(userId: string): Promise<WakeScheduleResponse> {
+    const now = this.now();
+    const saved = await this.repository.snooze(userId, new Date(now.getTime() + 5 * 60_000), now);
+    if (!saved) {
+      throw new ScheduleSnoozeError("Сначала включи Telegram-напоминание в настройках");
+    }
     return response(saved)!;
   }
 }

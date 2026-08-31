@@ -33,4 +33,19 @@ describe("application config", () => {
       "c".repeat(32),
     );
   });
+
+  it("keeps DeepSeek optional and validates its server-only transport", () => {
+    expect(loadConfig(production)).toMatchObject({
+      deepseekApiKey: "",
+      deepseekBaseUrl: "https://api.deepseek.com",
+      deepseekModel: "deepseek-v4-flash",
+      deepseekTimeoutMs: 12_000,
+    });
+    expect(() =>
+      loadConfig({ ...production, DEEPSEEK_BASE_URL: "http://api.deepseek.com" }),
+    ).toThrow("must use HTTPS");
+    expect(() => loadConfig({ ...production, DEEPSEEK_TIMEOUT_MS: "500" })).toThrow(
+      "between 1000 and 30000",
+    );
+  });
 });

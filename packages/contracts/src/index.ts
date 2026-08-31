@@ -80,3 +80,33 @@ export const WakeScheduleSchema = Type.Object(
 export type BotStatus = Static<typeof BotStatusSchema>;
 export type WakeScheduleInput = Static<typeof WakeScheduleInputSchema>;
 export type WakeScheduleResponse = Static<typeof WakeScheduleSchema>;
+
+export interface CoachInsightResponse {
+  status: "ready" | "insufficient" | "unavailable";
+  evidenceCount: number;
+  cached: boolean;
+  insight: null | {
+    summary: string;
+    nextExperiment: string;
+    caveat: string;
+    confidence: "insufficient" | "low" | "medium" | "high";
+    generatedAt: string;
+  };
+}
+
+export interface SessionHistoryItemResponse {
+  id: string;
+  completedAt: string;
+  baseline: number;
+  postRating: number;
+  durationMs: number | null;
+  followUp: "up" | "back" | "drowsy" | null;
+  tasks: Array<{
+    taskId: TaskId;
+    category: TaskCategory;
+  }>;
+}
+
+export interface SessionHistoryResponse {
+  sessions: SessionHistoryItemResponse[];
+}

@@ -181,3 +181,33 @@ export interface AnalyticsRepository {
 export interface UserDeletionRepository {
   deleteUser(userId: string, correlationId: string, now?: Date): Promise<boolean>;
 }
+
+export interface CoachInsightRecord {
+  userId: string;
+  evidenceFingerprint: string;
+  summary: string;
+  nextExperiment: string;
+  caveat: string;
+  model: string;
+  evidenceCount: number;
+  generatedAt: Date;
+}
+
+export interface CoachInsightRepository {
+  findByUserId(userId: string): Promise<CoachInsightRecord | null>;
+  save(record: CoachInsightRecord, now?: Date): Promise<CoachInsightRecord>;
+}
+
+export interface SessionHistoryItem {
+  id: string;
+  completedAt: Date;
+  baseline: number;
+  postRating: number;
+  durationMs: number | null;
+  followUp: FollowUpOutcome | null;
+  tasks: Array<{ taskId: TaskId; category: import("./model.js").TaskCategory }>;
+}
+
+export interface SessionHistoryRepository {
+  listCompleted(userId: string, limit: number): Promise<SessionHistoryItem[]>;
+}

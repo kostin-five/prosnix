@@ -34,8 +34,8 @@ async function sendCommand(
       method,
       credentials: "same-origin",
       headers: {
-        "content-type": "application/json",
         "idempotency-key": operationId,
+        ...(body === null ? {} : { "content-type": "application/json" }),
         ...(expectedVersion === undefined ? {} : { "if-match": String(expectedVersion) }),
       },
       ...(body === null ? {} : { body: JSON.stringify(body) }),
@@ -59,7 +59,18 @@ async function sendCommand(
       conflict.canonicalSession ?? null,
     );
   }
-  if (!response.ok) throw new ApiError(response.status, `Сервер вернул ошибку ${response.status}`);
+  if (!response.ok) {
+    const code = "code" in payload && typeof payload.code === "string" ? payload.code : null;
+    const message =
+      code === "expected_version_required"
+        ? "Сессия изменилась. Открой приложение заново."
+        : code === "idempotency_key_required"
+          ? "Не удалось безопасно подтвердить действие. Повтори попытку."
+          : response.status === 401
+            ? "Сессия Telegram истекла. Открой приложение из бота заново."
+            : `Не удалось выполнить действие (${response.status})`;
+    throw new ApiError(response.status, message);
+  }
   return payload as WakeSessionResponse;
 }
 

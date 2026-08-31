@@ -61,6 +61,19 @@ export class PostgresWakeScheduleRepository implements WakeScheduleRepository {
     if (!row) throw new Error("Wake schedule upsert did not return a row");
     return mapSchedule(row);
   }
+
+  async snooze(userId: string, nextTriggerAt: Date, now: Date): Promise<WakeScheduleValue | null> {
+    const [row] = await this.db
+      .update(wakeSchedules)
+      .set({
+        nextTriggerAt,
+        revision: sql`${wakeSchedules.revision} + 1`,
+        updatedAt: now,
+      })
+      .where(and(eq(wakeSchedules.userId, userId), eq(wakeSchedules.enabled, true)))
+      .returning();
+    return row ? mapSchedule(row) : null;
+  }
 }
 
 export class PostgresWakeNotificationRepository implements WakeNotificationRepository {

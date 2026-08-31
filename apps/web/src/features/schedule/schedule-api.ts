@@ -36,3 +36,19 @@ export async function saveWakeSchedule(input: {
   );
   return (await response.json()) as WakeSchedule;
 }
+
+export async function snoozeWakeSchedule(): Promise<WakeSchedule> {
+  const response = await fetch("/api/v1/me/wake-schedule/snooze", {
+    method: "POST",
+    credentials: "same-origin",
+  });
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      response.status === 409
+        ? "Сначала включи Telegram-напоминание в настройках."
+        : `Не удалось отложить напоминание (${response.status})`,
+    );
+  }
+  return (await response.json()) as WakeSchedule;
+}

@@ -20,6 +20,8 @@ export { PostgresAnalyticsRepository } from "./analytics.js";
 export { PostgresUserDeletionRepository } from "./delete-user.js";
 export { PostgresFollowUpNotificationRepository } from "./follow-up-notifications.js";
 export { PostgresNotificationMaintenanceRepository } from "./notification-maintenance.js";
+export { PostgresCoachInsightRepository } from "./coach-insights.js";
+export { PostgresSessionHistoryRepository } from "./session-history.js";
 export {
   PostgresWakeNotificationRepository,
   PostgresWakeScheduleRepository,

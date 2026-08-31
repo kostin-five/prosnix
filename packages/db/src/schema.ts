@@ -332,6 +332,20 @@ export const analyticsProjections = pgTable(
   ],
 );
 
+export const coachInsights = pgTable("coach_insights", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  evidenceFingerprint: text("evidence_fingerprint").notNull(),
+  summary: text().notNull(),
+  nextExperiment: text("next_experiment").notNull(),
+  caveat: text().notNull(),
+  model: text().notNull(),
+  evidenceCount: integer("evidence_count").notNull(),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const auditEvents = pgTable(
   "audit_events",
   {

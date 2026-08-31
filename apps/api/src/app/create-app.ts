@@ -4,9 +4,11 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type {
   AnalyticsRepository,
   BootstrapRepository,
+  CoachInsightRepository,
   FollowUpNotificationRepository,
   NotificationMaintenanceRepository,
   SessionCommandRepository,
+  SessionHistoryRepository,
   UnitOfWork,
   UserDeletionRepository,
   WakeNotificationRepository,
@@ -24,12 +26,19 @@ import { registerWakeScheduleRoutes } from "../notifications/routes.js";
 import { WakeScheduleService } from "../notifications/service.js";
 import { registerNotificationDispatchRoute } from "../notifications/dispatch-route.js";
 import type { TelegramNotificationGateway } from "../notifications/telegram.js";
+import { registerCoachRoutes } from "../coach/routes.js";
+import { CoachService } from "../coach/service.js";
+import type { CoachGateway } from "../coach/deepseek.js";
+import { registerSessionHistoryRoutes } from "../sessions/history-routes.js";
 
 export interface AppDependencies {
   unitOfWork: UnitOfWork;
   bootstrapRepository: BootstrapRepository;
   sessionCommands?: SessionCommandRepository;
   analyticsRepository?: AnalyticsRepository;
+  coachInsightRepository?: CoachInsightRepository;
+  coachGateway?: CoachGateway | null;
+  sessionHistoryRepository?: SessionHistoryRepository;
   userDeletionRepository?: UserDeletionRepository;
   wakeScheduleRepository?: WakeScheduleRepository;
   wakeNotificationRepository?: WakeNotificationRepository;
@@ -76,10 +85,28 @@ export async function createApp(
         ...(dependencies.now ? { now: dependencies.now } : {}),
       });
     }
+    if (dependencies.sessionHistoryRepository) {
+      await registerSessionHistoryRoutes(app, {
+        config,
+        repository: dependencies.sessionHistoryRepository,
+        ...(dependencies.now ? { now: dependencies.now } : {}),
+      });
+    }
     if (dependencies.analyticsRepository) {
       await registerAnalyticsRoutes(app, {
         config,
         repository: dependencies.analyticsRepository,
+        ...(dependencies.now ? { now: dependencies.now } : {}),
+      });
+    }
+    if (dependencies.analyticsRepository && dependencies.coachInsightRepository) {
+      await registerCoachRoutes(app, {
+        config,
+        service: new CoachService(
+          dependencies.analyticsRepository,
+          dependencies.coachInsightRepository,
+          dependencies.coachGateway ?? null,
+        ),
         ...(dependencies.now ? { now: dependencies.now } : {}),
       });
     }

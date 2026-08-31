@@ -1,0 +1,35 @@
+openapi: 3.1.0
+info:
+  title: Adaptive Wake Coach — Product Polish и AI Coach
+  version: 0.4.0
+paths:
+  /api/v1/coach/insight:
+    get:
+      summary: Получить безопасный AI-вывод по текущему профилю
+      responses:
+        "200":
+          description: Готовый вывод или безопасное состояние деградации
+        "401": { description: Требуется Telegram-сессия }
+  /api/v1/sessions/history:
+    get:
+      summary: Последние завершённые wake-сессии текущего пользователя
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+      responses:
+        "200": { description: История пользователя }
+        "401": { description: Требуется Telegram-сессия }
+  /api/v1/me/wake-schedule/snooze:
+    post:
+      summary: Отложить ближайшее напоминание на пять минут
+      responses:
+        "200": { description: Обновлённое расписание }
+        "401": { description: Требуется Telegram-сессия }
+        "409": { description: Расписание отсутствует или выключено }
+  /api/v1/sessions/{sessionId}/abandon:
+    post:
+      summary: Закрыть незавершённую сессию
+      responses:
+        "200": { description: Сессия закрыта }
+        "409": { description: Каноническая сессия изменилась }

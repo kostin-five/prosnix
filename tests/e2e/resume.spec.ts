@@ -95,6 +95,8 @@ test("пользователь может серверно закрыть пре
   await page.route("**/api/v1/sessions/session-1/abandon", async (route, request) => {
     expect(request.headers()["if-match"]).toBe("3");
     expect(request.headers()["idempotency-key"]).toBeTruthy();
+    expect(request.headers()["content-type"]).toBeUndefined();
+    expect(request.postData()).toBeNull();
     await route.fulfill({
       status: 200,
       contentType: "application/json",

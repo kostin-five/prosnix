@@ -54,7 +54,7 @@ test("пользователь подтверждает удаление и на
   await page.route("**/api/v1/me", (route) => route.fulfill({ status: 204 }));
 
   await page.goto("/");
-  await page.getByRole("button", { name: "Статистика" }).click();
+  await page.getByRole("button", { name: "Настройки" }).click();
   await page.getByRole("button", { name: "Удалить мой профиль" }).click();
   const deletion = page.waitForRequest(
     (request) => request.url().includes("/api/v1/me") && request.method() === "DELETE",

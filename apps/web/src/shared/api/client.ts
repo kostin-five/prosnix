@@ -86,6 +86,36 @@ export interface AnalyticsProfileResponse {
   factorEffects: MetricResponse[];
 }
 
+export interface CoachInsightResponse {
+  status: "ready" | "insufficient" | "unavailable";
+  evidenceCount: number;
+  cached: boolean;
+  insight: null | {
+    summary: string;
+    nextExperiment: string;
+    caveat: string;
+    confidence: "insufficient" | "low" | "medium" | "high";
+    generatedAt: string;
+  };
+}
+
+export interface SessionHistoryItemResponse {
+  id: string;
+  completedAt: string;
+  baseline: number;
+  postRating: number;
+  followUp: "up" | "back" | "drowsy" | null;
+  durationMs: number | null;
+  tasks: Array<{
+    taskId: string;
+    category: "cognitive" | "movement" | "behavioral" | "environment";
+  }>;
+}
+
+export interface SessionHistoryResponse {
+  sessions: SessionHistoryItemResponse[];
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -124,6 +154,20 @@ export async function loadAnalyticsProfile(): Promise<AnalyticsProfileResponse> 
     await fetch("/api/v1/analytics/profile", { credentials: "same-origin" }),
   );
   return (await response.json()) as AnalyticsProfileResponse;
+}
+
+export async function loadCoachInsight(): Promise<CoachInsightResponse> {
+  const response = await expectSuccess(
+    await fetch("/api/v1/coach/insight", { credentials: "same-origin" }),
+  );
+  return (await response.json()) as CoachInsightResponse;
+}
+
+export async function loadSessionHistory(limit = 10): Promise<SessionHistoryResponse> {
+  const response = await expectSuccess(
+    await fetch(`/api/v1/sessions/history?limit=${limit}`, { credentials: "same-origin" }),
+  );
+  return (await response.json()) as SessionHistoryResponse;
 }
 
 export async function deleteProfile(): Promise<void> {

@@ -78,6 +78,21 @@ test("профиль показывает только воспроизводи�
       ],
     }),
   );
+  await page.route("**/api/v1/coach/insight", (route) =>
+    json(route, {
+      status: "ready",
+      evidenceCount: 6,
+      cached: false,
+      insight: {
+        summary: "Движение даёт наиболее устойчивый прирост бодрости.",
+        nextExperiment: "Повторить протокол с движением и светом.",
+        caveat: "Вывод предварительный: уверенность пока средняя.",
+        confidence: "medium",
+        generatedAt: "2026-08-31T09:00:00.000Z",
+      },
+    }),
+  );
+  await page.route("**/api/v1/sessions/history?limit=10", (route) => json(route, { sessions: [] }));
 
   await page.goto("/");
   await page.getByRole("button", { name: "Статистика" }).click();
@@ -87,8 +102,10 @@ test("профиль показывает только воспроизводи�
   await expect(page.getByText("Движение", { exact: true })).toBeVisible();
   await expect(page.getByText("Низкая уверенность · 3 парных сравнения")).toBeVisible();
   await expect(page.getByText("movement-with · версия 1")).toBeVisible();
-  await page.getByText("Источники расчёта").click();
-  await expect(page.getByText("Сессия s1")).toBeVisible();
-  await expect(page.getByText(/Метод analytics-v1/)).toBeVisible();
-  await expect(page.getByText("AI Wake Coach")).toHaveCount(0);
+  await page.getByText("Как считаются показатели").click();
+  await expect(page.getByText(/Прирост бодрости = оценка после/)).toBeVisible();
+  await expect(page.getByText(/Сейчас учтено: 6/)).toBeVisible();
+  await expect(page.getByText(/Сессия s1/)).toHaveCount(0);
+  await expect(page.getByText("AI-наставник")).toBeVisible();
+  await expect(page.getByText(/Движение даёт наиболее устойчивый/)).toBeVisible();
 });

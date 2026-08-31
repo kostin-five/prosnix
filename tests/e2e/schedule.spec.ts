@@ -48,6 +48,7 @@ test("расписание сохраняется на сервере и пок�
   });
 
   await page.goto("/");
+  await page.getByRole("button", { name: "Настройки" }).click();
   await expect(page.getByText("Telegram-напоминание")).toBeVisible();
   await page.getByRole("button", { name: "Изменить" }).click();
   await page.getByLabel("Время пробуждения").fill("07:15");

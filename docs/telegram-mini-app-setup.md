@@ -79,10 +79,11 @@ SESSION_SECRET=вставьте_сюда_случайную_строку
 TELEGRAM_AUTH_MAX_AGE_SECONDS=900
 TELEGRAM_WEB_APP_URL=https://wake-coach-1.onrender.com/
 
-# Пока можно оставить пустым: AI-модуль ещё не подключён.
+# Ключ нужен для AI-наставника; без него остальная аналитика продолжит работать.
 DEEPSEEK_API_KEY=
 DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_MODEL=deepseek-chat
+DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_TIMEOUT_MS=12000
 ```
 
 Сгенерировать `SESSION_SECRET` можно в Terminal:
@@ -222,9 +223,14 @@ Render и Neon не являются обязательными навсегда
 | `TELEGRAM_AUTH_MAX_AGE_SECONDS` | `900`                                  |
 | `TELEGRAM_WEB_APP_URL`          | `https://wake-coach-1.onrender.com/`   |
 | `CRON_SECRET`                   | Новый результат `openssl rand -hex 32` |
+| `DEEPSEEK_API_KEY`              | Ключ из кабинета DeepSeek              |
+| `DEEPSEEK_BASE_URL`             | `https://api.deepseek.com`             |
+| `DEEPSEEK_MODEL`                | `deepseek-v4-flash`                    |
+| `DEEPSEEK_TIMEOUT_MS`           | `12000`                                |
 
 Render сам устанавливает `NODE_ENV=production` и `PORT`. Код API умеет читать Render `PORT`,
-поэтому `API_PORT` на Render добавлять не нужно. DeepSeek-переменные пока тоже не нужны.
+поэтому `API_PORT` на Render добавлять не нужно. DeepSeek-переменные добавляются только в API
+Web Service, если нужен AI-наставник.
 
 В Render «менеджер секретов» — это именно страница сервиса `Environment`. Можно нажать
 `Add from .env`, но безопаснее добавить только перечисленные серверные переменные и не переносить
@@ -371,9 +377,10 @@ Telegram для этого не нужны. При каждом успешном
 | `TELEGRAM_AUTH_MAX_AGE_SECONDS` | Введите `900`                                   | Только API-сервис     |
 | `TELEGRAM_WEB_APP_URL`          | `https://wake-coach-1.onrender.com/`            | Только API-сервис     |
 | `CRON_SECRET`                   | Новый результат `openssl rand -hex 32`          | API и cron-job.org    |
-| `DEEPSEEK_API_KEY`              | Ключ DeepSeek; пока можно не добавлять          | В будущем только API  |
-| `DEEPSEEK_BASE_URL`             | `https://api.deepseek.com`                      | В будущем только API  |
-| `DEEPSEEK_MODEL`                | `deepseek-chat`                                 | В будущем только API  |
+| `DEEPSEEK_API_KEY`              | Ключ из кабинета DeepSeek                       | Только API-сервис     |
+| `DEEPSEEK_BASE_URL`             | `https://api.deepseek.com`                      | Только API-сервис     |
+| `DEEPSEEK_MODEL`                | `deepseek-v4-flash`                             | Только API-сервис     |
+| `DEEPSEEK_TIMEOUT_MS`           | `12000`                                         | Только API-сервис     |
 
 Статическому web-сервису секреты не передаются. В частности, нельзя создавать
 `VITE_TELEGRAM_BOT_TOKEN`, `VITE_SESSION_SECRET` или `VITE_DEEPSEEK_API_KEY`: всё с префиксом
@@ -443,14 +450,14 @@ Telegram Bot API, а cron-job.org только запускает его по в
 
 ## Что делать с DeepSeek API key
 
-Ключ DeepSeek сейчас можно сохранить локально в `.env`, но приложение пока не делает реальные
-AI-запросы. Это будущий этап после накопления экспериментальных данных.
+AI-модуль уже работает на API-сервере и вызывается после накопления минимум трёх завершённых
+сессий. Чтобы включить его на staging, откройте Render → сервис `wake-coach` (не Static Site) →
+`Environment`, добавьте четыре `DEEPSEEK_*` переменные из таблицы выше и нажмите `Save, rebuild and
+deploy`. В React, Render Static Site, Git, BotFather и cron-job.org этот ключ не передаётся.
 
-Когда модуль будет реализован:
-
-- локально ключ останется в `.env` как `DEEPSEEK_API_KEY`;
-- на хостинге он будет добавлен в переменные API-сервиса;
-- в web-сервис, React, Git и BotFather этот ключ не передаётся.
+Модели отправляются только агрегированные показатели без Telegram ID, UUID сессий, точного времени
+и сырых ответов. Если DeepSeek недоступен или ключ отсутствует, обычная аналитика продолжает
+работать, а интерфейс честно показывает временную недоступность AI.
 
 ## Финальный чеклист staging
 

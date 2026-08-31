@@ -10,6 +10,32 @@ import {
 } from "../helpers.js";
 
 describe("контракт команд wake-сессии", () => {
+  it("закрывает активную сессию POST-запросом без тела", async () => {
+    const dependencies = createMemoryDependencies();
+    const app = await createApp(testConfig, {
+      ...dependencies,
+      sessionCommands: createMemorySessionCommands(dependencies.user.id),
+      now: () => testNow,
+    });
+    const cookie = await authenticateTestUser(app);
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/sessions",
+      headers: { cookie, "idempotency-key": "create-abandon-1" },
+      payload: { timezone: "Europe/Moscow" },
+    });
+
+    const abandoned = await app.inject({
+      method: "POST",
+      url: `/api/v1/sessions/${created.json().id}/abandon`,
+      headers: { cookie, "idempotency-key": "abandon-1", "if-match": "1" },
+    });
+
+    expect(abandoned.statusCode).toBe(200);
+    expect(abandoned.json()).toMatchObject({ status: "abandoned", version: 2 });
+    await app.close();
+  });
+
   it("сохраняет полный цикл и возвращает каноническую версию после каждого шага", async () => {
     const dependencies = createMemoryDependencies();
     const app = await createApp(testConfig, {

@@ -25,6 +25,11 @@ describe("wake schedule API contract", () => {
           };
           return schedule;
         },
+        snooze: async (userId, nextTriggerAt) => {
+          if (!schedule?.enabled) return null;
+          schedule = { ...schedule, userId, nextTriggerAt, revision: schedule.revision + 1 };
+          return schedule;
+        },
       },
     });
     const cookie = await authenticateTestUser(app);
@@ -50,6 +55,17 @@ describe("wake schedule API contract", () => {
       botStatus: "unknown",
       revision: 1,
     });
+    const snoozed = await app.inject({
+      method: "POST",
+      url: "/api/v1/me/wake-schedule/snooze",
+      headers: { cookie },
+    });
+    expect(snoozed.statusCode).toBe(200);
+    expect(snoozed.json()).toMatchObject({
+      localTime: "07:00",
+      nextTriggerAt: "2026-08-27T06:05:00.000Z",
+      revision: 2,
+    });
     await app.close();
   });
 
@@ -63,6 +79,7 @@ describe("wake schedule API contract", () => {
         save: async () => {
           throw new Error("must not save");
         },
+        snooze: async () => null,
       },
     });
     expect(
@@ -85,6 +102,15 @@ describe("wake schedule API contract", () => {
         })
       ).statusCode,
     ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/v1/me/wake-schedule/snooze",
+          headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(409);
     await app.close();
   });
 });

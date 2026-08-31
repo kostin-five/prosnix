@@ -10,6 +10,7 @@ export interface WakeScheduleRepository {
     nextTriggerAt: Date | null;
     now: Date;
   }): Promise<WakeScheduleValue>;
+  snooze(userId: string, nextTriggerAt: Date, now: Date): Promise<WakeScheduleValue | null>;
 }
 
 export interface ClaimedWakeNotification {

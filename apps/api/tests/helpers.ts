@@ -34,6 +34,10 @@ export const testConfig: AppConfig = {
   telegramAuthMaxAgeSeconds: 900,
   telegramWebAppUrl: "https://wake-coach.example/",
   cronSecret: "test-cron-secret-that-is-longer-than-32-chars",
+  deepseekApiKey: "",
+  deepseekBaseUrl: "https://api.deepseek.com",
+  deepseekModel: "deepseek-v4-flash",
+  deepseekTimeoutMs: 12_000,
 };
 
 export function signedInitData(userId = 42): string {

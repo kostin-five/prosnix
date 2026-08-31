@@ -24,4 +24,15 @@ export async function registerWakeScheduleRoutes(
       return options.service.save(userId, request.body as WakeScheduleInput);
     },
   );
+
+  app.post("/api/v1/me/wake-schedule/snooze", async (request, reply) => {
+    const userId = authenticatedUserId(request, options.config, options.now?.() ?? new Date());
+    if (!userId) return reply.status(401).send({ error: "authentication_required" });
+    const schedule = await options.service.snooze(userId);
+    request.log.info(
+      { event: "wake_schedule_snoozed", revision: schedule.revision, delayMinutes: 5 },
+      "wake schedule snoozed",
+    );
+    return schedule;
+  });
 }
