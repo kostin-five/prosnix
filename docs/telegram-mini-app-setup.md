@@ -32,7 +32,8 @@ API-сервиса, который обычно называется **Variables
 
 - Mini App: `https://wake-coach-1.onrender.com/`;
 - API: `https://wake-coach.onrender.com/`;
-- health-check: `https://wake-coach.onrender.com/health`.
+- liveness: `https://wake-coach.onrender.com/health`;
+- readiness с проверкой БД: `https://wake-coach.onrender.com/ready`.
 
 Новая функция ежедневного Telegram-напоминания требует ещё одного ресурса Render — Cron Job.
 Не указывайте в BotFather или Render `localhost` для staging.
@@ -208,7 +209,8 @@ Render и Neon не являются обязательными навсегда
    pnpm start:api
    ```
 
-8. В `Health Check Path` укажите `/health`.
+8. В `Health Check Path` укажите `/ready`. `/health` проверяет только живой процесс, а `/ready` —
+   ещё и доступность PostgreSQL.
 9. Для первых экспериментов можно проверить бесплатный instance, но для доступности без сна нужен
    платный always-on instance.
 10. До первого deploy откройте слева `Environment` → `Add Environment Variable`.
@@ -227,6 +229,10 @@ Render и Neon не являются обязательными навсегда
 | `DEEPSEEK_BASE_URL`             | `https://api.deepseek.com`             |
 | `DEEPSEEK_MODEL`                | `deepseek-v4-flash`                    |
 | `DEEPSEEK_TIMEOUT_MS`           | `12000`                                |
+| `READINESS_TIMEOUT_MS`          | `1500`                                 |
+| `SHUTDOWN_TIMEOUT_MS`           | `9000`                                 |
+| `AUTH_RATE_LIMIT_MAX`           | `30`                                   |
+| `COACH_RATE_LIMIT_MAX`          | `10`                                   |
 
 Render сам устанавливает `NODE_ENV=production` и `PORT`. Код API умеет читать Render `PORT`,
 поэтому `API_PORT` на Render добавлять не нужно. DeepSeek-переменные добавляются только в API
@@ -263,13 +269,14 @@ https://wake-coach.onrender.com/health
 | --------- | ---------------------------------------- | --------- |
 | `/api/*`  | `https://wake-coach.onrender.com/api/*`  | `Rewrite` |
 | `/health` | `https://wake-coach.onrender.com/health` | `Rewrite` |
+| `/ready`  | `https://wake-coach.onrender.com/ready`  | `Rewrite` |
 | `/*`      | `/index.html`                            | `Rewrite` |
 
-Первые два правила сохраняют один публичный origin для web и API; последнее обеспечивает работу
-React-маршрутов. После настройки откройте `/health` уже на адресе Static Site и убедитесь, что
-получен `{"status":"ok"}`. Затем пройдите Telegram smoke-test и отдельно проверьте, что secure
-cookie сохраняется через Render rewrite. Если Render не передаст cookie корректно, объединим web
-и API в один Web Service вместо ослабления защиты.
+Первые три правила сохраняют один публичный origin для web и API; последнее обеспечивает работу
+React-маршрутов. После настройки откройте `/health` и `/ready` уже на адресе Static Site и
+убедитесь, что получены `{"status":"ok"}` и `{"status":"ready"}`. Затем пройдите Telegram
+smoke-test и отдельно проверьте, что secure cookie сохраняется через Render rewrite. Если Render не
+передаст cookie корректно, объединим web и API в один Web Service вместо ослабления защиты.
 
 Для текущего staging используется `https://wake-coach-1.onrender.com/`. Публичная проверка
 подтвердила React, health rewrite, Telegram-аутентификацию, secure cookie, bootstrap и безопасное
@@ -457,7 +464,7 @@ deploy`. В React, Render Static Site, Git, BotFather и cron-job.org этот �
 
 Модели отправляются только агрегированные показатели без Telegram ID, UUID сессий, точного времени
 и сырых ответов. Если DeepSeek недоступен или ключ отсутствует, обычная аналитика продолжает
-работать, а интерфейс честно показывает временную недоступность AI.
+работать, а интерфейс показывает безопасный детерминированный вывод без обращения к AI.
 
 ## Финальный чеклист staging
 
@@ -467,6 +474,7 @@ deploy`. В React, Render Static Site, Git, BotFather и cron-job.org этот �
 - [ ] миграции применены;
 - [ ] web и API доступны под одним HTTPS origin;
 - [ ] `/health` возвращает `{"status":"ok"}`;
+- [ ] `/ready` возвращает `{"status":"ready"}` и выбран как Render Health Check Path;
 - [ ] Main Mini App и Menu Button настроены в BotFather;
 - [ ] реальный сценарий пройден на iOS, Android и Desktop;
 - [ ] backup PostgreSQL включён и проверен;

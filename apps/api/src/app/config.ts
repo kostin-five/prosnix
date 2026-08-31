@@ -11,6 +11,24 @@ export interface AppConfig {
   deepseekBaseUrl: string;
   deepseekModel: string;
   deepseekTimeoutMs: number;
+  readinessTimeoutMs: number;
+  shutdownTimeoutMs: number;
+  authRateLimitMax: number;
+  coachRateLimitMax: number;
+}
+
+function boundedInteger(
+  env: NodeJS.ProcessEnv,
+  name: string,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number {
+  const value = Number(env[name] ?? fallback);
+  if (!Number.isInteger(value) || value < minimum || value > maximum) {
+    throw new Error(`${name} must be an integer between ${minimum} and ${maximum}`);
+  }
+  return value;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -34,6 +52,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const deepseekBaseUrl = env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com";
   const deepseekModel = env.DEEPSEEK_MODEL ?? "deepseek-v4-flash";
   const deepseekTimeoutMs = Number(env.DEEPSEEK_TIMEOUT_MS ?? 12_000);
+  const readinessTimeoutMs = boundedInteger(env, "READINESS_TIMEOUT_MS", 1_500, 100, 2_000);
+  const shutdownTimeoutMs = boundedInteger(env, "SHUTDOWN_TIMEOUT_MS", 9_000, 1_000, 10_000);
+  const authRateLimitMax = boundedInteger(env, "AUTH_RATE_LIMIT_MAX", 30, 1, 1_000);
+  const coachRateLimitMax = boundedInteger(env, "COACH_RATE_LIMIT_MAX", 10, 1, 1_000);
   const telegramWebAppUrl =
     env.TELEGRAM_WEB_APP_URL ?? (nodeEnv === "development" ? "http://localhost:5190/" : "");
   let parsedWebAppUrl: URL | null = null;
@@ -82,5 +104,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     deepseekBaseUrl: parsedDeepseekUrl.toString().replace(/\/$/, ""),
     deepseekModel,
     deepseekTimeoutMs,
+    readinessTimeoutMs,
+    shutdownTimeoutMs,
+    authRateLimitMax,
+    coachRateLimitMax,
   };
 }

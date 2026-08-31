@@ -1,4 +1,6 @@
 import cookie from "@fastify/cookie";
+import helmet from "@fastify/helmet";
+import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
 
 import type {
@@ -45,7 +47,23 @@ export interface AppDependencies {
   followUpNotificationRepository?: FollowUpNotificationRepository;
   notificationMaintenanceRepository?: NotificationMaintenanceRepository;
   notificationGateway?: TelegramNotificationGateway;
+  readinessCheck?: () => Promise<void>;
   now?: () => Date;
+}
+
+async function readinessWithin(check: () => Promise<void>, timeoutMs: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      check(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("readiness_timeout")), timeoutMs);
+        timer.unref?.();
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export async function createApp(
@@ -54,6 +72,25 @@ export async function createApp(
 ): Promise<FastifyInstance> {
   const app = Fastify({
     logger: config.nodeEnv !== "test",
+    bodyLimit: 32 * 1024,
+    // Render terminates public traffic at its proxy. Trust exactly that nearest hop so
+    // request.ip (and therefore rate limiting) identifies clients instead of the proxy itself.
+    trustProxy:
+      config.nodeEnv === "production" ? (_address: string, hop: number) => hop === 0 : false,
+  });
+
+  await app.register(helmet, {
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    referrerPolicy: { policy: "no-referrer" },
+  });
+  await app.register(rateLimit, {
+    global: false,
+    errorResponseBuilder: () => ({
+      statusCode: 429,
+      code: "rate_limit_exceeded",
+      error: "Too Many Requests",
+    }),
   });
 
   await app.register(cookie, {
@@ -61,7 +98,34 @@ export async function createApp(
     hook: "onRequest",
   });
 
+  app.addHook("onSend", async (request, reply, payload) => {
+    if (
+      request.url.startsWith("/api/") ||
+      request.url.startsWith("/internal/") ||
+      request.url === "/health" ||
+      request.url === "/ready"
+    ) {
+      reply.header("cache-control", "no-store");
+    }
+    return payload;
+  });
+
   app.get("/health", async () => ({ status: "ok" }));
+  app.get("/ready", async (request, reply) => {
+    if (!dependencies?.readinessCheck) {
+      return reply.status(503).send({ error: "service_unavailable", requestId: request.id });
+    }
+    try {
+      await readinessWithin(dependencies.readinessCheck, config.readinessTimeoutMs);
+      return { status: "ready" };
+    } catch {
+      request.log.warn(
+        { event: "readiness_failed", dependency: "database", requestId: request.id },
+        "service is not ready",
+      );
+      return reply.status(503).send({ error: "service_unavailable", requestId: request.id });
+    }
+  });
   await registerObservability(app);
 
   if (dependencies) {

@@ -48,4 +48,25 @@ describe("application config", () => {
       "between 1000 and 30000",
     );
   });
+
+  it("provides bounded readiness, shutdown and sensitive-route limits", () => {
+    expect(loadConfig(production)).toMatchObject({
+      readinessTimeoutMs: 1_500,
+      shutdownTimeoutMs: 9_000,
+      authRateLimitMax: 30,
+      coachRateLimitMax: 10,
+    });
+    expect(() => loadConfig({ ...production, READINESS_TIMEOUT_MS: "0" })).toThrow(
+      "READINESS_TIMEOUT_MS",
+    );
+    expect(() => loadConfig({ ...production, SHUTDOWN_TIMEOUT_MS: "11000" })).toThrow(
+      "SHUTDOWN_TIMEOUT_MS",
+    );
+    expect(() => loadConfig({ ...production, AUTH_RATE_LIMIT_MAX: "1.5" })).toThrow(
+      "AUTH_RATE_LIMIT_MAX",
+    );
+    expect(() => loadConfig({ ...production, COACH_RATE_LIMIT_MAX: "0" })).toThrow(
+      "COACH_RATE_LIMIT_MAX",
+    );
+  });
 });

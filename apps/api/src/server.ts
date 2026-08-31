@@ -15,6 +15,7 @@ import { createApp } from "./app/create-app.js";
 import { loadConfig } from "./app/config.js";
 import { TelegramBotGateway } from "./notifications/telegram.js";
 import { DeepSeekCoachGateway } from "./coach/deepseek.js";
+import { createGracefulShutdown, type ShutdownSignal } from "./runtime/graceful-shutdown.js";
 
 const config = loadConfig();
 const database = connectDatabase(config.databaseUrl);
@@ -39,7 +40,30 @@ const app = await createApp(config, {
   notificationGateway: new TelegramBotGateway(config.botToken, config.telegramWebAppUrl),
   followUpNotificationRepository: new PostgresFollowUpNotificationRepository(database.db),
   notificationMaintenanceRepository: new PostgresNotificationMaintenanceRepository(database.db),
+  readinessCheck: database.check,
 });
 app.addHook("onClose", async () => database.close());
 
 await app.listen({ host: "0.0.0.0", port: config.port });
+
+const shutdown = createGracefulShutdown({
+  close: async () => {
+    app.log.info({ event: "shutdown_started" }, "graceful shutdown started");
+    await app.close();
+    app.log.info({ event: "shutdown_completed" }, "graceful shutdown completed");
+  },
+  deadlineMs: config.shutdownTimeoutMs,
+  onDeadline: () => {
+    app.log.error({ event: "shutdown_deadline_exceeded" }, "graceful shutdown deadline exceeded");
+    process.exit(1);
+  },
+  onError: () => {
+    app.log.error({ event: "shutdown_failed" }, "graceful shutdown failed");
+  },
+});
+
+for (const signal of ["SIGTERM", "SIGINT"] satisfies ShutdownSignal[]) {
+  process.once(signal, () => {
+    void shutdown(signal);
+  });
+}

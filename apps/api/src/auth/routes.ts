@@ -12,12 +12,18 @@ export async function registerAuthRoutes(
   app.post<{ Body: { initData?: string } }>(
     "/api/v1/auth/telegram",
     {
+      config: {
+        rateLimit: {
+          max: options.config.authRateLimitMax,
+          timeWindow: "1 minute",
+        },
+      },
       schema: {
         body: {
           type: "object",
           additionalProperties: false,
           required: ["initData"],
-          properties: { initData: { type: "string", minLength: 1 } },
+          properties: { initData: { type: "string", minLength: 1, maxLength: 8 * 1024 } },
         },
       },
     },

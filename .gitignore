@@ -1,4 +1,5 @@
 node_modules/
+.pnpm-store/
 dist/
 build/
 coverage/
@@ -6,6 +7,9 @@ coverage/
 .vite/
 *.tsbuildinfo
 *.log
+*.pem
+*.key
+*.crt
 
 .env
 .env.*

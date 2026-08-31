@@ -17,6 +17,8 @@
     "@awc/db": "workspace:*",
     "@awc/domain": "workspace:*",
     "@fastify/cookie": "^11.0.2",
+    "@fastify/helmet": "13.1.1",
+    "@fastify/rate-limit": "11.2.0",
     "@sinclair/typebox": "^0.34.41",
     "fastify": "^5.6.0"
   },

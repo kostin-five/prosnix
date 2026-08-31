@@ -30,6 +30,11 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL фундаме
     await Promise.all(connections.map((connection) => connection.close()));
   });
 
+  it("подтверждает готовность реальным запросом к PostgreSQL", async () => {
+    const database = connect();
+    await expect(database.check()).resolves.toBeUndefined();
+  });
+
   it("сохраняет restart, аналитику и изолированное удаление в реальной базе", async () => {
     let database = connect();
     const [first, second] = await database.unitOfWork.transaction(async ({ users }) =>

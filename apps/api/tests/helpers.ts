@@ -38,6 +38,10 @@ export const testConfig: AppConfig = {
   deepseekBaseUrl: "https://api.deepseek.com",
   deepseekModel: "deepseek-v4-flash",
   deepseekTimeoutMs: 12_000,
+  readinessTimeoutMs: 1_500,
+  shutdownTimeoutMs: 9_000,
+  authRateLimitMax: 30,
+  coachRateLimitMax: 10,
 };
 
 export function signedInitData(userId = 42): string {

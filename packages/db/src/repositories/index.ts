@@ -177,6 +177,7 @@ export function createRepositories(db: Database): Repositories {
 
 export function connectDatabase(databaseUrl: string): {
   db: Database;
+  check: () => Promise<void>;
   close: () => Promise<void>;
   unitOfWork: UnitOfWork;
 } {
@@ -184,6 +185,9 @@ export function connectDatabase(databaseUrl: string): {
   const db = drizzle(client, { schema });
   return {
     db,
+    check: async () => {
+      await client`select 1`;
+    },
     close: () => client.end(),
     unitOfWork: {
       transaction: (work) =>
