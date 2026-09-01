@@ -1,15 +1,13 @@
 <!--
 Sync Impact Report
-- Version change: template -> 1.0.0
+- Version change: 1.0.0 -> 1.1.0
 - Modified principles:
-  - Placeholder Principle 1 -> I. Reliable Wake-Up Continuity
-  - Placeholder Principle 2 -> II. Truthful Experimentation
-  - Placeholder Principle 3 -> III. Privacy and Security by Default
-  - Placeholder Principle 4 -> IV. Modular Domain Architecture
-  - Placeholder Principle 5 -> V. Testable and Observable Delivery
+  - III. Privacy and Security by Default -> explicit AI data boundary
+  - IV. Modular Domain Architecture -> explicit source-of-truth hierarchy
+- Added principles:
+  - VI. Controlled Change and Production Authority
 - Added sections:
-  - Product and Data Constraints
-  - Specification-Driven Delivery
+  - none
 - Removed sections: none
 - Follow-up TODOs: none
 -->
@@ -43,7 +41,10 @@ supplied identity, scores, and session ownership MUST NOT be trusted without val
 and privileged credentials MUST never be shipped to the client. The system MUST collect only data
 needed for wake-up personalization, protect it in transit and at rest, and provide documented
 retention and deletion behavior. Logs and analytics MUST exclude authentication material and avoid
-personally identifying content unless explicitly required and protected.
+personally identifying content unless explicitly required and protected. AI providers MUST receive
+only the minimum sanitized, aggregated context required for the requested explanation. AI output
+MUST NOT overwrite source observations, derived metrics, access decisions, payments, or session
+state, and the product MUST retain a deterministic fallback when AI is unavailable.
 
 Rationale: wake times, behavior, and sleep-related responses are personal data and require a clear
 trust boundary from the first production release.
@@ -54,6 +55,9 @@ vendors, and deployment providers. The application MUST have one canonical, vers
 model for users, protocols, sessions, task results, follow-ups, experiments, and recommendations.
 State transitions and analytics MUST be expressed as deterministic domain operations with explicit
 inputs and outputs. Persistence schemas MUST support migrations and backward-compatible reads.
+For implemented behavior, executable code and database migrations are the source of truth; accepted
+feature specifications define intended behavior; this constitution governs both. Documentation MUST
+be updated when implementation changes and MUST NOT describe aspirational architecture as current.
 
 Rationale: separating domain logic from delivery and infrastructure allows the prototype to evolve
 without rewriting the learning engine or coupling product decisions to a single vendor.
@@ -67,6 +71,20 @@ structured, privacy-safe telemetry, and releases MUST support rollback without c
 No change may merge into the development branch with failing required checks.
 
 Rationale: the product cannot learn reliably from behavior that the team cannot verify or diagnose.
+
+### VI. Controlled Change and Production Authority
+New architectural mechanisms, infrastructure providers, data classes, external integrations, or
+privileged background jobs MUST begin with a reviewed specification or ADR and MUST reuse existing
+boundaries when they remain adequate. Database access MUST occur through the server-side repository
+layer; browsers, Mini App clients, and AI providers MUST NOT receive direct database credentials.
+Migrations MUST be forward-only, reviewed, tested on a disposable database, and explicitly approved
+by the project owner before production execution. Deployments, secret changes, billing activation,
+webhook replacement, destructive data operations, and rollback execution likewise require explicit
+owner authorization. Agents and contributors MAY prepare and verify these actions but MUST NOT infer
+production authorization from a general development request.
+
+Rationale: reversible development can be autonomous, while changes to production data, money,
+identity, or availability require an auditable human decision.
 
 ## Product and Data Constraints
 
@@ -110,4 +128,4 @@ testing rules. Known violations MUST block release unless governed by a time-bou
 exception. The constitution MUST be reviewed whenever the product adds a new client, a new class
 of personal data, or a materially different personalization method.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-27 | **Last Amended**: 2026-08-27
+**Version**: 1.1.0 | **Ratified**: 2026-08-27 | **Last Amended**: 2026-09-01

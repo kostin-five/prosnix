@@ -116,9 +116,18 @@ GitHub Actions повторяет полный набор на чистой Post
 
 - [настройка Telegram, Render, Neon и cron-job.org](docs/telegram-mini-app-setup.md);
 - [эксплуатация, smoke-test, backup, диагностика и rollback](docs/operations.md);
-- [текущая дорожная карта](docs/release-roadmap.md).
+- [актуальный продуктовый roadmap](docs/product-roadmap.md);
+- [фактическая архитектура](docs/architecture.md);
+- [тестирование](docs/testing.md) и [release checklist](docs/release-checklist.md);
+- [текущий handoff](docs/handoffs/CURRENT.md) и [onboarding](docs/handoffs/DEVELOPER_ONBOARDING.md);
+- [API-контракты](docs/api-contracts.md) и [архитектурные решения](docs/decisions/ADR-001-modular-monolith.md);
+- [история раннего release roadmap](docs/release-roadmap.md);
 - [переход на production-бота Prosnix](docs/prosnix-production.md);
 - [юридический launch-checklist](docs/legal-launch-checklist.md).
+
+Ежедневные правила для разработчиков и AI-агентов находятся в [`AGENTS.md`](AGENTS.md),
+неизменяемые границы — в [конституции](.specify/memory/constitution.md), security policy — в
+[`SECURITY.md`](SECURITY.md).
 
 ## Статус безопасности
 
