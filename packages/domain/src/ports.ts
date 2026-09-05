@@ -248,8 +248,45 @@ export interface LegalAcceptanceRepository {
 export interface AdminGrowthSummary {
   users: { total: number; new: number; active: number };
   sessions: { started: number; completed: number; abandoned: number };
-  followUp: { answered: number; up: number; back: number; drowsy: number };
+  funnel: { assigned: number; started: number; completed: number; followedUp: number };
+  wakeQuality: {
+    pairedSessions: number;
+    averageDelta: number | null;
+    improvedSessions: number;
+  };
+  followUp: {
+    eligible: number;
+    answered: number;
+    up: number;
+    back: number;
+    drowsy: number;
+  };
   retention: { d1Eligible: number; d1Retained: number; d7Eligible: number; d7Retained: number };
+  timeline: Array<{
+    date: string;
+    newUsers: number;
+    startedSessions: number;
+    completedSessions: number;
+  }>;
+  breakdowns: {
+    contexts: Array<{
+      key: WakeContext | "unspecified";
+      sessions: number;
+      completed: number;
+    }>;
+    durations: Array<{
+      minutes: WakeDurationMinutes;
+      sessions: number;
+      completed: number;
+    }>;
+  };
+  features: {
+    capabilityProfiles: number;
+    routinesEnabled: number;
+    routineRuns: number;
+    routineRunsCompleted: number;
+    aiInsightsGenerated: number;
+  };
   deliveries: { dailySent: number; followUpSent: number; failed: number; blocked: number };
   billing: { activeSubscriptions: number; grossStars: number };
 }

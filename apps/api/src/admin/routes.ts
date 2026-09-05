@@ -29,6 +29,11 @@ export async function registerAdminRoutes(
       const days = rawDays as 7 | 30 | 90;
       const from = new Date(now.getTime() - days * 86_400_000);
       const summary = await options.repository.summarize(from, now);
+      const terminalDeliveries =
+        summary.deliveries.dailySent +
+        summary.deliveries.followUpSent +
+        summary.deliveries.failed +
+        summary.deliveries.blocked;
       return {
         period: { days, from: from.toISOString(), to: now.toISOString() },
         computedAt: now.toISOString(),
@@ -37,7 +42,24 @@ export async function registerAdminRoutes(
           ...summary.sessions,
           completionRate: rate(summary.sessions.completed, summary.sessions.started),
         },
-        followUp: summary.followUp,
+        funnel: {
+          ...summary.funnel,
+          startRate: rate(summary.funnel.started, summary.funnel.assigned),
+          completionRate: rate(summary.funnel.completed, summary.funnel.started),
+          followUpRate: rate(summary.funnel.followedUp, summary.funnel.completed),
+        },
+        wakeQuality: {
+          ...summary.wakeQuality,
+          improvedRate: rate(
+            summary.wakeQuality.improvedSessions,
+            summary.wakeQuality.pairedSessions,
+          ),
+        },
+        followUp: {
+          ...summary.followUp,
+          responseRate: rate(summary.followUp.answered, summary.followUp.eligible),
+          stayedUpRate: rate(summary.followUp.up, summary.followUp.answered),
+        },
         retention: {
           d1: {
             eligible: summary.retention.d1Eligible,
@@ -50,7 +72,26 @@ export async function registerAdminRoutes(
             rate: rate(summary.retention.d7Retained, summary.retention.d7Eligible),
           },
         },
-        deliveries: summary.deliveries,
+        timeline: summary.timeline,
+        breakdowns: {
+          contexts: summary.breakdowns.contexts.map((item) => ({
+            ...item,
+            completionRate: rate(item.completed, item.sessions),
+          })),
+          durations: summary.breakdowns.durations.map((item) => ({
+            ...item,
+            completionRate: rate(item.completed, item.sessions),
+          })),
+        },
+        features: summary.features,
+        deliveries: {
+          ...summary.deliveries,
+          terminal: terminalDeliveries,
+          successRate: rate(
+            summary.deliveries.dailySent + summary.deliveries.followUpSent,
+            terminalDeliveries,
+          ),
+        },
         billing: {
           enabled: options.config.telegramStarsMonthlyPrice > 0,
           ...summary.billing,

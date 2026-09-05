@@ -195,12 +195,69 @@ export interface AdminGrowthResponse {
   computedAt: string;
   users: { total: number; new: number; active: number };
   sessions: { started: number; completed: number; abandoned: number; completionRate: number };
-  followUp: { answered: number; up: number; back: number; drowsy: number };
+  funnel: {
+    assigned: number;
+    started: number;
+    completed: number;
+    followedUp: number;
+    startRate: number;
+    completionRate: number;
+    followUpRate: number;
+  };
+  wakeQuality: {
+    pairedSessions: number;
+    averageDelta: number | null;
+    improvedSessions: number;
+    improvedRate: number;
+  };
+  followUp: {
+    eligible: number;
+    answered: number;
+    responseRate: number;
+    up: number;
+    back: number;
+    drowsy: number;
+    stayedUpRate: number;
+  };
   retention: {
     d1: { eligible: number; retained: number; rate: number };
     d7: { eligible: number; retained: number; rate: number };
   };
-  deliveries: { dailySent: number; followUpSent: number; failed: number; blocked: number };
+  timeline: Array<{
+    date: string;
+    newUsers: number;
+    startedSessions: number;
+    completedSessions: number;
+  }>;
+  breakdowns: {
+    contexts: Array<{
+      key: "unspecified" | (typeof WAKE_CONTEXTS)[number];
+      sessions: number;
+      completed: number;
+      completionRate: number;
+    }>;
+    durations: Array<{
+      minutes: (typeof WAKE_DURATIONS)[number];
+      sessions: number;
+      completed: number;
+      completionRate: number;
+    }>;
+  };
+  features: {
+    capabilityProfiles: number;
+    routinesEnabled: number;
+    routineRuns: number;
+    routineRunsCompleted: number;
+    aiInsightsGenerated: number;
+  };
+  deliveries: {
+    dailySent: number;
+    followUpSent: number;
+    failed: number;
+    blocked: number;
+    terminal: number;
+    successRate: number;
+  };
   billing: { enabled: boolean; activeSubscriptions: number; grossStars: number };
 }
 

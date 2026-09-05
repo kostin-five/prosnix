@@ -1,7 +1,8 @@
 # Фактическая архитектура Prosnix
 
 **Актуально на:** 5 сентября 2026 года
-**Версия кода:** незавершённый кандидат `0.2` поверх commit `9122ec5` в `dev`
+**Версия кода:** кандидат `0.2` в `dev` на commit `2222feb` плюс незакоммиченный этап
+`008-admin-dashboard`
 
 Этот документ описывает реализованную систему. Планируемые изменения находятся в
 [`product-roadmap.md`](product-roadmap.md).
@@ -57,7 +58,8 @@ repositories и gateways.
 - `notifications` — расписание, snooze, daily/follow-up dispatch, retry и retention logs;
 - `legal` — версия политики/условий и явное принятие;
 - `billing` — выключенный по умолчанию Telegram Stars checkout/webhook/subscription foundation;
-- `admin` — агрегаты за 7/30/90 дней без записей отдельных пользователей;
+- `admin` — закрытая продуктовая сводка за 7/30/90 дней: когортная воронка, парное изменение
+  бодрости, follow-up, D1/D7, UTC-динамика, разбивки, использование функций, доставки и billing;
 - `observability` — структурные события request/session/dispatch/coach и `requestId`;
 - `runtime` — readiness и graceful shutdown.
 
@@ -162,7 +164,10 @@ payments/updates и audit events.
 
 Логи Fastify содержат event, route, status, duration и requestId, но не должны содержать токены,
 cookie, `initData` или пользовательские ответы. Отдельного error tracking/SLO dashboard пока нет.
-Cron summary и `/admin` дают базовую operational/product visibility.
+Cron summary и `/admin` дают базовую operational/product visibility. Админ-панель строится только
+по серверным агрегатам: она не возвращает Telegram ID, UUID, индивидуальные оценки, тексты рутины
+или evidence IDs. Ошибки в её эксплуатационном блоке относятся только к сохранённым попыткам
+Telegram-доставки; общие HTTP/API ошибки остаются в privacy-safe логах Render.
 
 Архитектурные границы:
 

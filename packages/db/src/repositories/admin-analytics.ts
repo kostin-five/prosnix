@@ -1,18 +1,17 @@
-import { and, count, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { AdminGrowthRepository } from "@awc/domain";
-import {
-  followUpNotificationDeliveries,
-  followUpObservations,
-  notificationDeliveries,
-  subscriptions,
-  telegramStarPayments,
-  users,
-  wakeSessions,
-} from "../schema.js";
+import type {
+  AdminGrowthRepository,
+  AdminGrowthSummary,
+  WakeContext,
+  WakeDurationMinutes,
+} from "@awc/domain";
+import { users } from "../schema.js";
 import type { Database } from "./types.js";
 
 const number = (value: unknown): number => Number(value ?? 0);
+const rounded = (value: unknown): number | null =>
+  value === null || value === undefined ? null : Number(Number(value).toFixed(2));
 
 export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
   constructor(private readonly db: Database) {}
@@ -27,101 +26,244 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
     return Boolean(row);
   }
 
-  async summarize(from: Date, now: Date) {
+  async summarize(from: Date, now: Date): Promise<AdminGrowthSummary> {
     const fromIso = from.toISOString();
     const nowIso = now.toISOString();
     const d1CutoffIso = new Date(now.getTime() - 86_400_000).toISOString();
     const d7CutoffIso = new Date(now.getTime() - 7 * 86_400_000).toISOString();
-    const [userCounts] = await this.db
-      .select({
-        total: count(users.id),
-        newUsers: sql<number>`count(*) filter (where ${users.createdAt} >= ${fromIso}::timestamptz)::int`,
-      })
-      .from(users);
 
-    const [sessionCounts] = await this.db
-      .select({
-        activeUsers: sql<number>`count(distinct ${wakeSessions.userId})::int`,
-        started: sql<number>`count(*) filter (where ${wakeSessions.startedAt} is not null)::int`,
-        completed: sql<number>`count(*) filter (where ${wakeSessions.status} = 'protocol_completed')::int`,
-        abandoned: sql<number>`count(*) filter (where ${wakeSessions.status} = 'abandoned')::int`,
-      })
-      .from(wakeSessions)
-      .where(gte(wakeSessions.createdAt, from));
+    const [
+      userRows,
+      sessionRows,
+      qualityRows,
+      followUpRows,
+      retentionRows,
+      timelineRows,
+      contextRows,
+      durationRows,
+      featureRows,
+      dailyDeliveryRows,
+      followUpDeliveryRows,
+      billingRows,
+      revenueRows,
+    ] = await Promise.all([
+      this.db.execute<{ total: number; new_users: number }>(sql`
+        select
+          count(*)::int as total,
+          count(*) filter (
+            where created_at >= ${fromIso}::timestamptz and created_at < ${nowIso}::timestamptz
+          )::int as new_users
+        from users
+      `),
+      this.db.execute<{
+        active_users: number;
+        assigned: number;
+        started: number;
+        completed: number;
+        followed_up: number;
+        abandoned: number;
+      }>(sql`
+        select
+          count(distinct user_id)::int as active_users,
+          count(*)::int as assigned,
+          count(*) filter (where started_at is not null and started_at < ${nowIso}::timestamptz)::int as started,
+          count(*) filter (where protocol_completed_at is not null and protocol_completed_at < ${nowIso}::timestamptz)::int as completed,
+          count(*) filter (where exists (
+            select 1 from follow_up_observations f
+            where f.session_id = wake_sessions.id and f.observed_at < ${nowIso}::timestamptz
+          ))::int as followed_up,
+          count(*) filter (where abandoned_at is not null and abandoned_at < ${nowIso}::timestamptz)::int as abandoned
+        from wake_sessions
+        where created_at >= ${fromIso}::timestamptz and created_at < ${nowIso}::timestamptz
+      `),
+      this.db.execute<{
+        paired_sessions: number;
+        average_delta: number | null;
+        improved_sessions: number;
+      }>(sql`
+        with paired as (
+          select
+            s.id,
+            max(r.value) filter (where r.kind = 'baseline') as baseline,
+            max(r.value) filter (where r.kind = 'post_protocol') as post
+          from wake_sessions s
+          join rating_observations r on r.session_id = s.id
+          where s.created_at >= ${fromIso}::timestamptz and s.created_at < ${nowIso}::timestamptz
+            and r.observed_at < ${nowIso}::timestamptz
+          group by s.id
+        ), deltas as (
+          select post - baseline as delta from paired where baseline is not null and post is not null
+        )
+        select
+          count(*)::int as paired_sessions,
+          avg(delta)::float as average_delta,
+          count(*) filter (where delta > 0)::int as improved_sessions
+        from deltas
+      `),
+      this.db.execute<{
+        eligible: number;
+        answered: number;
+        up: number;
+        back: number;
+        drowsy: number;
+      }>(sql`
+        select
+          count(*)::int as eligible,
+          count(f.id)::int as answered,
+          count(f.id) filter (where f.outcome = 'up')::int as up,
+          count(f.id) filter (where f.outcome = 'back')::int as back,
+          count(f.id) filter (where f.outcome = 'drowsy')::int as drowsy
+        from wake_sessions s
+        left join follow_up_observations f
+          on f.session_id = s.id and f.observed_at < ${nowIso}::timestamptz
+        where s.created_at >= ${fromIso}::timestamptz and s.created_at < ${nowIso}::timestamptz
+          and s.protocol_completed_at is not null and s.protocol_completed_at < ${nowIso}::timestamptz
+      `),
+      this.db.execute<{
+        d1_eligible: number;
+        d1_retained: number;
+        d7_eligible: number;
+        d7_retained: number;
+      }>(sql`
+        select
+          count(*) filter (where u.created_at >= ${fromIso}::timestamptz and u.created_at < ${d1CutoffIso}::timestamptz)::int as d1_eligible,
+          count(*) filter (where u.created_at >= ${fromIso}::timestamptz and u.created_at < ${d1CutoffIso}::timestamptz and exists (
+            select 1 from wake_sessions s where s.user_id = u.id
+              and s.protocol_completed_at < ${nowIso}::timestamptz
+              and date_trunc('day', s.protocol_completed_at at time zone 'UTC') = date_trunc('day', u.created_at at time zone 'UTC') + interval '1 day'
+          ))::int as d1_retained,
+          count(*) filter (where u.created_at >= ${fromIso}::timestamptz and u.created_at < ${d7CutoffIso}::timestamptz)::int as d7_eligible,
+          count(*) filter (where u.created_at >= ${fromIso}::timestamptz and u.created_at < ${d7CutoffIso}::timestamptz and exists (
+            select 1 from wake_sessions s where s.user_id = u.id
+              and s.protocol_completed_at < ${nowIso}::timestamptz
+              and date_trunc('day', s.protocol_completed_at at time zone 'UTC') = date_trunc('day', u.created_at at time zone 'UTC') + interval '7 days'
+          ))::int as d7_retained
+        from users u
+      `),
+      this.db.execute<{
+        date: string;
+        new_users: number;
+        started_sessions: number;
+        completed_sessions: number;
+      }>(sql`
+        select
+          to_char(bucket at time zone 'UTC', 'YYYY-MM-DD') as date,
+          (select count(*) from users u where u.created_at >= bucket and u.created_at < least(bucket + interval '1 day', ${nowIso}::timestamptz))::int as new_users,
+          (select count(*) from wake_sessions s where s.created_at >= ${fromIso}::timestamptz and s.created_at < ${nowIso}::timestamptz and s.started_at >= bucket and s.started_at < least(bucket + interval '1 day', ${nowIso}::timestamptz))::int as started_sessions,
+          (select count(*) from wake_sessions s where s.created_at >= ${fromIso}::timestamptz and s.created_at < ${nowIso}::timestamptz and s.protocol_completed_at >= bucket and s.protocol_completed_at < least(bucket + interval '1 day', ${nowIso}::timestamptz))::int as completed_sessions
+        from generate_series(
+          ${fromIso}::timestamptz,
+          ${nowIso}::timestamptz - interval '1 microsecond',
+          interval '1 day'
+        ) as bucket
+        order by bucket
+      `),
+      this.db.execute<{ key: string; sessions: number; completed: number }>(sql`
+        select
+          wake_context::text as key,
+          count(*)::int as sessions,
+          count(*) filter (where protocol_completed_at is not null and protocol_completed_at < ${nowIso}::timestamptz)::int as completed
+        from wake_sessions
+        where created_at >= ${fromIso}::timestamptz and created_at < ${nowIso}::timestamptz
+        group by wake_context
+        order by wake_context
+      `),
+      this.db.execute<{ minutes: number; sessions: number; completed: number }>(sql`
+        select
+          duration_budget_minutes::int as minutes,
+          count(*)::int as sessions,
+          count(*) filter (where protocol_completed_at is not null and protocol_completed_at < ${nowIso}::timestamptz)::int as completed
+        from wake_sessions
+        where created_at >= ${fromIso}::timestamptz and created_at < ${nowIso}::timestamptz
+        group by duration_budget_minutes
+        order by duration_budget_minutes
+      `),
+      this.db.execute<{
+        capability_profiles: number;
+        routines_enabled: number;
+        routine_runs: number;
+        routine_runs_completed: number;
+        ai_insights_generated: number;
+      }>(sql`
+        select
+          (select count(*) from wake_capability_profiles
+            where onboarding_completed_at >= ${fromIso}::timestamptz
+              and onboarding_completed_at < ${nowIso}::timestamptz)::int as capability_profiles,
+          (select count(*) from wake_routines
+            where enabled = true
+              and created_at >= ${fromIso}::timestamptz
+              and created_at < ${nowIso}::timestamptz)::int as routines_enabled,
+          (select count(*) from wake_routine_runs where created_at >= ${fromIso}::timestamptz and created_at < ${nowIso}::timestamptz)::int as routine_runs,
+          (select count(*) from wake_routine_runs where created_at >= ${fromIso}::timestamptz and created_at < ${nowIso}::timestamptz and completed_at is not null and completed_at < ${nowIso}::timestamptz)::int as routine_runs_completed,
+          (select count(*) from coach_insights where generated_at >= ${fromIso}::timestamptz and generated_at < ${nowIso}::timestamptz)::int as ai_insights_generated
+      `),
+      this.db.execute<{ sent: number; failed: number; blocked: number }>(sql`
+        select
+          count(*) filter (where status = 'sent')::int as sent,
+          count(*) filter (where status in ('failed', 'ambiguous'))::int as failed,
+          count(*) filter (where status = 'blocked')::int as blocked
+        from notification_deliveries
+        where created_at >= ${fromIso}::timestamptz and created_at < ${nowIso}::timestamptz
+      `),
+      this.db.execute<{ sent: number; failed: number; blocked: number }>(sql`
+        select
+          count(*) filter (where status = 'sent')::int as sent,
+          count(*) filter (where status in ('failed', 'ambiguous'))::int as failed,
+          count(*) filter (where status = 'blocked')::int as blocked
+        from follow_up_notification_deliveries
+        where created_at >= ${fromIso}::timestamptz and created_at < ${nowIso}::timestamptz
+      `),
+      this.db.execute<{ active: number }>(sql`
+        select count(*) filter (
+          where status in ('active', 'canceled', 'past_due')
+            and current_period_end > ${nowIso}::timestamptz
+        )::int as active
+        from subscriptions
+      `),
+      this.db.execute<{ gross: number }>(sql`
+        select coalesce(sum(amount_stars), 0)::int as gross
+        from telegram_star_payments
+        where paid_at >= ${fromIso}::timestamptz and paid_at < ${nowIso}::timestamptz
+      `),
+    ]);
 
-    const [followUpCounts] = await this.db
-      .select({
-        answered: count(followUpObservations.id),
-        up: sql<number>`count(*) filter (where ${followUpObservations.outcome} = 'up')::int`,
-        back: sql<number>`count(*) filter (where ${followUpObservations.outcome} = 'back')::int`,
-        drowsy: sql<number>`count(*) filter (where ${followUpObservations.outcome} = 'drowsy')::int`,
-      })
-      .from(followUpObservations)
-      .where(gte(followUpObservations.observedAt, from));
-
-    const [retention] = await this.db.execute<{
-      d1_eligible: number;
-      d1_retained: number;
-      d7_eligible: number;
-      d7_retained: number;
-    }>(sql`
-      select
-        count(*) filter (where u.created_at >= ${fromIso}::timestamptz and u.created_at < ${d1CutoffIso}::timestamptz)::int as d1_eligible,
-        count(*) filter (where u.created_at >= ${fromIso}::timestamptz and u.created_at < ${d1CutoffIso}::timestamptz and exists (
-          select 1 from wake_sessions s where s.user_id = u.id and s.status = 'protocol_completed'
-            and date_trunc('day', s.protocol_completed_at at time zone 'UTC') = date_trunc('day', u.created_at at time zone 'UTC') + interval '1 day'
-        ))::int as d1_retained,
-        count(*) filter (where u.created_at >= ${fromIso}::timestamptz and u.created_at < ${d7CutoffIso}::timestamptz)::int as d7_eligible,
-        count(*) filter (where u.created_at >= ${fromIso}::timestamptz and u.created_at < ${d7CutoffIso}::timestamptz and exists (
-          select 1 from wake_sessions s where s.user_id = u.id and s.status = 'protocol_completed'
-            and date_trunc('day', s.protocol_completed_at at time zone 'UTC') = date_trunc('day', u.created_at at time zone 'UTC') + interval '7 days'
-        ))::int as d7_retained
-      from users u
-    `);
-
-    const [dailyDelivery] = await this.db
-      .select({
-        sent: sql<number>`count(*) filter (where ${notificationDeliveries.status} = 'sent')::int`,
-        failed: sql<number>`count(*) filter (where ${notificationDeliveries.status} in ('failed','ambiguous'))::int`,
-        blocked: sql<number>`count(*) filter (where ${notificationDeliveries.status} = 'blocked')::int`,
-      })
-      .from(notificationDeliveries)
-      .where(gte(notificationDeliveries.createdAt, from));
-    const [followUpDelivery] = await this.db
-      .select({
-        sent: sql<number>`count(*) filter (where ${followUpNotificationDeliveries.status} = 'sent')::int`,
-        failed: sql<number>`count(*) filter (where ${followUpNotificationDeliveries.status} in ('failed','ambiguous'))::int`,
-        blocked: sql<number>`count(*) filter (where ${followUpNotificationDeliveries.status} = 'blocked')::int`,
-      })
-      .from(followUpNotificationDeliveries)
-      .where(gte(followUpNotificationDeliveries.createdAt, from));
-
-    const [billing] = await this.db
-      .select({
-        active: sql<number>`count(*) filter (where ${subscriptions.status} in ('active', 'canceled', 'past_due') and ${subscriptions.currentPeriodEnd} > ${nowIso}::timestamptz)::int`,
-      })
-      .from(subscriptions);
-    const [revenue] = await this.db
-      .select({ gross: sql<number>`coalesce(sum(${telegramStarPayments.amountStars}), 0)::int` })
-      .from(telegramStarPayments)
-      .where(and(gte(telegramStarPayments.paidAt, from), lt(telegramStarPayments.paidAt, now)));
+    const userCounts = userRows[0];
+    const sessionCounts = sessionRows[0];
+    const quality = qualityRows[0];
+    const followUp = followUpRows[0];
+    const retention = retentionRows[0];
+    const features = featureRows[0];
+    const dailyDelivery = dailyDeliveryRows[0];
+    const followUpDelivery = followUpDeliveryRows[0];
 
     return {
       users: {
         total: number(userCounts?.total),
-        new: number(userCounts?.newUsers),
-        active: number(sessionCounts?.activeUsers),
+        new: number(userCounts?.new_users),
+        active: number(sessionCounts?.active_users),
       },
       sessions: {
         started: number(sessionCounts?.started),
         completed: number(sessionCounts?.completed),
         abandoned: number(sessionCounts?.abandoned),
       },
+      funnel: {
+        assigned: number(sessionCounts?.assigned),
+        started: number(sessionCounts?.started),
+        completed: number(sessionCounts?.completed),
+        followedUp: number(sessionCounts?.followed_up),
+      },
+      wakeQuality: {
+        pairedSessions: number(quality?.paired_sessions),
+        averageDelta: rounded(quality?.average_delta),
+        improvedSessions: number(quality?.improved_sessions),
+      },
       followUp: {
-        answered: number(followUpCounts?.answered),
-        up: number(followUpCounts?.up),
-        back: number(followUpCounts?.back),
-        drowsy: number(followUpCounts?.drowsy),
+        eligible: number(followUp?.eligible),
+        answered: number(followUp?.answered),
+        up: number(followUp?.up),
+        back: number(followUp?.back),
+        drowsy: number(followUp?.drowsy),
       },
       retention: {
         d1Eligible: number(retention?.d1_eligible),
@@ -129,13 +271,41 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
         d7Eligible: number(retention?.d7_eligible),
         d7Retained: number(retention?.d7_retained),
       },
+      timeline: timelineRows.map((row) => ({
+        date: row.date,
+        newUsers: number(row.new_users),
+        startedSessions: number(row.started_sessions),
+        completedSessions: number(row.completed_sessions),
+      })),
+      breakdowns: {
+        contexts: contextRows.map((row) => ({
+          key: row.key as WakeContext | "unspecified",
+          sessions: number(row.sessions),
+          completed: number(row.completed),
+        })),
+        durations: durationRows.map((row) => ({
+          minutes: number(row.minutes) as WakeDurationMinutes,
+          sessions: number(row.sessions),
+          completed: number(row.completed),
+        })),
+      },
+      features: {
+        capabilityProfiles: number(features?.capability_profiles),
+        routinesEnabled: number(features?.routines_enabled),
+        routineRuns: number(features?.routine_runs),
+        routineRunsCompleted: number(features?.routine_runs_completed),
+        aiInsightsGenerated: number(features?.ai_insights_generated),
+      },
       deliveries: {
         dailySent: number(dailyDelivery?.sent),
         followUpSent: number(followUpDelivery?.sent),
         failed: number(dailyDelivery?.failed) + number(followUpDelivery?.failed),
         blocked: number(dailyDelivery?.blocked) + number(followUpDelivery?.blocked),
       },
-      billing: { activeSubscriptions: number(billing?.active), grossStars: number(revenue?.gross) },
+      billing: {
+        activeSubscriptions: number(billingRows[0]?.active),
+        grossStars: number(revenueRows[0]?.gross),
+      },
     };
   }
 }
