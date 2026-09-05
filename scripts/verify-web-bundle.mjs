@@ -11,14 +11,15 @@ if (!entryMatch?.[1]) {
 
 const entryFile = entryMatch[1];
 const { size } = await stat(resolve(webDist, "assets", entryFile));
-const budgetBytes = 250 * 1024;
+const budgetKiB = 240;
+const budgetBytes = budgetKiB * 1024;
 
 if (size > budgetBytes) {
   throw new Error(
-    `Начальный web bundle ${entryFile} занимает ${(size / 1024).toFixed(1)} КБ — лимит 250 КБ превышен`,
+    `Начальный web bundle ${entryFile} занимает ${(size / 1024).toFixed(1)} КБ — лимит ${budgetKiB} КБ превышен`,
   );
 }
 
 console.log(
-  `Начальный web bundle: ${(size / 1024).toFixed(1)} КБ из допустимых 250 КБ (${entryFile}).`,
+  `Начальный web bundle: ${(size / 1024).toFixed(1)} КБ из допустимых ${budgetKiB} КБ (${entryFile}).`,
 );

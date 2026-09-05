@@ -8,7 +8,7 @@ export async function registerCoachRoutes(
   app: FastifyInstance,
   options: { config: AppConfig; service: CoachService; now?: () => Date },
 ): Promise<void> {
-  app.get(
+  app.post(
     "/api/v1/coach/insight",
     {
       config: {
@@ -29,6 +29,8 @@ export async function registerCoachRoutes(
           event: "coach_insight_completed",
           status: result.status,
           cached: result.cached,
+          source: result.source,
+          limitReached: result.limitReached,
           evidenceCount: result.evidenceCount,
           latencyMs: Date.now() - startedAt,
         },

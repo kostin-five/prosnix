@@ -43,6 +43,13 @@
       "when": 1788566400000,
       "tag": "0005_wake_personalization",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788642000000,
+      "tag": "0006_task_difficulty",
+      "breakpoints": true
     }
   ]
 }

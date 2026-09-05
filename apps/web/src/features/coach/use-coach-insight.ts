@@ -1,33 +1,31 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { loadCoachInsight, type CoachInsightResponse } from "../../shared/api/client.js";
 
-type CoachState =
-  | { status: "idle" | "loading" }
+export type CoachState =
+  | { status: "idle" }
+  | { status: "loading" }
   | { status: "ready"; insight: CoachInsightResponse }
   | { status: "error"; message: string };
 
-export function useCoachInsight(enabled: boolean): CoachState {
-  const [state, setState] = useState<CoachState>({ status: enabled ? "loading" : "idle" });
+export function useCoachInsight(enabled: boolean): {
+  state: CoachState;
+  requestInsight: () => Promise<void>;
+} {
+  const [state, setState] = useState<CoachState>({ status: "idle" });
 
-  useEffect(() => {
-    if (!enabled) return;
-    let active = true;
+  const requestInsight = useCallback(async () => {
+    if (!enabled || state.status === "loading") return;
     setState({ status: "loading" });
-    void loadCoachInsight()
-      .then((insight) => active && setState({ status: "ready", insight }))
-      .catch(
-        (error: unknown) =>
-          active &&
-          setState({
-            status: "error",
-            message: error instanceof Error ? error.message : "AI-наставник временно недоступен",
-          }),
-      );
-    return () => {
-      active = false;
-    };
-  }, [enabled]);
+    try {
+      setState({ status: "ready", insight: await loadCoachInsight() });
+    } catch (error) {
+      setState({
+        status: "error",
+        message: error instanceof Error ? error.message : "AI-разбор временно недоступен",
+      });
+    }
+  }, [enabled, state.status]);
 
-  return state;
+  return { state, requestInsight };
 }

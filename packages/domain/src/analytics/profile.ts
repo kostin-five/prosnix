@@ -1,4 +1,10 @@
-import type { AnalyticsProfile, CompletedSessionEvidence, Confidence, Metric } from "../model.js";
+import type {
+  AnalyticsProfile,
+  CompletedSessionEvidence,
+  Confidence,
+  DailyWakeTrendPoint,
+  Metric,
+} from "../model.js";
 
 function mean(values: readonly number[]): number | null {
   if (values.length === 0) return null;
@@ -30,6 +36,7 @@ function metric(
 export function computeAnalyticsProfile(
   evidence: readonly CompletedSessionEvidence[],
   computedAt = "1970-01-01T00:00:00.000Z",
+  timezone = "UTC",
 ): AnalyticsProfile {
   const deltas = evidence.map(({ baseline, postRating }) => postRating - baseline);
   const answeredFollowUps = evidence.filter(({ followUp }) => followUp !== null);
@@ -95,6 +102,42 @@ export function computeAnalyticsProfile(
       ];
     });
 
+  let dateFormatter: Intl.DateTimeFormat;
+  try {
+    dateFormatter = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  } catch {
+    dateFormatter = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  }
+  const dailyGroups = new Map<string, CompletedSessionEvidence[]>();
+  for (const item of evidence) {
+    if (!item.completedAt) continue;
+    const completed = new Date(item.completedAt);
+    if (Number.isNaN(completed.getTime())) continue;
+    const localDate = dateFormatter.format(completed);
+    const group = dailyGroups.get(localDate) ?? [];
+    group.push(item);
+    dailyGroups.set(localDate, group);
+  }
+  const dailyTrend: DailyWakeTrendPoint[] = [...dailyGroups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .slice(-30)
+    .map(([localDate, group]) => ({
+      localDate,
+      averageDelta: mean(group.map(({ baseline, postRating }) => postRating - baseline)) ?? 0,
+      evidenceCount: group.length,
+      sessionIds: group.map(({ sessionId }) => sessionId),
+    }));
+
   return {
     methodVersion: "analytics-v1",
     computedAt,
@@ -106,5 +149,6 @@ export function computeAnalyticsProfile(
     ),
     protocolEffects,
     factorEffects,
+    dailyTrend,
   };
 }

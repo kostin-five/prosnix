@@ -43,6 +43,7 @@ async function openTelegramApp(page: Page) {
 
 test("профиль показывает только воспроизводимые метрики смешанных протоколов", async ({ page }) => {
   await openTelegramApp(page);
+  let coachRequests = 0;
   await page.route("**/api/v1/analytics/profile", (route) =>
     json(route, {
       methodVersion: "analytics-v1",
@@ -86,13 +87,25 @@ test("профиль показывает только воспроизводи�
           confidence: "low",
         },
       ],
+      dailyTrend: [
+        {
+          localDate: "2026-08-31",
+          averageDelta: 4,
+          evidenceCount: 1,
+          sessionIds: ["history-session-1"],
+        },
+      ],
     }),
   );
-  await page.route("**/api/v1/coach/insight", (route) =>
-    json(route, {
+  await page.route("**/api/v1/coach/insight", (route) => {
+    coachRequests += 1;
+    return json(route, {
       status: "ready",
       evidenceCount: 6,
       cached: false,
+      source: "provider",
+      limitReached: true,
+      refreshAvailableAt: "2026-09-01T21:00:00.000Z",
       insight: {
         summary: "Движение даёт наиболее устойчивый прирост бодрости.",
         nextExperiment: "Повторить протокол с движением и светом.",
@@ -100,8 +113,8 @@ test("профиль показывает только воспроизводи�
         confidence: "medium",
         generatedAt: "2026-08-31T09:00:00.000Z",
       },
-    }),
-  );
+    });
+  });
   await page.route("**/api/v1/sessions/history?limit=10", (route) =>
     json(route, {
       sessions: [
@@ -128,17 +141,20 @@ test("профиль показывает только воспроизводи�
   await expect(page.getByText("Низкая уверенность · 3 парных сравнения")).toBeVisible();
   await expect(page.getByText("Разминка для мозга + движение")).toBeVisible();
   await expect(page.getByText(/Математика/).first()).toBeVisible();
-  await expect(page.getByText("Как приложение учится")).toBeVisible();
-  await expect(page.getByText("Ничего настраивать не нужно", { exact: false })).toBeVisible();
+  await expect(page.getByText("Средний прирост по датам")).toBeVisible();
+  await expect(page.getByText("n=1")).toBeVisible();
   await page.getByLabel("Открыть эксперимент 1").click();
   await expect(page.getByText("Что было в эксперименте")).toBeVisible();
   await expect(page.getByText("Бодрость: 3 → 7")).toBeVisible();
   await expect(page.getByText("Длительность: 1 мин")).toBeVisible();
   await expect(page.getByText("Через 15 минут: встал")).toBeVisible();
-  await page.getByText("Как считаются показатели").click();
-  await expect(page.getByText(/Прирост бодрости = оценка после/)).toBeVisible();
-  await expect(page.getByText(/Сейчас учтено: 6/)).toBeVisible();
+  await page.getByText("Справка об аналитике").click();
+  await expect(page.getByText(/Прирост — разница оценок после/)).toBeVisible();
   await expect(page.getByText(/Сессия s1/)).toHaveCount(0);
   await expect(page.getByText("AI-наставник")).toBeVisible();
+  await expect(page.getByText(/один новый бесплатный разбор в день/)).toBeVisible();
+  expect(coachRequests).toBe(0);
+  await page.getByRole("button", { name: "Получить AI-разбор" }).click();
   await expect(page.getByText(/Движение даёт наиболее устойчивый/)).toBeVisible();
+  expect(coachRequests).toBe(1);
 });

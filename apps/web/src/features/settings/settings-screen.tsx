@@ -68,11 +68,12 @@ export function SettingsScreen({
       <section className="mb-4 rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-accent" />
-          <p className="text-sm font-semibold">AI-наставник DeepSeek</p>
+          <p className="text-sm font-semibold">AI-разбор результатов</p>
         </div>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          AI объясняет уже рассчитанные показатели и предлагает следующий эксперимент. Ключ хранится
-          только на сервере; идентификаторы и сырые записи сессий в DeepSeek не отправляются.
+          Это необязательное объяснение по кнопке в статистике. AI не оценивает задания, не меняет
+          сохранённые ответы и не управляет протоколом. Бесплатно создаётся один новый разбор в
+          день; повторное открытие показывает сохранённый результат.
         </p>
       </section>
 

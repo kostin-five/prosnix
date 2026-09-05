@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import type { CoachInsightRecord, CoachInsightRepository } from "@awc/domain";
-import { coachInsights } from "../schema.js";
+import { coachInsights, users } from "../schema.js";
 import type { Database } from "./types.js";
 
 function map(row: typeof coachInsights.$inferSelect): CoachInsightRecord {
@@ -27,6 +27,15 @@ export class PostgresCoachInsightRepository implements CoachInsightRepository {
       .where(eq(coachInsights.userId, userId))
       .limit(1);
     return row ? map(row) : null;
+  }
+
+  async findTimezoneByUserId(userId: string): Promise<string> {
+    const [row] = await this.db
+      .select({ timezone: users.timezone })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    return row?.timezone ?? "UTC";
   }
 
   async save(record: CoachInsightRecord, now = new Date()): Promise<CoachInsightRecord> {

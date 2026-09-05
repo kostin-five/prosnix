@@ -1,4 +1,6 @@
-const UPDATED_AT = "31 августа 2026 года";
+import { LegalBack } from "./legal-back.js";
+
+const UPDATED_AT = "5 сентября 2026 года";
 const OPERATOR_NAME = import.meta.env.VITE_LEGAL_OPERATOR_NAME || "Владелец сервиса Prosnix";
 const OPERATOR_CONTACT = import.meta.env.VITE_LEGAL_CONTACT || "@prosnix_bot";
 
@@ -6,6 +8,7 @@ export function TermsOfUse() {
   return (
     <main className="min-h-screen bg-background px-5 py-10 text-foreground">
       <article className="mx-auto max-w-2xl rounded-3xl border border-border bg-card p-6 sm:p-8">
+        <LegalBack />
         <p className="text-xs font-semibold uppercase tracking-wider text-primary">Prosnix</p>
         <h1 className="mt-2 text-3xl font-bold">Пользовательское соглашение</h1>
         <p className="mt-2 text-sm text-muted-foreground">Обновлено: {UPDATED_AT}</p>

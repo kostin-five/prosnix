@@ -66,8 +66,10 @@ describe("wake session transitions", () => {
       correct: 2,
       total: 3,
       durationMs: 40_000,
+      difficultyLevel: 2,
       observedAt: "2026-08-27T04:00:40.000Z",
     });
+    expect(afterMath.tasks[0]).toMatchObject({ correct: 2, total: 3, difficultyLevel: 2 });
     const afterMemory = acceptTaskResult(afterMath, {
       expectedVersion: 3,
       stepIndex: 1,
@@ -130,6 +132,27 @@ describe("wake session transitions", () => {
       }),
     ).toThrowError(/step/i);
     expect(session.tasks).toHaveLength(0);
+  });
+
+  it("rejects a task difficulty outside the supported range", () => {
+    const session = acceptBaseline(assignedSession(), {
+      expectedVersion: 1,
+      value: 2,
+      observedAt: "2026-08-27T04:00:00.000Z",
+    });
+
+    expect(() =>
+      acceptTaskResult(session, {
+        expectedVersion: 2,
+        stepIndex: 0,
+        taskId: "math",
+        correct: 1,
+        total: 1,
+        durationMs: 1000,
+        difficultyLevel: 4,
+        observedAt: "2026-08-27T04:00:01.000Z",
+      }),
+    ).toThrowError(/task result values/i);
   });
 
   it("does not complete before every assigned step and can abandon an unfinished session", () => {

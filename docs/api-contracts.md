@@ -55,9 +55,16 @@ Conflict `409` возвращает code и canonical session, чтобы кли
 | Метод | Маршрут                     | Результат                                             |
 | ----- | --------------------------- | ----------------------------------------------------- |
 | GET   | `/api/v1/analytics/profile` | пересчитанные метрики, confidence и evidence metadata |
-| GET   | `/api/v1/coach/insight`     | AI/cache/fallback explanation с evidence count        |
+| POST  | `/api/v1/coach/insight`     | ручной AI/cache/fallback разбор с evidence count      |
 
-Coach имеет отдельный rate limit. AI response не меняет analytics или session state.
+Профиль аналитики включает `dailyTrend`: среднее парное изменение бодрости по локальным календарным
+датам, число сессий и их evidence IDs. Контексты разных типов сна объединяются только в этом обзорном
+ряду; причинные сравнения протоколов по-прежнему разделены по контексту.
+
+Открытие статистики не вызывает Coach. Пользователь явно нажимает кнопку, после чего сервер создаёт
+не более одного нового provider-разбора за локальный календарный день. Повторный запрос возвращает
+cache или fallback и поля `source`, `limitReached`, `refreshAvailableAt`. Coach имеет отдельный rate
+limit и не меняет analytics или session state.
 
 ## Настройки и уведомления
 

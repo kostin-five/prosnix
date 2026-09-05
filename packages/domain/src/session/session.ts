@@ -14,6 +14,7 @@ interface TaskResultCommand extends VersionedCommand {
   correct: number;
   total: number;
   durationMs: number;
+  difficultyLevel?: number;
   observedAt: string;
 }
 interface PostRatingCommand extends VersionedCommand {
@@ -97,7 +98,11 @@ export function acceptTaskResult(session: WakeSession, command: TaskResultComman
     command.total < 0 ||
     command.correct > command.total ||
     !Number.isInteger(command.durationMs) ||
-    command.durationMs < 0
+    command.durationMs < 0 ||
+    (command.difficultyLevel !== undefined &&
+      (!Number.isInteger(command.difficultyLevel) ||
+        command.difficultyLevel < 1 ||
+        command.difficultyLevel > 3))
   ) {
     throw new SessionCommandError("invalid_task_result", "Task result values are invalid");
   }
@@ -113,6 +118,9 @@ export function acceptTaskResult(session: WakeSession, command: TaskResultComman
         correct: command.correct,
         total: command.total,
         durationMs: command.durationMs,
+        ...(command.difficultyLevel === undefined
+          ? {}
+          : { difficultyLevel: command.difficultyLevel }),
         observedAt: command.observedAt,
       },
     ],

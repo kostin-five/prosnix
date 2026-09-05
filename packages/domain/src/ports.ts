@@ -139,6 +139,7 @@ export type SessionCommand =
       correct: number;
       total: number;
       durationMs: number;
+      difficultyLevel?: number;
     }
   | {
       type: "post_rating";
@@ -210,6 +211,7 @@ export interface CoachInsightRecord {
 
 export interface CoachInsightRepository {
   findByUserId(userId: string): Promise<CoachInsightRecord | null>;
+  findTimezoneByUserId?(userId: string): Promise<string>;
   save(record: CoachInsightRecord, now?: Date): Promise<CoachInsightRecord>;
 }
 

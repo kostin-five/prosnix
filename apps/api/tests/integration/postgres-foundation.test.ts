@@ -9,6 +9,7 @@ import {
   PostgresSessionHistoryRepository,
   PostgresUserDeletionRepository,
   PostgresWakeScheduleRepository,
+  taskObservations,
 } from "@awc/db";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -95,6 +96,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL фундаме
           correct: 1,
           total: 1,
           durationMs: 1000,
+          difficultyLevel: 2,
         },
       })
     ).session;
@@ -103,6 +105,13 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL фундаме
     database = connect();
     const resumed = await new PostgresBootstrapRepository(database.db).load(user.id);
     expect(resumed?.activeSession?.session.currentStepIndex).toBe(1);
+    const persistedTasks = (await database.db.select().from(taskObservations)).filter(
+      (task) => task.sessionId === current.id,
+    );
+    expect(persistedTasks[0]).toMatchObject({
+      protocolStepIndex: 0,
+      difficultyLevel: 2,
+    });
 
     const resumedCommands = new PostgresSessionCommandRepository(database.db);
     for (const step of current.assignment.steps.slice(1)) {
@@ -150,6 +159,14 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL фундаме
     const profile = await new PostgresAnalyticsRepository(database.db).recompute(user.id);
     expect(profile.averageDelta).toMatchObject({ value: 4, evidenceCount: 1 });
     expect(profile.riseSuccess).toMatchObject({ value: 1, evidenceCount: 1 });
+    expect(profile.dailyTrend).toEqual([
+      {
+        localDate: "2026-08-29",
+        averageDelta: 4,
+        evidenceCount: 1,
+        sessionIds: [current.id],
+      },
+    ]);
 
     const history = new PostgresSessionHistoryRepository(database.db);
     expect(await history.listCompleted(user.id, 10)).toMatchObject([

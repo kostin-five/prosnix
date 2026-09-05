@@ -22,7 +22,7 @@
 | API contract   | `apps/api/tests/contract`                          | auth boundary, schemas, status codes, headers, rate limits  |
 | Adapter unit   | `apps/api/tests/coach`, `notifications`, `runtime` | DeepSeek/Telegram mapping, fallback, dispatch, shutdown     |
 | DB integration | `apps/api/tests/integration`                       | migrations, transactions, constraints, concurrency, cascade |
-| Web component  | `apps/web/tests`                                   | legal/admin/schedule UX и accessibility                     |
+| Web component  | `apps/web/tests`                                   | tasks/legal/admin/settings UX и accessibility               |
 | Mobile E2E     | `tests/e2e`                                        | critical journey в mobile Chromium                          |
 | Static checks  | `scripts/verify-*`                                 | initial bundle и отсутствие server/test secrets в web build |
 
@@ -109,7 +109,7 @@ Integration tests должны выполняться на disposable database. 
 3. baseline, все задания, post-rating и результат;
 4. follow-up из Telegram через 15 минут;
 5. расписание и snooze;
-6. история, статистика и AI fallback/ответ;
+6. история и реальная дневная динамика, отсутствие AI-вызова до кнопки, AI fallback/ответ и дневной лимит;
 7. удаление тестового профиля;
 8. `/admin` разрешённому и обычному пользователю;
 9. при billing rollout — checkout, renewal, cancel, support и refund в test environment.
@@ -117,5 +117,5 @@ Integration tests должны выполняться на disposable database. 
 Устройства: Telegram iOS, Android и Desktop. Сейчас Android остаётся ручным пробелом; mobile Chromium
 покрывает layout/flow, но не заменяет Telegram Android WebView.
 
-Последний подтверждённый прогон описан в
-[`specs/006-production-growth/validation.md`](../specs/006-production-growth/validation.md).
+Последний подтверждённый прогон описан в validation-файле актуальной спецификации, на которую
+указывает `.specify/feature.json`.

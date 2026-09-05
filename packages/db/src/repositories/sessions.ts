@@ -206,6 +206,7 @@ async function loadSession(
       correct: task.correct,
       total: task.total,
       durationMs: task.durationMs,
+      ...(task.difficultyLevel === null ? {} : { difficultyLevel: task.difficultyLevel }),
       observedAt: task.observedAt.toISOString(),
     })),
     postRating: ratings.find(({ kind }) => kind === "post_protocol")?.value ?? null,
@@ -412,6 +413,7 @@ async function mutateSession(
         correct: observation.correct,
         total: observation.total,
         durationMs: observation.durationMs,
+        difficultyLevel: observation.difficultyLevel ?? null,
         observedAt: envelope.observedAt,
         operationId: envelope.operationId,
       });

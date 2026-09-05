@@ -15,6 +15,7 @@ import {
   protocolDefinitions,
   ratingObservations,
   wakeSessions,
+  users,
 } from "../schema.js";
 import type { Database } from "./types.js";
 
@@ -44,23 +45,29 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
   recompute(userId: string, now = new Date()): Promise<AnalyticsProfile> {
     return this.db.transaction(async (transaction) => {
       const db = transaction as Database;
-      const sessions = await db
-        .select({
-          sessionId: wakeSessions.id,
-          protocolKey: protocolDefinitions.protocolKey,
-          protocolVersion: protocolDefinitions.version,
-          evaluatedFactor: experimentAssignments.evaluatedFactor,
-          comparisonGroupKey: experimentAssignments.comparisonGroupKey,
-          comparisonLevel: experimentAssignments.comparisonLevel,
-          wakeContext: wakeSessions.wakeContext,
-        })
-        .from(wakeSessions)
-        .innerJoin(experimentAssignments, eq(wakeSessions.assignmentId, experimentAssignments.id))
-        .innerJoin(
-          protocolDefinitions,
-          eq(experimentAssignments.protocolDefinitionId, protocolDefinitions.id),
-        )
-        .where(and(eq(wakeSessions.userId, userId), eq(wakeSessions.status, "protocol_completed")));
+      const [[user], sessions] = await Promise.all([
+        db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1),
+        db
+          .select({
+            sessionId: wakeSessions.id,
+            protocolKey: protocolDefinitions.protocolKey,
+            protocolVersion: protocolDefinitions.version,
+            evaluatedFactor: experimentAssignments.evaluatedFactor,
+            comparisonGroupKey: experimentAssignments.comparisonGroupKey,
+            comparisonLevel: experimentAssignments.comparisonLevel,
+            wakeContext: wakeSessions.wakeContext,
+            completedAt: wakeSessions.protocolCompletedAt,
+          })
+          .from(wakeSessions)
+          .innerJoin(experimentAssignments, eq(wakeSessions.assignmentId, experimentAssignments.id))
+          .innerJoin(
+            protocolDefinitions,
+            eq(experimentAssignments.protocolDefinitionId, protocolDefinitions.id),
+          )
+          .where(
+            and(eq(wakeSessions.userId, userId), eq(wakeSessions.status, "protocol_completed")),
+          ),
+      ]);
 
       let evidence: CompletedSessionEvidence[] = [];
       if (sessions.length > 0) {
@@ -109,13 +116,14 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
               postRating,
               followUp:
                 followUps.find(({ sessionId }) => sessionId === session.sessionId)?.outcome ?? null,
+              ...(session.completedAt ? { completedAt: session.completedAt.toISOString() } : {}),
               ...(comparison ? { comparison } : {}),
             },
           ];
         });
       }
 
-      const profile = computeAnalyticsProfile(evidence, now.toISOString());
+      const profile = computeAnalyticsProfile(evidence, now.toISOString(), user?.timezone ?? "UTC");
       await db.delete(analyticsProjections).where(eq(analyticsProjections.userId, userId));
       await db.insert(analyticsProjections).values(projectionRows(userId, profile, now));
       return profile;

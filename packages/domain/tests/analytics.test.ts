@@ -80,4 +80,26 @@ describe("analytics v1", () => {
       confidence: "low",
     });
   });
+
+  it("groups paired deltas by the user's local calendar date", () => {
+    const profile = computeAnalyticsProfile(
+      [
+        evidence("s1", 2, 6, { completedAt: "2026-09-05T20:30:00.000Z" }),
+        evidence("s2", 4, 6, { completedAt: "2026-09-05T22:30:00.000Z" }),
+        evidence("s3", 3, 4, { completedAt: "2026-09-06T07:00:00.000Z" }),
+      ],
+      "2026-09-06T08:00:00.000Z",
+      "Europe/Moscow",
+    );
+
+    expect(profile.dailyTrend).toEqual([
+      { localDate: "2026-09-05", averageDelta: 4, evidenceCount: 1, sessionIds: ["s1"] },
+      {
+        localDate: "2026-09-06",
+        averageDelta: 1.5,
+        evidenceCount: 2,
+        sessionIds: ["s2", "s3"],
+      },
+    ]);
+  });
 });

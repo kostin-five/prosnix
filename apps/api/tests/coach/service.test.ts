@@ -37,6 +37,7 @@ function setup(evidenceCount: number) {
   const analytics: AnalyticsRepository = { recompute: vi.fn(async () => profile(evidenceCount)) };
   const cache: CoachInsightRepository = {
     findByUserId: vi.fn(async () => saved),
+    findTimezoneByUserId: vi.fn(async () => "Europe/Moscow"),
     save: vi.fn(async (record) => {
       saved = record;
       return record;
@@ -91,5 +92,51 @@ describe("CoachService", () => {
         caveat: expect.stringContaining("DeepSeek"),
       },
     });
+    await service.getInsight("user-1", new Date("2026-09-05T10:00:00.000Z"));
+    expect(gateway.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call the provider twice in one local day when evidence changes", async () => {
+    const { service, gateway } = setup(4);
+    await expect(
+      service.getInsight("user-1", new Date("2026-09-05T06:00:00.000Z")),
+    ).resolves.toMatchObject({ source: "provider", limitReached: true });
+
+    await expect(
+      service.getInsight("user-1", new Date("2026-09-05T18:00:00.000Z")),
+    ).resolves.toMatchObject({ source: "cache", cached: true, limitReached: true });
+    expect(gateway.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("coalesces simultaneous requests from the same user", async () => {
+    const { service, gateway } = setup(4);
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    gateway.generate.mockImplementationOnce(async (payload) => {
+      await pending;
+      return {
+        summary: `Проверено ${payload.averageDelta.evidenceCount} сессии.`,
+        nextExperiment: "Повтори протокол.",
+        caveat: "Пока мало данных.",
+        model: "deepseek-v4-flash",
+      };
+    });
+
+    const first = service.getInsight("user-1", new Date("2026-09-05T06:00:00.000Z"));
+    const second = service.getInsight("user-1", new Date("2026-09-05T06:00:01.000Z"));
+    release();
+
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+    expect(firstResult).toEqual(secondResult);
+    expect(gateway.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports the next local midnight for the saved timezone", async () => {
+    const { service } = setup(4);
+    await expect(
+      service.getInsight("user-1", new Date("2026-09-05T18:00:00.000Z")),
+    ).resolves.toMatchObject({ refreshAvailableAt: "2026-09-05T21:00:00.000Z" });
   });
 });

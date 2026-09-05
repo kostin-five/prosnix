@@ -312,6 +312,7 @@ export const taskObservations = pgTable(
     correct: integer().notNull(),
     total: integer().notNull(),
     durationMs: integer("duration_ms").notNull(),
+    difficultyLevel: integer("difficulty_level"),
     observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
     operationId: text("operation_id").notNull(),
   },
@@ -320,7 +321,7 @@ export const taskObservations = pgTable(
     unique("task_observations_user_operation_unique").on(table.userId, table.operationId),
     check(
       "task_observations_values_valid",
-      sql`${table.protocolStepIndex} >= 0 and ${table.correct} >= 0 and ${table.total} >= ${table.correct} and ${table.durationMs} >= 0`,
+      sql`${table.protocolStepIndex} >= 0 and ${table.correct} >= 0 and ${table.total} >= ${table.correct} and ${table.durationMs} >= 0 and (${table.difficultyLevel} is null or ${table.difficultyLevel} between 1 and 3)`,
     ),
   ],
 );

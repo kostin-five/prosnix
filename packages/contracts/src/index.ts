@@ -37,6 +37,7 @@ export const TaskResultInputSchema = Type.Object(
     correct: Type.Integer({ minimum: 0 }),
     total: Type.Integer({ minimum: 0 }),
     durationMs: Type.Integer({ minimum: 0, maximum: 60 * 60 * 1000 }),
+    difficultyLevel: Type.Optional(Type.Integer({ minimum: 1, maximum: 3 })),
   },
   { additionalProperties: false },
 );
@@ -143,6 +144,9 @@ export interface CoachInsightResponse {
   status: "ready" | "insufficient" | "unavailable";
   evidenceCount: number;
   cached: boolean;
+  source: "provider" | "cache" | "fallback";
+  limitReached: boolean;
+  refreshAvailableAt: string;
   insight: null | {
     summary: string;
     nextExperiment: string;

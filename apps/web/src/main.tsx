@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./app/App.tsx";
 import "./styles/index.css";
+import { LazyBoundary } from "./app/lazy-boundary.js";
 
 const PrivacyPolicy = lazy(() =>
   import("./features/legal/privacy-policy.tsx").then((module) => ({
@@ -27,5 +28,7 @@ const content =
   );
 
 createRoot(document.getElementById("root")!).render(
-  <Suspense fallback={<main className="min-h-screen bg-[#08080f]" />}>{content}</Suspense>,
+  <LazyBoundary>
+    <Suspense fallback={<main className="min-h-screen bg-[#08080f]" />}>{content}</Suspense>
+  </LazyBoundary>,
 );

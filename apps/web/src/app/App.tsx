@@ -37,7 +37,6 @@ import {
   snoozeWakeSchedule,
   type WakeSchedule,
 } from "../features/schedule/schedule-api.js";
-import { SettingsScreen } from "../features/settings/settings-screen.js";
 import { LegalGate } from "../features/legal/legal-gate.js";
 import { WakeContextSheet } from "../features/personalization/wake-context-sheet.js";
 import { WakeRoutineChecklist } from "../features/personalization/wake-routine-card.js";
@@ -51,8 +50,20 @@ import type {
   WakeProfile,
   WakeRoutine,
 } from "../shared/api/client.js";
+import {
+  adaptDifficulty,
+  makeMathQuestion,
+  makeMemorySequence,
+  type DifficultyLevel,
+} from "../features/tasks/task-engine.js";
+import { LazyBoundary } from "./lazy-boundary.js";
 
 const DemoWakeChart = lazy(() => import("../features/analytics/demo-wake-chart.js"));
+const SettingsScreen = lazy(() =>
+  import("../features/settings/settings-screen.js").then((module) => ({
+    default: module.SettingsScreen,
+  })),
+);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Screen =
@@ -86,6 +97,7 @@ interface TaskResult {
   correct: number;
   total: number;
   timeMs: number;
+  difficultyLevel?: number;
 }
 
 interface Session {
@@ -187,8 +199,8 @@ const CONFIRM_CONFIG: Partial<
 > = {
   steps: {
     instruction:
-      "Встаньте и пройдитесь по комнате или коридору 20–30 секунд. Движение активирует тело и кровоток.",
-    countdown: 0,
+      "Встаньте и пройдитесь по комнате или коридору. Шаги не измеряются датчиком — отметьте выполнение честно после таймера.",
+    countdown: 20,
     cta: "Прошёл ✓",
   },
   squats: {
@@ -203,19 +215,19 @@ const CONFIRM_CONFIG: Partial<
     cta: "Готово ✓",
   },
   water: {
-    instruction:
-      "Налейте и выпейте полный стакан воды. Тело обезвожено после сна — вода запускает метаболизм.",
+    instruction: "Налейте и выпейте стакан воды, если это подходит вам и не запрещено врачом.",
     countdown: 0,
     cta: "Выпил ✓",
   },
   window: {
     instruction:
-      "Подойдите к окну и смотрите на небо или улицу 30 секунд. Дневной свет — лучший сигнал для биоритмов.",
+      "Подойдите к окну и побудьте при дневном свете 30 секунд. Не смотрите прямо на солнце. Если на улице темно, включите яркий свет в комнате.",
     countdown: 30,
     cta: "Подошёл ✓",
   },
   curtains: {
-    instruction: "Подойдите к шторам и откройте их полностью. Впустите утренний свет в комнату.",
+    instruction:
+      "Откройте шторы и впустите дневной свет. Не смотрите прямо на солнце; если темно, включите яркий свет в комнате.",
     countdown: 0,
     cta: "Открыл ✓",
   },
@@ -309,42 +321,6 @@ const MOCK_SESSIONS: Session[] = import.meta.env.DEV
 // ─── Utilities ────────────────────────────────────────────────────────────────
 function rand(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function makeMathQs() {
-  return ["+" as const, "-" as const, "×" as const].map((op) => {
-    let a: number, b: number, answer: number, expr: string;
-    if (op === "+") {
-      a = rand(15, 55);
-      b = rand(15, 55);
-      answer = a + b;
-      expr = `${a} + ${b}`;
-    } else if (op === "-") {
-      a = rand(40, 90);
-      b = rand(5, 35);
-      answer = a - b;
-      expr = `${a} − ${b}`;
-    } else {
-      a = rand(3, 12);
-      b = rand(3, 9);
-      answer = a * b;
-      expr = `${a} × ${b}`;
-    }
-    const ds = [3, 5, 7, 9, 11].sort(() => Math.random() - 0.5);
-    return {
-      expr,
-      answer,
-      options: [
-        answer,
-        Math.max(0, answer + (Math.random() > 0.5 ? ds[0] : -ds[0])),
-        Math.max(0, answer + (Math.random() > 0.5 ? ds[1] : -ds[1])),
-      ].sort(() => Math.random() - 0.5),
-    };
-  });
-}
-
-function makeMemorySeq() {
-  return Array.from({ length: 4 }, () => rand(1, 9));
 }
 
 const STROOP = [
@@ -570,43 +546,59 @@ function RatingGrid({
 
 // ─── Math Task ────────────────────────────────────────────────────────────────
 function MathTask({ onDone }: { onDone: (r: TaskResult) => void }) {
-  const [qs] = useState(makeMathQs);
-  const [qi, setQi] = useState(0);
+  const [level, setLevel] = useState<DifficultyLevel>(1);
+  const [question, setQuestion] = useState(() => makeMathQuestion(1));
   const [sel, setSel] = useState<number | null>(null);
-  const correct = useRef(0);
+  const [correct, setCorrect] = useState(0);
+  const [attempts, setAttempts] = useState(0);
+  const [correctStreak, setCorrectStreak] = useState(0);
+  const [wrongStreak, setWrongStreak] = useState(0);
+  const maxLevel = useRef<DifficultyLevel>(1);
   const t0 = useRef(Date.now());
   function pick(opt: number) {
     if (sel !== null) return;
     setSel(opt);
-    if (opt === qs[qi].answer) correct.current++;
+    const isCorrect = opt === question.answer;
+    const nextCorrect = correct + (isCorrect ? 1 : 0);
+    const nextAttempts = attempts + 1;
+    const nextCorrectStreak = isCorrect ? correctStreak + 1 : 0;
+    const nextWrongStreak = isCorrect ? 0 : wrongStreak + 1;
+    const nextLevel = adaptDifficulty(level, nextCorrectStreak, nextWrongStreak);
+    setCorrect(nextCorrect);
+    setAttempts(nextAttempts);
+    setCorrectStreak(nextLevel !== level ? 0 : nextCorrectStreak);
+    setWrongStreak(nextLevel !== level ? 0 : nextWrongStreak);
+    setLevel(nextLevel);
+    maxLevel.current = Math.max(maxLevel.current, nextLevel) as DifficultyLevel;
     setTimeout(() => {
-      if (qi + 1 < qs.length) {
-        setQi((q) => q + 1);
+      if (nextCorrect < 3) {
+        setQuestion(makeMathQuestion(nextLevel));
         setSel(null);
-      } else
+      } else {
         onDone({
           id: "math",
           category: "cognitive",
-          correct: correct.current,
-          total: qs.length,
+          correct: nextCorrect,
+          total: nextAttempts,
           timeMs: Date.now() - t0.current,
+          difficultyLevel: maxLevel.current,
         });
+      }
     }, 600);
   }
-  const q = qs[qi];
   return (
     <div className="flex flex-col gap-8">
       <div className="text-center">
         <p className="text-muted-foreground text-sm mb-3">
-          Вопрос {qi + 1} из {qs.length}
+          Правильных: {correct}/3 · уровень {level}
         </p>
-        <div className="text-6xl font-extrabold tracking-tight">{q.expr} = ?</div>
+        <div className="text-5xl font-extrabold tracking-tight">{question.expr} = ?</div>
       </div>
       <div className="grid grid-cols-3 gap-3">
-        {q.options.map((opt) => {
+        {question.options.map((opt) => {
           let cls = "py-5 rounded-2xl text-2xl font-bold text-center transition-all duration-200 ";
           if (!sel) cls += "bg-secondary text-foreground cursor-pointer active:scale-95";
-          else if (opt === q.answer)
+          else if (opt === question.answer)
             cls += "bg-green-500/20 text-green-400 border-2 border-green-500/50";
           else if (opt === sel) cls += "bg-red-500/20 text-red-400 border-2 border-red-500/50";
           else cls += "bg-secondary/40 text-muted-foreground";
@@ -623,10 +615,14 @@ function MathTask({ onDone }: { onDone: (r: TaskResult) => void }) {
 
 // ─── Memory Task ──────────────────────────────────────────────────────────────
 function MemoryTask({ onDone }: { onDone: (r: TaskResult) => void }) {
-  const [seq] = useState(makeMemorySeq);
+  const [level, setLevel] = useState<DifficultyLevel>(1);
+  const [round, setRound] = useState(1);
+  const [seq, setSeq] = useState(() => makeMemorySequence(1));
   const [phase, setPhase] = useState<"show" | "recall">("show");
   const [cd, setCd] = useState(4);
   const [entered, setEntered] = useState<number[]>([]);
+  const [correctRounds, setCorrectRounds] = useState(0);
+  const maxLevel = useRef<DifficultyLevel>(1);
   const t0 = useRef(Date.now());
   useEffect(() => {
     if (phase !== "show") return;
@@ -642,23 +638,41 @@ function MemoryTask({ onDone }: { onDone: (r: TaskResult) => void }) {
   }
   function submit() {
     const ok = entered.length === seq.length && entered.every((d, i) => d === seq[i]);
+    const nextCorrect = correctRounds + (ok ? 1 : 0);
+    if (round < 2) {
+      const nextLevel = ok
+        ? (Math.min(3, level + 1) as DifficultyLevel)
+        : (Math.max(1, level - 1) as DifficultyLevel);
+      maxLevel.current = Math.max(maxLevel.current, nextLevel) as DifficultyLevel;
+      setCorrectRounds(nextCorrect);
+      setRound(2);
+      setLevel(nextLevel);
+      setSeq(makeMemorySequence(nextLevel));
+      setEntered([]);
+      setCd(4);
+      setPhase("show");
+      return;
+    }
     onDone({
       id: "memory",
       category: "cognitive",
-      correct: ok ? 1 : 0,
-      total: 1,
+      correct: nextCorrect,
+      total: 2,
       timeMs: Date.now() - t0.current,
+      difficultyLevel: maxLevel.current,
     });
   }
   if (phase === "show")
     return (
       <div className="flex flex-col items-center gap-8">
-        <p className="text-muted-foreground text-sm">Запомни последовательность</p>
-        <div className="flex gap-3">
+        <p className="text-muted-foreground text-sm">
+          Раунд {round}/2 · запомни последовательность
+        </p>
+        <div className="flex w-full max-w-sm gap-2">
           {seq.map((n, i) => (
             <div
               key={i}
-              className="w-14 h-14 rounded-2xl bg-accent/20 border border-accent/30 flex items-center justify-center text-3xl font-extrabold text-accent"
+              className="flex h-12 min-w-0 flex-1 items-center justify-center rounded-xl border border-accent/30 bg-accent/20 text-2xl font-extrabold text-accent sm:h-14 sm:max-w-14 sm:rounded-2xl sm:text-3xl"
             >
               {n}
             </div>
@@ -673,11 +687,11 @@ function MemoryTask({ onDone }: { onDone: (r: TaskResult) => void }) {
       <p className="text-muted-foreground text-sm text-center">
         Введи запомненную последовательность
       </p>
-      <div className="flex gap-3">
+      <div className="flex w-full max-w-sm gap-2">
         {Array.from({ length: seq.length }, (_, i) => (
           <div
             key={i}
-            className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl font-extrabold transition-all ${i < entered.length ? "bg-accent/20 border border-accent/30 text-accent" : "bg-secondary border border-border text-muted-foreground"}`}
+            className={`flex h-12 min-w-0 flex-1 items-center justify-center rounded-xl text-2xl font-extrabold transition-all sm:h-14 sm:max-w-14 sm:rounded-2xl sm:text-3xl ${i < entered.length ? "border border-accent/30 bg-accent/20 text-accent" : "border border-border bg-secondary text-muted-foreground"}`}
           >
             {i < entered.length ? entered[i] : "·"}
           </div>
@@ -1580,7 +1594,7 @@ function StatsScreen({
   routine: WakeRoutine;
 }) {
   const analytics = useAnalyticsProfile(!demo);
-  const coach = useCoachInsight(!demo);
+  const { state: coach, requestInsight } = useCoachInsight(!demo);
   const history = useSessionHistory(!demo);
   const [openHistoryIds, setOpenHistoryIds] = useState<Set<string>>(() => new Set());
   const apiProfile = analytics.status === "ready" ? analytics.profile : null;
@@ -1647,11 +1661,19 @@ function StatsScreen({
   const bestProtocolTasks = bestProtocol ? protocolTaskIds(bestProtocol.key) : [];
 
   // Chart data
-  const chartData = sessions.slice(-7).map((s, i) => ({
-    name: `s${i}`,
-    label: s.date.split(" ")[0],
-    value: s.endAlertness - s.startAlertness,
-  }));
+  const chartData = demo
+    ? sessions.slice(-7).map((s, i) => ({
+        name: `s${i}`,
+        label: s.date.replace(" авг", ".08"),
+        value: s.endAlertness - s.startAlertness,
+        evidenceCount: 1,
+      }))
+    : (apiProfile?.dailyTrend ?? []).map((point) => ({
+        name: point.localDate,
+        label: point.localDate.slice(5).split("-").reverse().join("."),
+        value: point.averageDelta,
+        evidenceCount: point.evidenceCount,
+      }));
 
   // Next plan
   const nextPlan = computeNextPlan(sessions);
@@ -1694,8 +1716,22 @@ function StatsScreen({
             <Sparkles className="h-4 w-4 text-accent" />
             <p className="text-sm font-semibold">AI-наставник</p>
           </div>
-          {coach.status === "loading" || coach.status === "idle" ? (
-            <p className="text-sm text-muted-foreground">Анализируем подтверждённые результаты…</p>
+          {coach.status === "idle" ? (
+            <>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                AI по запросу объяснит уже рассчитанные показатели. Доступен один новый бесплатный
+                разбор в день; открытие статистики запрос не расходует.
+              </p>
+              <button
+                type="button"
+                onClick={() => void requestInsight()}
+                className="mt-3 min-h-11 w-full rounded-xl bg-primary font-semibold text-primary-foreground"
+              >
+                Получить AI-разбор
+              </button>
+            </>
+          ) : coach.status === "loading" ? (
+            <p className="text-sm text-muted-foreground">Готовим объяснение показателей…</p>
           ) : coach.status === "error" ? (
             <p className="text-sm text-muted-foreground">{coach.message}</p>
           ) : coach.status === "ready" ? (
@@ -1712,10 +1748,24 @@ function StatsScreen({
                 <p className="mt-2 text-[11px] text-muted-foreground">
                   {CONF_LABEL[coach.insight.insight.confidence]} · {coach.insight.evidenceCount}{" "}
                   подтверждённых сессий ·{" "}
-                  {coach.insight.status === "ready"
-                    ? "AI объясняет расчёты, но не меняет их."
-                    : "Показан безопасный вывод без обращения к AI."}
+                  {coach.insight.source === "provider"
+                    ? "Новый AI-разбор"
+                    : coach.insight.source === "cache"
+                      ? "Сохранённый разбор"
+                      : "Безопасное объяснение без AI"}
                 </p>
+                {coach.insight.limitReached && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Следующее обновление доступно после{" "}
+                    {new Date(coach.insight.refreshAvailableAt).toLocaleString("ru-RU", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                    .
+                  </p>
+                )}
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
@@ -1752,26 +1802,6 @@ function StatsScreen({
           <div className="text-xs text-muted-foreground mt-0.5">Время</div>
         </div>
       </div>
-
-      {!demo && apiProfile && (
-        <details className="bg-card border border-border rounded-2xl p-4 mb-5">
-          <summary className="cursor-pointer text-sm font-semibold">
-            Как считаются показатели
-          </summary>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Прирост бодрости = оценка после протокола − оценка до него. В среднем участвуют только
-            полностью завершённые сессии с обеими оценками.
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Сейчас учтено: {apiProfile.averageDelta.evidenceCount}. Уверенность:{" "}
-            {CONF_LABEL[apiProfile.averageDelta.confidence].toLowerCase()}. Пересчитано{" "}
-            {new Date(apiProfile.computedAt).toLocaleString("ru-RU")}.
-          </p>
-          {apiProfile.averageDelta.evidenceCount === 0 && (
-            <p className="mt-3 text-xs text-muted-foreground">Подтверждённых сессий пока нет.</p>
-          )}
-        </details>
-      )}
 
       {/* Wake-up profile */}
       <div className="bg-card border border-border rounded-2xl p-4 mb-5">
@@ -1916,70 +1946,90 @@ function StatsScreen({
       </div>
 
       {/* Chart */}
-      {demo && valid.length > 0 && (
+      {(demo || analytics.status === "ready") && (
         <div className="bg-card border border-border rounded-2xl p-4 mb-5">
-          <p className="text-sm font-semibold mb-4">Прирост бодрости по дням</p>
-          <Suspense
-            fallback={
-              <div
-                className="h-36 animate-pulse rounded-xl bg-muted"
-                role="status"
-                aria-label="Загружаем график"
-              />
-            }
-          >
-            <DemoWakeChart data={chartData} />
-          </Suspense>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold">Средний прирост по датам</p>
+            <span className="text-[11px] text-muted-foreground">все типы сна</span>
+          </div>
+          <LazyBoundary>
+            <Suspense
+              fallback={
+                <div
+                  className="h-36 animate-pulse rounded-xl bg-muted"
+                  role="status"
+                  aria-label="Загружаем график"
+                />
+              }
+            >
+              <DemoWakeChart data={chartData} />
+            </Suspense>
+          </LazyBoundary>
         </div>
       )}
 
+      {!demo && apiProfile && (
+        <details className="mb-5 px-1 text-xs text-muted-foreground">
+          <summary className="cursor-pointer font-medium text-foreground">
+            Справка об аналитике
+          </summary>
+          <p className="mt-2 leading-relaxed">
+            Прирост — разница оценок после и до протокола. В среднем участвуют только завершённые
+            сессии с обеими оценками; рядом с датой показан размер выборки. Контексты сна не
+            смешиваются при сравнении протоколов.
+          </p>
+        </details>
+      )}
+
       {/* Learning plan */}
-      <div className="bg-card border border-border rounded-2xl p-4 mb-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-accent" />
-            <p className="text-sm font-semibold">
-              {demo ? "✨ Следующий эксперимент" : "Как приложение учится"}
-            </p>
-          </div>
-          <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-            {demo ? "Прототип" : "Автоматически"}
-          </span>
-        </div>
-        {demo ? (
-          <>
-            <p className="text-xs text-muted-foreground mb-3">Завтра попробуем:</p>
-            <div className="flex items-center gap-2 flex-wrap mb-3">
-              {nextTaskMeta.map((meta, i) => (
-                <div key={i} className="flex items-center gap-1.5">
-                  <div
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${CAT_META[meta.category].bg}`}
-                  >
-                    <span className="text-sm">{meta.emoji}</span>
-                    <span className={`text-xs font-semibold ${CAT_META[meta.category].color}`}>
-                      {meta.title}
-                    </span>
-                  </div>
-                  {i < nextTaskMeta.length - 1 && (
-                    <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                  )}
-                </div>
-              ))}
+      {demo && (
+        <div className="bg-card border border-border rounded-2xl p-4 mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-accent" />
+              <p className="text-sm font-semibold">
+                {demo ? "✨ Следующий эксперимент" : "Как приложение учится"}
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">{nextPlan.rationale}</p>
-          </>
-        ) : (
-          <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
-            <p>
-              Приложение само чередует короткие комбинации заданий и сравнивает, после каких ты
-              становишься бодрее и не ложишься обратно.
-            </p>
-            <p className="font-medium text-foreground">
-              Ничего настраивать не нужно — следующий эксперимент будет выбран автоматически.
-            </p>
+            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+              {demo ? "Прототип" : "Автоматически"}
+            </span>
           </div>
-        )}
-      </div>
+          {demo ? (
+            <>
+              <p className="text-xs text-muted-foreground mb-3">Завтра попробуем:</p>
+              <div className="flex items-center gap-2 flex-wrap mb-3">
+                {nextTaskMeta.map((meta, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <div
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${CAT_META[meta.category].bg}`}
+                    >
+                      <span className="text-sm">{meta.emoji}</span>
+                      <span className={`text-xs font-semibold ${CAT_META[meta.category].color}`}>
+                        {meta.title}
+                      </span>
+                    </div>
+                    {i < nextTaskMeta.length - 1 && (
+                      <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">{nextPlan.rationale}</p>
+            </>
+          ) : (
+            <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
+              <p>
+                Приложение само чередует короткие комбинации заданий и сравнивает, после каких ты
+                становишься бодрее и не ложишься обратно.
+              </p>
+              <p className="font-medium text-foreground">
+                Ничего настраивать не нужно — следующий эксперимент будет выбран автоматически.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* History */}
       <div className="bg-card border border-border rounded-2xl p-4">
@@ -2363,6 +2413,9 @@ function PrototypeApp({
         correct: result.correct,
         total: result.total,
         durationMs: result.timeMs,
+        ...(result.difficultyLevel === undefined
+          ? {}
+          : { difficultyLevel: result.difficultyLevel }),
       });
       setServerSession(updated);
       setTaskResults((current) => [...current, result]);
@@ -2392,6 +2445,9 @@ function PrototypeApp({
             correct: task.correct,
             total: task.total,
             timeMs: task.durationMs,
+            ...(task.difficultyLevel === undefined
+              ? {}
+              : { difficultyLevel: task.difficultyLevel }),
           }));
       } catch (error) {
         applyConflict(error);
@@ -2553,18 +2609,26 @@ function PrototypeApp({
           <StatsScreen sessions={sessions} demo={demo} routine={wakeRoutine} />
         )}
         {screen === "settings" && (
-          <SettingsScreen
-            alarmTime={alarmTime}
-            schedule={wakeSchedule}
-            saving={scheduleSaving}
-            demo={demo}
-            onScheduleSave={saveScheduleSetting}
-            wakeProfile={wakeProfile}
-            wakeRoutine={wakeRoutine}
-            personalizationSaving={personalizationSaving}
-            onProfileSave={updateWakeProfile}
-            onRoutineSave={updateWakeRoutine}
-          />
+          <LazyBoundary>
+            <Suspense
+              fallback={
+                <div className="p-5 text-sm text-muted-foreground">Загружаем настройки…</div>
+              }
+            >
+              <SettingsScreen
+                alarmTime={alarmTime}
+                schedule={wakeSchedule}
+                saving={scheduleSaving}
+                demo={demo}
+                onScheduleSave={saveScheduleSetting}
+                wakeProfile={wakeProfile}
+                wakeRoutine={wakeRoutine}
+                personalizationSaving={personalizationSaving}
+                onProfileSave={updateWakeProfile}
+                onRoutineSave={updateWakeRoutine}
+              />
+            </Suspense>
+          </LazyBoundary>
         )}
         {screen === "alarm" && (
           <AlarmScreen

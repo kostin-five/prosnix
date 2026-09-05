@@ -60,7 +60,7 @@ describe("Coach rate limit", () => {
     apps.push(app);
     const cookie = await authenticateTestUser(app);
     const request = () =>
-      app.inject({ method: "GET", url: "/api/v1/coach/insight", headers: { cookie } });
+      app.inject({ method: "POST", url: "/api/v1/coach/insight", headers: { cookie } });
 
     expect((await request()).statusCode).toBe(200);
     expect((await request()).statusCode).toBe(200);

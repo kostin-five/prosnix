@@ -67,9 +67,19 @@ describe("контракт команд wake-сессии", () => {
       method: "PUT",
       url: `/api/v1/sessions/${sessionId}/steps/0`,
       headers: { cookie, "idempotency-key": "task-0000001", "if-match": "2" },
-      payload: { taskId: "math", correct: 2, total: 3, durationMs: 20_000 },
+      payload: {
+        taskId: "math",
+        correct: 3,
+        total: 4,
+        durationMs: 20_000,
+        difficultyLevel: 2,
+      },
     });
-    expect(firstTask.json()).toMatchObject({ currentStepIndex: 1, version: 3 });
+    expect(firstTask.json()).toMatchObject({
+      currentStepIndex: 1,
+      version: 3,
+      tasks: [{ correct: 3, total: 4, difficultyLevel: 2 }],
+    });
 
     const secondTask = await app.inject({
       method: "PUT",
@@ -98,6 +108,38 @@ describe("контракт команд wake-сессии", () => {
       payload: { outcome: "up" },
     });
     expect(followUp.json()).toMatchObject({ followUp: "up", version: 6 });
+    await app.close();
+  });
+
+  it("rejects an unsupported task difficulty at the HTTP boundary", async () => {
+    const dependencies = createMemoryDependencies();
+    const app = await createApp(testConfig, {
+      ...dependencies,
+      sessionCommands: createMemorySessionCommands(dependencies.user.id),
+      now: () => testNow,
+    });
+    const cookie = await authenticateTestUser(app);
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/sessions",
+      headers: { cookie, "idempotency-key": "create-difficulty-1" },
+      payload: { timezone: "Europe/Moscow", wakeContext: "night_sleep", durationMinutes: 5 },
+    });
+    await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${created.json().id}/baseline`,
+      headers: { cookie, "idempotency-key": "baseline-difficulty-1", "if-match": "1" },
+      payload: { value: 3 },
+    });
+
+    const result = await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${created.json().id}/steps/0`,
+      headers: { cookie, "idempotency-key": "task-difficulty-1", "if-match": "2" },
+      payload: { taskId: "math", correct: 1, total: 1, durationMs: 1000, difficultyLevel: 4 },
+    });
+
+    expect(result.statusCode).toBe(400);
     await app.close();
   });
 });

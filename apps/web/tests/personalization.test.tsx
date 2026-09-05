@@ -135,4 +135,27 @@ describe("персонализация пробуждения", () => {
       }),
     );
   });
+
+  it("показывает заполненную анкету компактно до нажатия редактирования", () => {
+    act(() =>
+      root.render(
+        <CapabilityProfileCard
+          profile={{
+            movementLevel: "light",
+            availableResources: ["water", "bright_light"],
+            excludedTaskIds: [],
+            defaultDurationMinutes: 5,
+            onboardingCompleted: true,
+            revision: 2,
+          }}
+          saving={false}
+          onSave={async () => undefined}
+        />,
+      ),
+    );
+    expect(container.textContent).toContain("доступно ресурсов: 2");
+    expect(container.querySelector('select[aria-label="Допустимое движение"]')).toBeNull();
+    act(() => findButton(container, "Изменить").click());
+    expect(container.querySelector('select[aria-label="Допустимое движение"]')).not.toBeNull();
+  });
 });

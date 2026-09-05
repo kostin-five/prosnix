@@ -106,6 +106,7 @@ export interface WakeSessionResponse {
     correct: number;
     total: number;
     durationMs: number;
+    difficultyLevel?: number;
     observedAt: string;
   }>;
   postRating: number | null;
@@ -131,12 +132,21 @@ export interface AnalyticsProfileResponse {
   riseSuccess: MetricResponse;
   protocolEffects: MetricResponse[];
   factorEffects: MetricResponse[];
+  dailyTrend?: Array<{
+    localDate: string;
+    averageDelta: number;
+    evidenceCount: number;
+    sessionIds: string[];
+  }>;
 }
 
 export interface CoachInsightResponse {
   status: "ready" | "insufficient" | "unavailable";
   evidenceCount: number;
   cached: boolean;
+  source: "provider" | "cache" | "fallback";
+  limitReached: boolean;
+  refreshAvailableAt: string;
   insight: null | {
     summary: string;
     nextExperiment: string;
@@ -207,7 +217,7 @@ export async function loadAnalyticsProfile(): Promise<AnalyticsProfileResponse> 
 
 export async function loadCoachInsight(): Promise<CoachInsightResponse> {
   const response = await expectSuccess(
-    await fetch("/api/v1/coach/insight", { credentials: "same-origin" }),
+    await fetch("/api/v1/coach/insight", { method: "POST", credentials: "same-origin" }),
   );
   return (await response.json()) as CoachInsightResponse;
 }

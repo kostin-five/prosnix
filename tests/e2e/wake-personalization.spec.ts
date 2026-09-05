@@ -6,6 +6,11 @@ test("пользователь настраивает возможности, к
 
   await page.getByRole("button", { name: "Настройки" }).click();
   await expect(page.getByRole("heading", { name: "Настройки" })).toBeVisible();
+  await page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Что тебе подходит" }) })
+    .getByRole("button", { name: "Изменить" })
+    .click();
   await page.getByLabel("Допустимое движение").selectOption("full");
   await page.getByRole("button", { name: "Есть вода" }).click();
   await page.getByRole("button", { name: "2 мин" }).click();

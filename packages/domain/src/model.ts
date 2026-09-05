@@ -84,6 +84,7 @@ export interface TaskObservation {
   correct: number;
   total: number;
   durationMs: number;
+  difficultyLevel?: number;
   observedAt: string;
 }
 
@@ -114,6 +115,7 @@ export interface CompletedSessionEvidence {
   baseline: number;
   postRating: number;
   followUp: FollowUpOutcome | null;
+  completedAt?: string;
   comparison?: ExperimentAssignment["comparison"];
 }
 
@@ -132,6 +134,14 @@ export interface AnalyticsProfile {
   riseSuccess: Metric;
   protocolEffects: readonly Metric[];
   factorEffects: readonly Metric[];
+  dailyTrend?: readonly DailyWakeTrendPoint[];
+}
+
+export interface DailyWakeTrendPoint {
+  localDate: string;
+  averageDelta: number;
+  evidenceCount: number;
+  sessionIds: readonly string[];
 }
 
 export type SessionCommandErrorCode =

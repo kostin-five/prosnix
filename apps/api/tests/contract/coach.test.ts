@@ -38,10 +38,21 @@ describe("coach insight contract", () => {
       coachGateway: null,
       now: () => testNow,
     });
-    expect((await app.inject({ url: "/api/v1/coach/insight" })).statusCode).toBe(401);
+    expect((await app.inject({ method: "POST", url: "/api/v1/coach/insight" })).statusCode).toBe(
+      401,
+    );
     const cookie = await authenticateTestUser(app);
-    const response = await app.inject({ url: "/api/v1/coach/insight", headers: { cookie } });
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/coach/insight",
+      headers: { cookie },
+    });
     expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      source: "fallback",
+      limitReached: false,
+      refreshAvailableAt: expect.any(String),
+    });
     expect(response.json()).toMatchObject({
       status: "insufficient",
       evidenceCount: 2,

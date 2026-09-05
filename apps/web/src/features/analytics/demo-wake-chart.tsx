@@ -1,64 +1,48 @@
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-
 export interface DemoWakeChartPoint {
   name: string;
   label: string;
   value: number;
+  evidenceCount?: number;
+}
+
+function color(value: number): string {
+  if (value >= 4) return "bg-green-500";
+  if (value >= 2) return "bg-primary";
+  if (value >= 0) return "bg-yellow-500";
+  return "bg-red-500";
 }
 
 export default function DemoWakeChart({ data }: { data: DemoWakeChartPoint[] }) {
+  if (data.length === 0) {
+    return (
+      <div className="rounded-xl bg-secondary/50 p-4 text-sm text-muted-foreground">
+        График появится после первой полностью завершённой сессии с оценкой бодрости до и после.
+      </div>
+    );
+  }
+  const maximum = Math.max(1, ...data.map(({ value }) => Math.abs(value)));
   return (
-    <div className="h-36">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} barSize={28} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
-          <XAxis
-            dataKey="label"
-            axisLine={false}
-            tickLine={false}
-            tick={{ fill: "#7878A0", fontSize: 12, fontFamily: "inherit" }}
-          />
-          <YAxis
-            axisLine={false}
-            tickLine={false}
-            tick={{ fill: "#7878A0", fontSize: 11, fontFamily: "inherit" }}
-            tickCount={4}
-          />
-          <Tooltip
-            contentStyle={{
-              background: "#12121E",
-              border: "1px solid rgba(255,255,255,0.07)",
-              borderRadius: 12,
-              color: "#ECEDF5",
-              fontFamily: "inherit",
-              fontSize: 13,
-            }}
-            cursor={{ fill: "rgba(255,255,255,0.03)" }}
-            formatter={(value: number) => [value > 0 ? `+${value}` : value, "Прирост бодрости"]}
-          />
-          <Bar
-            dataKey="value"
-            shape={(rawProps: unknown) => {
-              const {
-                x = 0,
-                y = 0,
-                width = 0,
-                height = 0,
-                value = 0,
-              } = rawProps as Partial<Record<"x" | "y" | "width" | "height" | "value", number>>;
-              if (!height || height <= 0) return <g />;
-              const fill =
-                value >= 5
-                  ? "#22C55E"
-                  : value >= 3
-                    ? "#F97316"
-                    : value >= 0
-                      ? "#EAB308"
-                      : "#EF4444";
-              return <rect x={x} y={y} width={width} height={height} fill={fill} rx={5} ry={5} />;
-            }}
-          />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="space-y-3" aria-label="Средний прирост бодрости по датам">
+      {data.map((point) => (
+        <div key={point.name} className="grid grid-cols-[54px_1fr_58px] items-center gap-2">
+          <span className="text-xs text-muted-foreground">{point.label}</span>
+          <div className="h-3 overflow-hidden rounded-full bg-muted">
+            <div
+              className={`h-full rounded-full ${color(point.value)}`}
+              style={{ width: `${Math.max(7, (Math.abs(point.value) / maximum) * 100)}%` }}
+            />
+          </div>
+          <span className="text-right text-xs font-semibold">
+            {point.value >= 0 ? "+" : ""}
+            {point.value.toFixed(1)}
+            {point.evidenceCount ? (
+              <span className="block text-[10px] font-normal text-muted-foreground">
+                n={point.evidenceCount}
+              </span>
+            ) : null}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

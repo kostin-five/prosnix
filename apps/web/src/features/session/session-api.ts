@@ -104,7 +104,13 @@ export function saveTaskResult(
   sessionId: string,
   expectedVersion: number,
   stepIndex: number,
-  result: { taskId: string; correct: number; total: number; durationMs: number },
+  result: {
+    taskId: string;
+    correct: number;
+    total: number;
+    durationMs: number;
+    difficultyLevel?: number;
+  },
 ): Promise<WakeSessionResponse> {
   return sendCommand(
     "PUT",
