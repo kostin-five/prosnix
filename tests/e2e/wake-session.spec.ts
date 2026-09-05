@@ -15,6 +15,15 @@ const baseSession = {
   status: "assigned",
   currentStepIndex: 0,
   version: 1,
+  wakeContext: "night_sleep",
+  durationMinutes: 5,
+  personalization: {
+    profileRevision: 0,
+    movementLevel: "none",
+    availableResources: [],
+    excludedTaskIds: [],
+    fallbackReason: "profile_missing",
+  },
   baseline: null,
   tasks: [],
   postRating: null,
@@ -62,6 +71,16 @@ test("полный wake-up цикл подтверждается серверо�
       user: { id: baseSession.userId, locale: "ru", timezone: "Europe/Moscow" },
       activeSession: null,
       dueFollowUpSessionId: null,
+      wakeSchedule: null,
+      wakeProfile: {
+        movementLevel: "none",
+        availableResources: [],
+        excludedTaskIds: [],
+        defaultDurationMinutes: 5,
+        onboardingCompleted: false,
+        revision: 0,
+      },
+      wakeRoutine: { enabled: false, items: [], revision: 0 },
     }),
   );
   await page.route("**/api/v1/sessions", async (route, request) => {
@@ -120,8 +139,10 @@ test("полный wake-up цикл подтверждается серверо�
   );
 
   await page.goto("/");
-  await page.getByRole("button", { name: /Симулировать пробуждение/ }).click();
-  await page.getByRole("button", { name: /Начать протокол/ }).click();
+  await page.getByRole("button", { name: "Начать пробуждение" }).click();
+  await page.getByRole("button", { name: "После ночного сна" }).click();
+  await page.getByRole("button", { name: "5 мин" }).click();
+  await page.getByRole("button", { name: "Начать пробуждение" }).click();
   await page.getByRole("button", { name: "3", exact: true }).click();
   await page.getByRole("button", { name: "Начать протокол →" }).click();
   await expect(page.getByRole("heading", { name: "Стакан воды" })).toBeVisible();

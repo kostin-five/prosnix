@@ -24,19 +24,19 @@ describe("идемпотентность и конфликт версий", () =
       method: "POST",
       url: "/api/v1/sessions",
       headers,
-      payload: { timezone: "UTC" },
+      payload: { timezone: "UTC", wakeContext: "night_sleep", durationMinutes: 5 },
     });
     const retry = await app.inject({
       method: "POST",
       url: "/api/v1/sessions",
       headers,
-      payload: { timezone: "UTC" },
+      payload: { timezone: "UTC", wakeContext: "night_sleep", durationMinutes: 5 },
     });
     const changed = await app.inject({
       method: "POST",
       url: "/api/v1/sessions",
       headers,
-      payload: { timezone: "Europe/Moscow" },
+      payload: { timezone: "Europe/Moscow", wakeContext: "night_sleep", durationMinutes: 5 },
     });
 
     expect(first.statusCode).toBe(201);
@@ -59,7 +59,7 @@ describe("идемпотентность и конфликт версий", () =
       method: "POST",
       url: "/api/v1/sessions",
       headers: { cookie, "idempotency-key": "create-0001" },
-      payload: { timezone: "UTC" },
+      payload: { timezone: "UTC", wakeContext: "night_sleep", durationMinutes: 5 },
     });
     const sessionId = created.json().id as string;
     await app.inject({

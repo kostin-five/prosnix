@@ -1,4 +1,9 @@
-import { ApiError, type WakeSessionResponse } from "../../shared/api/client.js";
+import {
+  ApiError,
+  type WakeContext,
+  type WakeDurationMinutes,
+  type WakeSessionResponse,
+} from "../../shared/api/client.js";
 import { removeSessionDraft, saveSessionDraft, type SessionDraft } from "./draft-store.js";
 
 export class SessionConflictError extends ApiError {
@@ -74,8 +79,12 @@ async function sendCommand(
   return payload as WakeSessionResponse;
 }
 
-export function createWakeSession(timezone: string): Promise<WakeSessionResponse> {
-  return sendCommand("POST", "/api/v1/sessions", { timezone });
+export function createWakeSession(
+  timezone: string,
+  wakeContext: WakeContext,
+  durationMinutes: WakeDurationMinutes,
+): Promise<WakeSessionResponse> {
+  return sendCommand("POST", "/api/v1/sessions", { timezone, wakeContext, durationMinutes });
 }
 
 export function saveBaseline(

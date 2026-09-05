@@ -22,7 +22,7 @@ describe("контракт команд wake-сессии", () => {
       method: "POST",
       url: "/api/v1/sessions",
       headers: { cookie, "idempotency-key": "create-abandon-1" },
-      payload: { timezone: "Europe/Moscow" },
+      payload: { timezone: "Europe/Moscow", wakeContext: "night_sleep", durationMinutes: 5 },
     });
 
     const abandoned = await app.inject({
@@ -49,7 +49,7 @@ describe("контракт команд wake-сессии", () => {
       method: "POST",
       url: "/api/v1/sessions",
       headers: { cookie, "idempotency-key": "create-0001" },
-      payload: { timezone: "Europe/Moscow" },
+      payload: { timezone: "Europe/Moscow", wakeContext: "night_sleep", durationMinutes: 5 },
     });
     expect(created.statusCode).toBe(201);
     const sessionId = created.json().id as string;

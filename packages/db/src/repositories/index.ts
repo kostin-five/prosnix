@@ -25,6 +25,7 @@ export { PostgresSessionHistoryRepository } from "./session-history.js";
 export { PostgresAdminGrowthRepository } from "./admin-analytics.js";
 export { PostgresBillingRepository } from "./billing.js";
 export { PostgresLegalAcceptanceRepository } from "./legal.js";
+export { PostgresWakePersonalizationRepository } from "./personalization.js";
 export {
   PostgresWakeNotificationRepository,
   PostgresWakeScheduleRepository,
@@ -48,6 +49,9 @@ function mapSession(row: typeof schema.wakeSessions.$inferSelect): SessionRecord
     status: row.status,
     currentStepIndex: row.currentStepIndex,
     version: row.version,
+    wakeContext: row.wakeContext,
+    durationMinutes: row.durationBudgetMinutes as 2 | 5 | 10,
+    personalization: row.personalizationSnapshot as SessionRecord["personalization"],
     startedAt: row.startedAt,
     protocolCompletedAt: row.protocolCompletedAt,
     followUpDueAt: row.followUpDueAt,

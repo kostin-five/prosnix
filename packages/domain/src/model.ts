@@ -15,6 +15,46 @@ export type FollowUpOutcome = "up" | "back" | "drowsy";
 export type SessionStatus = "assigned" | "in_progress" | "protocol_completed" | "abandoned";
 export type ExperimentPhase = "learning" | "adaptive" | "fallback";
 export type Confidence = "insufficient" | "low" | "medium" | "high";
+export type WakeContext = "unspecified" | "night_sleep" | "short_nap" | "long_nap" | "energy_reset";
+export type WakeDurationMinutes = 2 | 5 | 10;
+export type MovementLevel = "none" | "light" | "full";
+export type WakeResource = "water" | "bright_light" | "floor_space";
+
+export interface WakeCapabilityProfile {
+  movementLevel: MovementLevel;
+  availableResources: readonly WakeResource[];
+  excludedTaskIds: readonly TaskId[];
+  defaultDurationMinutes: WakeDurationMinutes;
+  onboardingCompleted: boolean;
+  revision: number;
+}
+
+export interface WakePersonalizationSnapshot {
+  profileRevision: number;
+  movementLevel: MovementLevel;
+  availableResources: readonly WakeResource[];
+  excludedTaskIds: readonly TaskId[];
+  fallbackReason: "none" | "profile_missing" | "limited_eligible_tasks";
+}
+
+export interface WakeRoutineItem {
+  id: string;
+  title: string;
+}
+
+export interface WakeRoutine {
+  enabled: boolean;
+  items: readonly WakeRoutineItem[];
+  revision: number;
+}
+
+export interface WakeRoutineRun {
+  sessionId: string;
+  items: readonly WakeRoutineItem[];
+  completedItemIds: readonly string[];
+  revision: number;
+  completedAt: string | null;
+}
 
 export interface ProtocolStep {
   index: number;
@@ -51,6 +91,9 @@ export interface WakeSession {
   id: string;
   userId: string;
   assignment: ExperimentAssignment;
+  wakeContext: WakeContext;
+  durationMinutes: WakeDurationMinutes;
+  personalization: WakePersonalizationSnapshot;
   status: SessionStatus;
   currentStepIndex: number;
   version: number;

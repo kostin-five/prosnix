@@ -21,6 +21,8 @@ describe("session history contract", () => {
               durationMs: 60_000,
               followUp: "up",
               tasks: [{ taskId: "math", category: "cognitive" }],
+              wakeContext: "short_nap",
+              durationMinutes: 2,
             },
           ];
         },

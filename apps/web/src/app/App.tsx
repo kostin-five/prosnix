@@ -39,12 +39,32 @@ import {
 } from "../features/schedule/schedule-api.js";
 import { SettingsScreen } from "../features/settings/settings-screen.js";
 import { LegalGate } from "../features/legal/legal-gate.js";
+import { WakeContextSheet } from "../features/personalization/wake-context-sheet.js";
+import { WakeRoutineChecklist } from "../features/personalization/wake-routine-card.js";
+import {
+  saveWakeProfile,
+  saveWakeRoutine,
+} from "../features/personalization/personalization-api.js";
+import type {
+  WakeContext,
+  WakeDurationMinutes,
+  WakeProfile,
+  WakeRoutine,
+} from "../shared/api/client.js";
 
 const DemoWakeChart = lazy(() => import("../features/analytics/demo-wake-chart.js"));
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Screen =
-  "home" | "alarm" | "startRating" | "tasks" | "endRating" | "results" | "stats" | "settings";
+  | "home"
+  | "context"
+  | "alarm"
+  | "startRating"
+  | "tasks"
+  | "endRating"
+  | "results"
+  | "stats"
+  | "settings";
 type TaskId =
   | "math"
   | "memory"
@@ -88,6 +108,9 @@ function resumedServerSession(
     status: resume.session.status,
     currentStepIndex: resume.session.currentStepIndex,
     version: resume.session.version,
+    wakeContext: resume.session.wakeContext,
+    durationMinutes: resume.session.durationMinutes,
+    personalization: resume.session.personalization,
     assignment: {
       id: resume.session.id,
       protocolKey: resume.protocol.key,
@@ -411,6 +434,14 @@ function durationLabel(durationMs: number | null): string {
   const seconds = totalSeconds % 60;
   if (minutes === 0) return `${seconds} сек`;
   return seconds === 0 ? `${minutes} мин` : `${minutes} мин ${seconds} сек`;
+}
+
+function wakeContextLabel(context: WakeContext | "unspecified"): string {
+  if (context === "night_sleep") return "После ночного сна";
+  if (context === "short_nap") return "После короткого сна";
+  if (context === "long_nap") return "После долгого дневного сна";
+  if (context === "energy_reset") return "Перезагрузка без сна";
+  return "Контекст не указан";
 }
 
 function followUpLabel(followUp: FollowUp): string {
@@ -1034,7 +1065,7 @@ function HomeScreen({
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold">Prosnix</h1>
-          <p className="text-sm text-muted-foreground">Учится будить тебя лучше каждое утро</p>
+          <p className="text-sm text-muted-foreground">Помогает прийти в себя после любого сна</p>
         </div>
         <div className="flex items-center gap-1.5 bg-card border border-border rounded-full px-3 py-1.5">
           <Flame className="w-4 h-4 text-primary" />
@@ -1070,7 +1101,7 @@ function HomeScreen({
             ? lp < 7
               ? `${lp} из 7 экспериментов · Пробуем разные комбинации, чтобы понять, что помогает именно тебе.`
               : "7 из 7 · Ещё один шаг до первых выводов!"
-            : "Мы уже нашли первые закономерности и продолжим уточнять их каждое утро."}
+            : "Мы уже нашли первые закономерности и продолжим уточнять их после новых пробуждений."}
         </p>
       </div>
 
@@ -1128,7 +1159,7 @@ function HomeScreen({
           boxShadow: "0 8px 32px rgba(249,115,22,.25)",
         }}
       >
-        <Sun className="w-5 h-5" /> Симулировать пробуждение
+        <Sun className="w-5 h-5" /> {demo ? "Попробовать пробуждение" : "Начать пробуждение"}
       </button>
     </div>
   );
@@ -1314,12 +1345,16 @@ function ResultsScreen({
   onStats,
   onHome,
   onFollowUp,
+  routine,
+  demo,
 }: {
   session: Session;
   allSessions: Session[];
   onStats: () => void;
   onHome: () => void;
   onFollowUp: (answer: Exclude<FollowUp, null>) => Promise<void>;
+  routine: WakeRoutine;
+  demo: boolean;
 }) {
   const [showFollowUp, setShowFollowUp] = useState(false);
   const [followUpAns, setFollowUpAns] = useState<FollowUp>(null);
@@ -1513,6 +1548,8 @@ function ResultsScreen({
         )}
       </div>
 
+      <WakeRoutineChecklist sessionId={session.id} routine={routine} demo={demo} />
+
       <div className="flex gap-3">
         <button
           onClick={onHome}
@@ -1533,10 +1570,19 @@ function ResultsScreen({
 }
 
 // ─── Stats Screen ─────────────────────────────────────────────────────────────
-function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean }) {
+function StatsScreen({
+  sessions,
+  demo,
+  routine,
+}: {
+  sessions: Session[];
+  demo: boolean;
+  routine: WakeRoutine;
+}) {
   const analytics = useAnalyticsProfile(!demo);
   const coach = useCoachInsight(!demo);
   const history = useSessionHistory(!demo);
+  const [openHistoryIds, setOpenHistoryIds] = useState<Set<string>>(() => new Set());
   const apiProfile = analytics.status === "ready" ? analytics.profile : null;
   const valid = sessions.filter((s) => s.endAlertness > 0);
   const evidenceCount = demo ? valid.length : (apiProfile?.averageDelta.evidenceCount ?? 0);
@@ -1993,7 +2039,19 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
             const deltaColor =
               delta >= 4 ? "text-green-400" : delta >= 2 ? "text-yellow-300" : "text-red-400";
             return (
-              <details key={item.id} className="group border-b border-border last:border-0">
+              <details
+                key={item.id}
+                onToggle={(event) => {
+                  const open = event.currentTarget.open;
+                  setOpenHistoryIds((current) => {
+                    const next = new Set(current);
+                    if (open) next.add(item.id);
+                    else next.delete(item.id);
+                    return next;
+                  });
+                }}
+                className="group border-b border-border last:border-0"
+              >
                 <summary
                   aria-label={`Открыть эксперимент ${index + 1}`}
                   className="flex cursor-pointer list-none items-center justify-between py-3 [&::-webkit-details-marker]:hidden"
@@ -2051,8 +2109,15 @@ function StatsScreen({ sessions, demo }: { sessions: Session[]; demo: boolean })
                       Бодрость: {item.baseline} → {item.postRating}
                     </p>
                     <p>Длительность: {durationLabel(item.durationMs)}</p>
+                    <p>Контекст: {wakeContextLabel(item.wakeContext)}</p>
+                    <p>Выбранный режим: {item.durationMinutes} мин</p>
                     <p className="col-span-2">{followUpLabel(item.followUp)}</p>
                   </div>
+                  {openHistoryIds.has(item.id) && (
+                    <div className="mt-3">
+                      <WakeRoutineChecklist sessionId={item.id} routine={routine} demo={false} />
+                    </div>
+                  )}
                 </div>
               </details>
             );
@@ -2078,7 +2143,7 @@ function BottomNav({
     <div
       className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] z-50 flex justify-around items-center px-8 py-3"
       style={{
-        background: "rgba(18,18,30,0.9)",
+        background: "rgba(23,17,9,0.92)",
         backdropFilter: "blur(20px)",
         borderTop: "1px solid rgba(255,255,255,0.07)",
       }}
@@ -2107,12 +2172,17 @@ function PrototypeApp({
   resume,
   dueFollowUpSessionId,
   initialWakeSchedule,
+  initialWakeProfile,
+  initialWakeRoutine,
 }: {
   demo: boolean;
   resume?: NonNullable<BootstrapResponse["activeSession"]>;
   dueFollowUpSessionId?: string | null;
   initialWakeSchedule?: WakeSchedule | null;
+  initialWakeProfile: WakeProfile;
+  initialWakeRoutine: WakeRoutine;
 }) {
+  const launchSource = new URLSearchParams(window.location.search).get("source");
   const resumedTaskIds = (resume?.protocol.steps ?? [])
     .map(({ taskId }) => taskId)
     .filter((taskId): taskId is TaskId => taskId in TASK_META);
@@ -2123,7 +2193,9 @@ function PrototypeApp({
         : resume.session.currentStepIndex >= resumedTaskIds.length
           ? "endRating"
           : "tasks"
-      : "home",
+      : launchSource === "wake"
+        ? "alarm"
+        : "home",
   );
   const [navTab, setNavTab] = useState<"home" | "stats" | "settings">("home");
   const [alarmTime, setAlarmTime] = useState(initialWakeSchedule?.localTime ?? "07:00");
@@ -2140,6 +2212,9 @@ function PrototypeApp({
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [dueFollowUp, setDueFollowUp] = useState(dueFollowUpSessionId ?? null);
+  const [wakeProfile, setWakeProfile] = useState(initialWakeProfile);
+  const [wakeRoutine, setWakeRoutine] = useState(initialWakeRoutine);
+  const [personalizationSaving, setPersonalizationSaving] = useState(false);
 
   const [taskIds, setTaskIds] = useState<TaskId[]>(resumedTaskIds);
   const [taskIndex, setTaskIndex] = useState(resume?.session.currentStepIndex ?? 0);
@@ -2213,7 +2288,7 @@ function PrototypeApp({
     setSyncError(error instanceof Error ? error.message : "Действие пока не подтверждено сервером");
   }
 
-  async function startSession() {
+  async function startSession(wakeContext: WakeContext, durationMinutes: WakeDurationMinutes) {
     setSyncError(null);
     setSnoozedUntil(null);
     sessionStartRef.current = Date.now();
@@ -2223,13 +2298,15 @@ function PrototypeApp({
       setTaskIndex(0);
       setTaskResults([]);
       setStartAlertness(0);
-      setScreen("alarm");
+      setScreen("startRating");
       return;
     }
     setSyncing(true);
     try {
       const created = await createWakeSession(
         Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        wakeContext,
+        durationMinutes,
       );
       setServerSession(created);
       setTaskIds(
@@ -2240,7 +2317,7 @@ function PrototypeApp({
       setTaskIndex(created.currentStepIndex);
       setTaskResults([]);
       setStartAlertness(0);
-      setScreen("alarm");
+      setScreen("startRating");
     } catch (error) {
       applyConflict(error);
     } finally {
@@ -2379,6 +2456,32 @@ function PrototypeApp({
 
   const showNav = screen === "home" || screen === "stats" || screen === "settings";
 
+  async function updateWakeProfile(input: Omit<WakeProfile, "revision">): Promise<void> {
+    setPersonalizationSaving(true);
+    try {
+      setWakeProfile(
+        demo
+          ? { ...input, revision: wakeProfile.revision + 1 }
+          : await saveWakeProfile(input, wakeProfile.revision),
+      );
+    } finally {
+      setPersonalizationSaving(false);
+    }
+  }
+
+  async function updateWakeRoutine(input: Omit<WakeRoutine, "revision">): Promise<void> {
+    setPersonalizationSaving(true);
+    try {
+      setWakeRoutine(
+        demo
+          ? { ...input, revision: wakeRoutine.revision + 1 }
+          : await saveWakeRoutine(input, wakeRoutine.revision),
+      );
+    } finally {
+      setPersonalizationSaving(false);
+    }
+  }
+
   if (dueFollowUp && !serverSession) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
@@ -2430,8 +2533,25 @@ function PrototypeApp({
             {syncError ?? "Сохраняем подтверждённое состояние…"}
           </div>
         )}
-        {screen === "home" && <HomeScreen onStart={startSession} sessions={sessions} demo={demo} />}
-        {screen === "stats" && <StatsScreen sessions={sessions} demo={demo} />}
+        {screen === "home" && (
+          <HomeScreen onStart={() => setScreen("context")} sessions={sessions} demo={demo} />
+        )}
+        {screen === "context" && (
+          <WakeContextSheet
+            defaultDuration={wakeProfile.defaultDurationMinutes}
+            profileComplete={wakeProfile.onboardingCompleted}
+            busy={syncing}
+            onCancel={() => setScreen("home")}
+            onOpenProfile={() => {
+              setNavTab("settings");
+              setScreen("settings");
+            }}
+            onStart={(context, duration) => void startSession(context, duration)}
+          />
+        )}
+        {screen === "stats" && (
+          <StatsScreen sessions={sessions} demo={demo} routine={wakeRoutine} />
+        )}
         {screen === "settings" && (
           <SettingsScreen
             alarmTime={alarmTime}
@@ -2439,6 +2559,11 @@ function PrototypeApp({
             saving={scheduleSaving}
             demo={demo}
             onScheduleSave={saveScheduleSetting}
+            wakeProfile={wakeProfile}
+            wakeRoutine={wakeRoutine}
+            personalizationSaving={personalizationSaving}
+            onProfileSave={updateWakeProfile}
+            onRoutineSave={updateWakeRoutine}
           />
         )}
         {screen === "alarm" && (
@@ -2464,6 +2589,8 @@ function PrototypeApp({
             onStats={() => handleNavTab("stats")}
             onHome={() => handleNavTab("home")}
             onFollowUp={handleFollowUp}
+            routine={wakeRoutine}
+            demo={demo}
           />
         )}
         {showNav && <BottomNav current={navTab} onTab={handleNavTab} />}
@@ -2590,8 +2717,31 @@ export default function App() {
         ? {
             dueFollowUpSessionId: bootstrap.data.dueFollowUpSessionId,
             initialWakeSchedule: bootstrap.data.wakeSchedule,
+            initialWakeProfile: bootstrap.data.wakeProfile ?? {
+              movementLevel: "none",
+              availableResources: [],
+              excludedTaskIds: [],
+              defaultDurationMinutes: 5,
+              onboardingCompleted: false,
+              revision: 0,
+            },
+            initialWakeRoutine: bootstrap.data.wakeRoutine ?? {
+              enabled: false,
+              items: [],
+              revision: 0,
+            },
           }
-        : {})}
+        : {
+            initialWakeProfile: {
+              movementLevel: "full",
+              availableResources: ["water", "bright_light", "floor_space"],
+              excludedTaskIds: [],
+              defaultDurationMinutes: 5,
+              onboardingCompleted: true,
+              revision: 0,
+            },
+            initialWakeRoutine: { enabled: false, items: [], revision: 0 },
+          })}
     />
   );
 }

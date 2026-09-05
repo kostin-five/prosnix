@@ -60,7 +60,12 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL фундаме
       operationId: "postgres-create-0001",
       requestHash: "create-hash",
       observedAt: new Date("2026-08-29T06:00:00.000Z"),
-      command: { type: "create" as const, timezone: "Europe/Moscow" },
+      command: {
+        type: "create" as const,
+        timezone: "Europe/Moscow",
+        wakeContext: "night_sleep" as const,
+        durationMinutes: 5 as const,
+      },
     };
     const created = await commands.execute(createEnvelope);
     expect((await commands.execute(createEnvelope)).replayed).toBe(true);

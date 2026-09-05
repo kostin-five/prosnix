@@ -52,6 +52,7 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
           evaluatedFactor: experimentAssignments.evaluatedFactor,
           comparisonGroupKey: experimentAssignments.comparisonGroupKey,
           comparisonLevel: experimentAssignments.comparisonLevel,
+          wakeContext: wakeSessions.wakeContext,
         })
         .from(wakeSessions)
         .innerJoin(experimentAssignments, eq(wakeSessions.assignmentId, experimentAssignments.id))
@@ -95,14 +96,14 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
             (session.comparisonLevel === "with" || session.comparisonLevel === "without")
               ? {
                   factorKey: session.evaluatedFactor,
-                  groupKey: session.comparisonGroupKey,
+                  groupKey: `${session.comparisonGroupKey}:${session.wakeContext}`,
                   level: session.comparisonLevel as "with" | "without",
                 }
               : undefined;
           return [
             {
               sessionId: session.sessionId,
-              protocolKey: session.protocolKey,
+              protocolKey: `${session.protocolKey}@${session.wakeContext}`,
               protocolVersion: session.protocolVersion,
               baseline,
               postRating,

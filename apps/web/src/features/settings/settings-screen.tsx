@@ -4,6 +4,9 @@ import { DeleteProfile } from "../profile/delete-profile.js";
 import type { WakeSchedule } from "../schedule/schedule-api.js";
 import { WakeScheduleCard } from "../schedule/wake-schedule-card.js";
 import { ProCard } from "../billing/pro-card.js";
+import { CapabilityProfileCard } from "../personalization/capability-profile-card.js";
+import { WakeRoutineCard } from "../personalization/wake-routine-card.js";
+import type { WakeProfile, WakeRoutine } from "../../shared/api/client.js";
 
 export function SettingsScreen({
   alarmTime,
@@ -11,6 +14,11 @@ export function SettingsScreen({
   saving,
   demo,
   onScheduleSave,
+  wakeProfile,
+  wakeRoutine,
+  personalizationSaving,
+  onProfileSave,
+  onRoutineSave,
 }: {
   alarmTime: string;
   schedule: WakeSchedule | null;
@@ -21,6 +29,11 @@ export function SettingsScreen({
     timezone: string;
     enabled: boolean;
   }) => Promise<void>;
+  wakeProfile: WakeProfile;
+  wakeRoutine: WakeRoutine;
+  personalizationSaving: boolean;
+  onProfileSave: (profile: Omit<WakeProfile, "revision">) => Promise<void>;
+  onRoutineSave: (routine: Omit<WakeRoutine, "revision">) => Promise<void>;
 }) {
   return (
     <div className="flex flex-1 flex-col overflow-y-auto px-5 pb-28 pt-14">
@@ -37,6 +50,17 @@ export function SettingsScreen({
         defaultTime={alarmTime}
         saving={saving}
         onSave={onScheduleSave}
+      />
+
+      <CapabilityProfileCard
+        profile={wakeProfile}
+        saving={personalizationSaving}
+        onSave={onProfileSave}
+      />
+      <WakeRoutineCard
+        routine={wakeRoutine}
+        saving={personalizationSaving}
+        onSave={onRoutineSave}
       />
 
       {!demo && <ProCard />}

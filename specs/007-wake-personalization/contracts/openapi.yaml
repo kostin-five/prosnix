@@ -1,0 +1,145 @@
+openapi: 3.1.0
+info:
+  title: Prosnix Wake Personalization API
+  version: 1.0.0
+paths:
+  /api/v1/me/wake-profile:
+    get:
+      summary: Получить профиль возможностей
+      responses:
+        "200": { description: Канонический профиль или безопасный default }
+        "401": { description: Требуется Telegram-сессия }
+    put:
+      summary: Сохранить профиль возможностей
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WakeProfileInput" }
+      responses:
+        "200": { description: Профиль сохранён }
+        "400": { description: Некорректные ограничения }
+        "409": { description: Конфликт версии или ключа }
+  /api/v1/me/wake-routine:
+    get:
+      summary: Получить текущую рутину
+      responses:
+        "200": { description: Текущая рутина }
+    put:
+      summary: Сохранить текущую рутину
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WakeRoutineInput" }
+      responses:
+        "200": { description: Рутина сохранена }
+        "409": { description: Конфликт версии }
+  /api/v1/sessions:
+    post:
+      summary: Создать или вернуть активную сессию
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [timezone, wakeContext, durationMinutes]
+              properties:
+                timezone: { type: string, minLength: 1, maxLength: 100 }
+                wakeContext: { $ref: "#/components/schemas/WakeContext" }
+                durationMinutes: { enum: [2, 5, 10] }
+      responses:
+        "201": { description: Новая персонализированная сессия }
+        "200": { description: Уже существующая активная сессия }
+  /api/v1/sessions/{sessionId}/routine:
+    put:
+      summary: Сохранить прогресс рутины сессии
+      parameters:
+        - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [completedItemIds]
+              properties:
+                completedItemIds:
+                  type: array
+                  maxItems: 5
+                  uniqueItems: true
+                  items: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        "200": { description: Канонический прогресс }
+        "404": { description: Сессия не найдена }
+        "409": { description: Конфликт версии }
+components:
+  parameters:
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema: { type: integer, minimum: 0 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 128 }
+  schemas:
+    WakeContext:
+      enum: [night_sleep, short_nap, long_nap, energy_reset]
+    WakeProfileInput:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          movementLevel,
+          availableResources,
+          excludedTaskIds,
+          defaultDurationMinutes,
+          onboardingCompleted,
+        ]
+      properties:
+        movementLevel: { enum: [none, light, full] }
+        availableResources:
+          type: array
+          uniqueItems: true
+          items: { enum: [water, bright_light, floor_space] }
+        excludedTaskIds:
+          type: array
+          uniqueItems: true
+          items:
+            {
+              enum: [math, memory, stroop, reaction, steps, squats, shake, water, window, curtains],
+            }
+        defaultDurationMinutes: { enum: [2, 5, 10] }
+        onboardingCompleted: { type: boolean }
+    WakeRoutineInput:
+      type: object
+      additionalProperties: false
+      required: [enabled, items]
+      properties:
+        enabled: { type: boolean }
+        items:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, title]
+            properties:
+              id: { type: string, minLength: 1, maxLength: 64 }
+              title: { type: string, minLength: 1, maxLength: 80 }

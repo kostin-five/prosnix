@@ -4,6 +4,11 @@ import type {
   SessionStatus,
   TaskId,
   WakeSession,
+  WakeCapabilityProfile,
+  WakeContext,
+  WakeDurationMinutes,
+  WakeRoutine,
+  WakeRoutineRun,
 } from "./model.js";
 import type { WakeScheduleValue } from "./schedule/schedule.js";
 
@@ -22,6 +27,9 @@ export interface SessionRecord {
   status: SessionStatus;
   currentStepIndex: number;
   version: number;
+  wakeContext: WakeContext;
+  durationMinutes: WakeDurationMinutes;
+  personalization: import("./model.js").WakePersonalizationSnapshot;
   startedAt: Date | null;
   protocolCompletedAt: Date | null;
   followUpDueAt: Date | null;
@@ -96,6 +104,8 @@ export interface BootstrapSnapshot {
   activeSession: BootstrapSession | null;
   dueFollowUpSessionId: string | null;
   wakeSchedule: WakeScheduleValue | null;
+  wakeProfile: WakeCapabilityProfile;
+  wakeRoutine: WakeRoutine;
 }
 
 export interface BootstrapRepository {
@@ -107,7 +117,12 @@ export interface UnitOfWork {
 }
 
 export type SessionCommand =
-  | { type: "create"; timezone: string }
+  | {
+      type: "create";
+      timezone: string;
+      wakeContext: Exclude<WakeContext, "unspecified">;
+      durationMinutes: WakeDurationMinutes;
+    }
   | {
       type: "baseline";
       sessionId: string;
@@ -206,6 +221,8 @@ export interface SessionHistoryItem {
   durationMs: number | null;
   followUp: FollowUpOutcome | null;
   tasks: Array<{ taskId: TaskId; category: import("./model.js").TaskCategory }>;
+  wakeContext: WakeContext;
+  durationMinutes: WakeDurationMinutes;
 }
 
 export interface SessionHistoryRepository {
@@ -289,4 +306,42 @@ export interface BillingRepository {
     state: "active" | "canceled" | "past_due";
     observedAt: Date;
   }): Promise<"updated" | "duplicate" | "rejected">;
+}
+
+export interface WakePersonalizationRepository {
+  loadProfile(userId: string): Promise<WakeCapabilityProfile>;
+  saveProfile(input: {
+    userId: string;
+    expectedRevision: number;
+    operationId: string;
+    profile: Omit<WakeCapabilityProfile, "revision">;
+    now: Date;
+  }): Promise<WakeCapabilityProfile>;
+  loadRoutine(userId: string): Promise<WakeRoutine>;
+  loadRoutineRun(userId: string, sessionId: string): Promise<WakeRoutineRun | null>;
+  saveRoutine(input: {
+    userId: string;
+    expectedRevision: number;
+    operationId: string;
+    routine: Omit<WakeRoutine, "revision">;
+    now: Date;
+  }): Promise<WakeRoutine>;
+  saveRoutineRun(input: {
+    userId: string;
+    sessionId: string;
+    expectedRevision: number;
+    operationId: string;
+    completedItemIds: readonly string[];
+    now: Date;
+  }): Promise<WakeRoutineRun>;
+}
+
+export class PersonalizationConflict extends Error {
+  constructor(
+    readonly code: "stale_version" | "idempotency_conflict" | "session_not_found" | "invalid_state",
+    message: string,
+  ) {
+    super(message);
+    this.name = "PersonalizationConflict";
+  }
 }

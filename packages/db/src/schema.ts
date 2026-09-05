@@ -55,6 +55,14 @@ export const subscriptionStatus = pgEnum("subscription_status", [
   "expired",
   "refunded",
 ]);
+export const wakeContext = pgEnum("wake_context", [
+  "unspecified",
+  "night_sleep",
+  "short_nap",
+  "long_nap",
+  "energy_reset",
+]);
+export const movementLevel = pgEnum("movement_level", ["none", "light", "full"]);
 
 export const users = pgTable(
   "users",
@@ -183,6 +191,9 @@ export const wakeSessions = pgTable(
     status: sessionStatus().notNull().default("assigned"),
     currentStepIndex: integer("current_step_index").notNull().default(0),
     version: integer().notNull().default(1),
+    wakeContext: wakeContext("wake_context").notNull().default("unspecified"),
+    durationBudgetMinutes: integer("duration_budget_minutes").notNull().default(5),
+    personalizationSnapshot: jsonb("personalization_snapshot").notNull().default({}),
     startedAt: timestamp("started_at", { withTimezone: true }),
     protocolCompletedAt: timestamp("protocol_completed_at", { withTimezone: true }),
     followUpDueAt: timestamp("follow_up_due_at", { withTimezone: true }),
@@ -194,9 +205,71 @@ export const wakeSessions = pgTable(
     unique("wake_sessions_assignment_unique").on(table.assignmentId),
     check("wake_sessions_step_nonnegative", sql`${table.currentStepIndex} >= 0`),
     check("wake_sessions_version_positive", sql`${table.version} > 0`),
+    check("wake_sessions_duration_budget_valid", sql`${table.durationBudgetMinutes} in (2, 5, 10)`),
     uniqueIndex("wake_sessions_one_active_per_user")
       .on(table.userId)
       .where(sql`${table.status} in ('assigned', 'in_progress')`),
+  ],
+);
+
+export const wakeCapabilityProfiles = pgTable(
+  "wake_capability_profiles",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    movementLevel: movementLevel("movement_level").notNull().default("none"),
+    availableResources: jsonb("available_resources").notNull().default([]),
+    excludedTaskIds: jsonb("excluded_task_ids").notNull().default([]),
+    defaultDurationMinutes: integer("default_duration_minutes").notNull().default(5),
+    onboardingCompletedAt: timestamp("onboarding_completed_at", { withTimezone: true }),
+    revision: integer().notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      "wake_capability_profiles_duration_valid",
+      sql`${table.defaultDurationMinutes} in (2, 5, 10)`,
+    ),
+    check("wake_capability_profiles_revision_positive", sql`${table.revision} > 0`),
+  ],
+);
+
+export const wakeRoutines = pgTable(
+  "wake_routines",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    enabled: boolean().notNull().default(false),
+    items: jsonb().notNull().default([]),
+    revision: integer().notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("wake_routines_revision_positive", sql`${table.revision} > 0`)],
+);
+
+export const wakeRoutineRuns = pgTable(
+  "wake_routine_runs",
+  {
+    sessionId: uuid("session_id")
+      .primaryKey()
+      .references(() => wakeSessions.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    itemsSnapshot: jsonb("items_snapshot").notNull(),
+    completedItemIds: jsonb("completed_item_ids").notNull().default([]),
+    revision: integer().notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("wake_routine_runs_user_idx").on(table.userId, table.updatedAt),
+    check("wake_routine_runs_revision_positive", sql`${table.revision} > 0`),
   ],
 );
 

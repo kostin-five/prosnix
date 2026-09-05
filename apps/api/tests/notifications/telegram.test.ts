@@ -4,9 +4,11 @@ import { TelegramBotGateway } from "../../src/notifications/telegram.js";
 
 describe("Telegram notification gateway", () => {
   it("returns a confirmed message id", async () => {
-    const fetcher = vi.fn(async () =>
-      Response.json({ ok: true, result: { message_id: 123 } }),
-    ) as unknown as typeof fetch;
+    let capturedRequest: RequestInit | undefined;
+    const fetcher = vi.fn(async (_input: unknown, request?: RequestInit) => {
+      capturedRequest = request;
+      return Response.json({ ok: true, result: { message_id: 123 } });
+    }) as unknown as typeof fetch;
     const gateway = new TelegramBotGateway("token", "https://example.com/", fetcher);
     await expect(
       gateway.send({
@@ -20,6 +22,12 @@ describe("Telegram notification gateway", () => {
       telegramMessageId: 123n,
       sentAt: new Date("2026-08-29T04:00:00Z"),
     });
+    const body = JSON.parse(String(capturedRequest?.body)) as {
+      reply_markup: { inline_keyboard: Array<Array<{ web_app: { url: string } }>> };
+    };
+    expect(body.reply_markup.inline_keyboard[0]?.[0]?.web_app.url).toBe(
+      "https://example.com/?source=wake",
+    );
   });
 
   it("retries an explicit rate limit only once", async () => {
@@ -84,9 +92,12 @@ describe("Telegram notification gateway", () => {
 
     const body = JSON.parse(String(capturedRequest?.body)) as {
       text: string;
-      reply_markup: { inline_keyboard: Array<Array<{ text: string }>> };
+      reply_markup: { inline_keyboard: Array<Array<{ text: string; web_app: { url: string } }>> };
     };
     expect(body.text).toContain("спустя 15 минут");
     expect(body.reply_markup.inline_keyboard[0]?.[0]?.text).toBe("Ответить на follow-up");
+    expect(body.reply_markup.inline_keyboard[0]?.[0]?.web_app.url).toBe(
+      "https://example.com/?source=follow_up",
+    );
   });
 });

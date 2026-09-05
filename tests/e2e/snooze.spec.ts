@@ -40,6 +40,15 @@ test("кнопка откладывает ближайшее Telegram-напом
           botStatus: "available",
           revision: 1,
         },
+        wakeProfile: {
+          movementLevel: "none",
+          availableResources: [],
+          excludedTaskIds: [],
+          defaultDurationMinutes: 5,
+          onboardingCompleted: false,
+          revision: 0,
+        },
+        wakeRoutine: { enabled: false, items: [], revision: 0 },
       }),
     }),
   );
@@ -91,8 +100,7 @@ test("кнопка откладывает ближайшее Telegram-напом
     });
   });
 
-  await page.goto("/");
-  await page.getByRole("button", { name: "Симулировать пробуждение" }).click();
+  await page.goto("/?source=wake");
   await page.getByRole("button", { name: "Отложить на 5 минут" }).click();
   await expect(page.getByRole("button", { name: /Отложено до/ })).toBeVisible();
 });

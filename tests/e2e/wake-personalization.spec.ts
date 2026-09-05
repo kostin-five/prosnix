@@ -1,0 +1,29 @@
+import { expect, test } from "@playwright/test";
+
+test("пользователь настраивает возможности, контекст и личную рутину", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto("/?demo=1");
+
+  await page.getByRole("button", { name: "Настройки" }).click();
+  await expect(page.getByRole("heading", { name: "Настройки" })).toBeVisible();
+  await page.getByLabel("Допустимое движение").selectOption("full");
+  await page.getByRole("button", { name: "Есть вода" }).click();
+  await page.getByRole("button", { name: "2 мин" }).click();
+  await page.getByRole("button", { name: "Сохранить возможности" }).click();
+
+  await page.getByRole("button", { name: "Добавить пункт" }).click();
+  await page.getByLabel("Пункт рутины 1").fill("Выпить воды");
+  await page.getByText("Показывать рутину").click();
+  await page.getByRole("button", { name: "Сохранить рутину" }).click();
+
+  await page.getByRole("button", { name: "Главная" }).click();
+  await page.getByRole("button", { name: "Попробовать пробуждение" }).click();
+  await page.getByRole("button", { name: "После короткого сна" }).click();
+  await expect(page.getByRole("button", { name: "2 мин" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Начать пробуждение" }).click();
+  await expect(page.getByRole("heading", { name: "Перед протоколом" })).toBeVisible();
+  await expect(page.getByText("Насколько бодрым ты себя чувствуешь прямо сейчас?")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});

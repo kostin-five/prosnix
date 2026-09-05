@@ -39,6 +39,8 @@ export async function registerBootstrapRoute(
             revision: snapshot.wakeSchedule.revision,
           }
         : null,
+      wakeProfile: snapshot.wakeProfile,
+      wakeRoutine: snapshot.wakeRoutine,
     };
   });
 }

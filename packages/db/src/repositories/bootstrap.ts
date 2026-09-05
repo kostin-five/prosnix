@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, isNull, lte } from "drizzle-orm";
 
 import type { BootstrapRepository, BootstrapSession } from "@awc/domain";
+import { SAFE_WAKE_PROFILE } from "@awc/domain";
 import type { Database } from "./types.js";
 import {
   experimentAssignments,
@@ -10,6 +11,8 @@ import {
   users,
   wakeSessions,
   wakeSchedules,
+  wakeCapabilityProfiles,
+  wakeRoutines,
 } from "../schema.js";
 
 export class PostgresBootstrapRepository implements BootstrapRepository {
@@ -18,11 +21,26 @@ export class PostgresBootstrapRepository implements BootstrapRepository {
   async load(userId: string, now = new Date()) {
     const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user || user.deletionRequestedAt) return null;
-    const [wakeSchedule] = await this.db
-      .select()
-      .from(wakeSchedules)
-      .where(eq(wakeSchedules.userId, userId))
-      .limit(1);
+    const [wakeSchedule, profile, routine] = await Promise.all([
+      this.db
+        .select()
+        .from(wakeSchedules)
+        .where(eq(wakeSchedules.userId, userId))
+        .limit(1)
+        .then((rows) => rows[0]),
+      this.db
+        .select()
+        .from(wakeCapabilityProfiles)
+        .where(eq(wakeCapabilityProfiles.userId, userId))
+        .limit(1)
+        .then((rows) => rows[0]),
+      this.db
+        .select()
+        .from(wakeRoutines)
+        .where(eq(wakeRoutines.userId, userId))
+        .limit(1)
+        .then((rows) => rows[0]),
+    ]);
 
     const [active] = await this.db
       .select({
@@ -58,6 +76,20 @@ export class PostgresBootstrapRepository implements BootstrapRepository {
           status: active.session.status,
           currentStepIndex: active.session.currentStepIndex,
           version: active.session.version,
+          wakeContext: active.session.wakeContext,
+          durationMinutes: active.session.durationBudgetMinutes as 2 | 5 | 10,
+          personalization:
+            typeof active.session.personalizationSnapshot === "object" &&
+            active.session.personalizationSnapshot !== null
+              ? (active.session
+                  .personalizationSnapshot as BootstrapSession["session"]["personalization"])
+              : {
+                  profileRevision: SAFE_WAKE_PROFILE.revision,
+                  movementLevel: SAFE_WAKE_PROFILE.movementLevel,
+                  availableResources: [],
+                  excludedTaskIds: [],
+                  fallbackReason: "profile_missing",
+                },
           startedAt: active.session.startedAt,
           protocolCompletedAt: active.session.protocolCompletedAt,
           followUpDueAt: active.session.followUpDueAt,
@@ -115,6 +147,23 @@ export class PostgresBootstrapRepository implements BootstrapRepository {
             revision: wakeSchedule.revision,
           }
         : null,
+      wakeProfile: profile
+        ? {
+            movementLevel: profile.movementLevel,
+            availableResources: profile.availableResources as import("@awc/domain").WakeResource[],
+            excludedTaskIds: profile.excludedTaskIds as import("@awc/domain").TaskId[],
+            defaultDurationMinutes: profile.defaultDurationMinutes as 2 | 5 | 10,
+            onboardingCompleted: profile.onboardingCompletedAt !== null,
+            revision: profile.revision,
+          }
+        : SAFE_WAKE_PROFILE,
+      wakeRoutine: routine
+        ? {
+            enabled: routine.enabled,
+            items: routine.items as import("@awc/domain").WakeRoutineItem[],
+            revision: routine.revision,
+          }
+        : { enabled: false, items: [], revision: 0 },
     };
   }
 }

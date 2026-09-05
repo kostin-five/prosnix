@@ -18,6 +18,7 @@ import type {
   AdminGrowthRepository,
   BillingRepository,
   LegalAcceptanceRepository,
+  WakePersonalizationRepository,
 } from "@awc/domain";
 import { registerAuthRoutes } from "../auth/routes.js";
 import { registerBootstrapRoute } from "./bootstrap-route.js";
@@ -40,6 +41,7 @@ import { registerLegalRoutes } from "../legal/routes.js";
 import { registerBillingRoutes } from "../billing/routes.js";
 import { BillingService } from "../billing/service.js";
 import type { TelegramStarsGateway } from "../billing/telegram-stars.js";
+import { registerPersonalizationRoutes } from "../personalization/routes.js";
 
 export interface AppDependencies {
   unitOfWork: UnitOfWork;
@@ -60,6 +62,7 @@ export interface AppDependencies {
   legalAcceptanceRepository?: LegalAcceptanceRepository;
   billingRepository?: BillingRepository;
   telegramStarsGateway?: TelegramStarsGateway;
+  wakePersonalizationRepository?: WakePersonalizationRepository;
   now?: () => Date;
 }
 
@@ -228,6 +231,13 @@ export async function createApp(
       await registerLegalRoutes(app, {
         config,
         repository: dependencies.legalAcceptanceRepository,
+        ...(dependencies.now ? { now: dependencies.now } : {}),
+      });
+    }
+    if (dependencies.wakePersonalizationRepository) {
+      await registerPersonalizationRoutes(app, {
+        config,
+        repository: dependencies.wakePersonalizationRepository,
         ...(dependencies.now ? { now: dependencies.now } : {}),
       });
     }

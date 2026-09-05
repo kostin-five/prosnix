@@ -3,5 +3,6 @@ export * from "./ports.js";
 export * from "./session/session.js";
 export * from "./analytics/profile.js";
 export * from "./experiments/learning.js";
+export * from "./personalization.js";
 export * from "./schedule/schedule.js";
 export * from "./schedule/ports.js";

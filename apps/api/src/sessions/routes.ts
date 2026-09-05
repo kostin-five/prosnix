@@ -4,6 +4,8 @@ import {
   FollowUpInputSchema,
   RatingInputSchema,
   TaskResultInputSchema,
+  CreateWakeSessionInputSchema,
+  type CreateWakeSessionInput,
   type FollowUpInput,
   type RatingInput,
   type TaskResultInput,
@@ -81,16 +83,11 @@ export async function registerSessionRoutes(
 ): Promise<void> {
   const now = options.now ?? (() => new Date());
 
-  app.post<{ Body: { timezone: string } }>(
+  app.post<{ Body: CreateWakeSessionInput }>(
     "/api/v1/sessions",
     {
       schema: {
-        body: {
-          type: "object",
-          additionalProperties: false,
-          required: ["timezone"],
-          properties: { timezone: { type: "string", minLength: 1, maxLength: 100 } },
-        },
+        body: CreateWakeSessionInputSchema,
       },
     },
     (request, reply) =>
@@ -101,6 +98,8 @@ export async function registerSessionRoutes(
         {
           type: "create",
           timezone: request.body.timezone,
+          wakeContext: request.body.wakeContext,
+          durationMinutes: request.body.durationMinutes,
         },
       ),
   );

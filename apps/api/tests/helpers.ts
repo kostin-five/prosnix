@@ -111,6 +111,15 @@ export function createMemoryDependencies(snapshot?: Partial<BootstrapSnapshot>):
               activeSession: snapshot?.activeSession ?? null,
               dueFollowUpSessionId: snapshot?.dueFollowUpSessionId ?? null,
               wakeSchedule: snapshot?.wakeSchedule ?? null,
+              wakeProfile: {
+                movementLevel: "none",
+                availableResources: [],
+                excludedTaskIds: [],
+                defaultDurationMinutes: 5,
+                onboardingCompleted: false,
+                revision: 0,
+              },
+              wakeRoutine: { enabled: false, items: [], revision: 0 },
             }
           : null,
     },
@@ -153,6 +162,15 @@ export function createMemorySessionCommands(userId: string): SessionCommandRepos
           session ??= {
             id: "00000000-0000-4000-8000-000000000100",
             userId,
+            wakeContext: envelope.command.wakeContext,
+            durationMinutes: envelope.command.durationMinutes,
+            personalization: {
+              profileRevision: 0,
+              movementLevel: "none",
+              availableResources: [],
+              excludedTaskIds: [],
+              fallbackReason: "profile_missing",
+            },
             assignment: {
               id: "00000000-0000-4000-8000-000000000101",
               protocolKey: "learning-cognitive",
@@ -220,6 +238,7 @@ export function createMemorySessionCommands(userId: string): SessionCommandRepos
         throw error;
       }
 
+      if (!session) throw new Error("Memory session command produced no session");
       const result = {
         session,
         responseStatus: envelope.command.type === "create" ? (201 as const) : (200 as const),

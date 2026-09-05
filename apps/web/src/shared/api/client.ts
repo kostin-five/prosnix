@@ -1,3 +1,30 @@
+export type WakeContext = "night_sleep" | "short_nap" | "long_nap" | "energy_reset";
+export type WakeDurationMinutes = 2 | 5 | 10;
+export interface WakeProfile {
+  movementLevel: "none" | "light" | "full";
+  availableResources: Array<"water" | "bright_light" | "floor_space">;
+  excludedTaskIds: string[];
+  defaultDurationMinutes: WakeDurationMinutes;
+  onboardingCompleted: boolean;
+  revision: number;
+}
+export interface WakeRoutineItem {
+  id: string;
+  title: string;
+}
+export interface WakeRoutine {
+  enabled: boolean;
+  items: WakeRoutineItem[];
+  revision: number;
+}
+export interface WakeRoutineRun {
+  sessionId: string;
+  items: WakeRoutineItem[];
+  completedItemIds: string[];
+  revision: number;
+  completedAt: string | null;
+}
+
 export interface BootstrapResponse {
   user: { id: string; locale: string | null; timezone: string };
   activeSession: null | {
@@ -6,6 +33,15 @@ export interface BootstrapResponse {
       status: "assigned" | "in_progress";
       currentStepIndex: number;
       version: number;
+      wakeContext: WakeContext | "unspecified";
+      durationMinutes: WakeDurationMinutes;
+      personalization: {
+        profileRevision: number;
+        movementLevel: "none" | "light" | "full";
+        availableResources: string[];
+        excludedTaskIds: string[];
+        fallbackReason: "none" | "profile_missing" | "limited_eligible_tasks";
+      };
     };
     protocol: {
       key: string;
@@ -30,6 +66,8 @@ export interface BootstrapResponse {
     botStatus: "unknown" | "available" | "blocked";
     revision: number;
   };
+  wakeProfile: WakeProfile;
+  wakeRoutine: WakeRoutine;
 }
 
 export interface WakeSessionResponse {
@@ -38,6 +76,15 @@ export interface WakeSessionResponse {
   status: "assigned" | "in_progress" | "protocol_completed" | "abandoned";
   currentStepIndex: number;
   version: number;
+  wakeContext: WakeContext | "unspecified";
+  durationMinutes: WakeDurationMinutes;
+  personalization: {
+    profileRevision: number;
+    movementLevel: "none" | "light" | "full";
+    availableResources: string[];
+    excludedTaskIds: string[];
+    fallbackReason: "none" | "profile_missing" | "limited_eligible_tasks";
+  };
   assignment: {
     id: string;
     protocolKey: string;
@@ -110,6 +157,8 @@ export interface SessionHistoryItemResponse {
     taskId: string;
     category: "cognitive" | "movement" | "behavioral" | "environment";
   }>;
+  wakeContext: WakeContext | "unspecified";
+  durationMinutes: WakeDurationMinutes;
 }
 
 export interface SessionHistoryResponse {

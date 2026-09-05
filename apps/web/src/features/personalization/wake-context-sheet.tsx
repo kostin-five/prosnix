@@ -1,0 +1,113 @@
+import React from "react";
+import type { WakeContext, WakeDurationMinutes } from "../../shared/api/client.js";
+
+const CONTEXTS: Array<{ value: WakeContext; title: string; hint: string; icon: string }> = [
+  {
+    value: "night_sleep",
+    title: "После ночного сна",
+    hint: "Обычное утреннее пробуждение",
+    icon: "☀",
+  },
+  { value: "short_nap", title: "После короткого сна", hint: "Дремал до 30 минут", icon: "◷" },
+  { value: "long_nap", title: "После долгого сна", hint: "Спал больше 30 минут днём", icon: "☾" },
+  {
+    value: "energy_reset",
+    title: "Нужно взбодриться",
+    hint: "Не спал, но нужна перезагрузка",
+    icon: "↻",
+  },
+];
+
+export function WakeContextSheet({
+  defaultDuration,
+  profileComplete,
+  busy,
+  onCancel,
+  onOpenProfile,
+  onStart,
+}: {
+  defaultDuration: WakeDurationMinutes;
+  profileComplete: boolean;
+  busy: boolean;
+  onCancel: () => void;
+  onOpenProfile: () => void;
+  onStart: (context: WakeContext, duration: WakeDurationMinutes) => void;
+}) {
+  const [context, setContext] = React.useState<WakeContext>("night_sleep");
+  const [duration, setDuration] = React.useState<WakeDurationMinutes>(defaultDuration);
+  return (
+    <div className="flex flex-1 flex-col overflow-y-auto px-5 pb-10 pt-10">
+      <button
+        onClick={onCancel}
+        className="mb-5 flex min-h-11 items-center gap-2 self-start rounded-xl px-2 text-sm text-muted-foreground"
+      >
+        <span aria-hidden="true">←</span> Назад
+      </button>
+      <p className="text-xs font-semibold uppercase tracking-wider text-accent">
+        Контекст пробуждения
+      </p>
+      <h1 className="mt-2 text-2xl font-bold">Как ты просыпаешься сейчас?</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Это помогает сравнивать похожие ситуации, а не смешивать утро и дневной сон.
+      </p>
+      {!profileComplete && (
+        <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-4">
+          <p className="text-sm font-semibold">Сделать задания удобнее?</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Ответь на три коротких вопроса или продолжи с безопасным набором без упражнений.
+          </p>
+          <button
+            onClick={onOpenProfile}
+            className="mt-3 min-h-11 rounded-xl bg-accent px-4 text-sm font-semibold text-accent-foreground"
+          >
+            Настроить возможности
+          </button>
+        </div>
+      )}
+      <div className="mt-6 space-y-2">
+        {CONTEXTS.map((item) => {
+          const selected = context === item.value;
+          return (
+            <button
+              key={item.value}
+              onClick={() => setContext(item.value)}
+              aria-pressed={selected}
+              className={`flex min-h-16 w-full items-center gap-3 rounded-2xl border p-4 text-left ${selected ? "border-primary bg-primary/10" : "border-border bg-card"}`}
+            >
+              <span
+                aria-hidden="true"
+                className={selected ? "w-5 text-primary" : "w-5 text-muted-foreground"}
+              >
+                {item.icon}
+              </span>
+              <span>
+                <span className="block text-sm font-semibold">{item.title}</span>
+                <span className="block text-xs text-muted-foreground">{item.hint}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-6 text-sm font-semibold">Сколько времени есть?</p>
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {([2, 5, 10] as const).map((value) => (
+          <button
+            key={value}
+            onClick={() => setDuration(value)}
+            aria-pressed={duration === value}
+            className={`min-h-12 rounded-xl border text-sm font-semibold ${duration === value ? "border-accent bg-accent/15 text-accent" : "border-border bg-card"}`}
+          >
+            {value} мин
+          </button>
+        ))}
+      </div>
+      <button
+        disabled={busy}
+        onClick={() => onStart(context, duration)}
+        className="mt-8 min-h-14 rounded-2xl bg-primary px-5 font-bold text-primary-foreground disabled:opacity-60"
+      >
+        {busy ? "Подбираем протокол…" : "Начать пробуждение"}
+      </button>
+    </div>
+  );
+}

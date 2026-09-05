@@ -29,22 +29,22 @@
 | Метод  | Маршрут                 | Вход/результат                                          |
 | ------ | ----------------------- | ------------------------------------------------------- |
 | POST   | `/api/v1/auth/telegram` | `{ initData }`; проверяет подпись, ставит cookie, `204` |
-| GET    | `/api/v1/bootstrap`     | user, active session, due follow-up и schedule          |
+| GET    | `/api/v1/bootstrap`     | user, session, follow-up, schedule, профиль и рутина    |
 | DELETE | `/api/v1/me`            | каскадно удаляет профиль и очищает cookie, `204`        |
 
 Auth ограничен отдельным per-IP rate limit. Browser не передаёт Telegram user ID как identity.
 
 ## Wake-сессии
 
-| Метод | Маршрут                                | Дополнительные требования            |
-| ----- | -------------------------------------- | ------------------------------------ |
-| POST  | `/api/v1/sessions`                     | `{ timezone }`, `Idempotency-Key`    |
-| PUT   | `/api/v1/sessions/:id/baseline`        | rating body, idempotency, `If-Match` |
-| PUT   | `/api/v1/sessions/:id/steps/:index`    | task result, idempotency, `If-Match` |
-| PUT   | `/api/v1/sessions/:id/post-rating`     | rating body, idempotency, `If-Match` |
-| PUT   | `/api/v1/sessions/:id/follow-up`       | `{ outcome }`, idempotency           |
-| POST  | `/api/v1/sessions/:id/abandon`         | idempotency, `If-Match`              |
-| GET   | `/api/v1/sessions/history?limit=1..20` | последние завершённые сессии         |
+| Метод | Маршрут                                | Дополнительные требования                    |
+| ----- | -------------------------------------- | -------------------------------------------- |
+| POST  | `/api/v1/sessions`                     | timezone, wakeContext, duration, idempotency |
+| PUT   | `/api/v1/sessions/:id/baseline`        | rating body, idempotency, `If-Match`         |
+| PUT   | `/api/v1/sessions/:id/steps/:index`    | task result, idempotency, `If-Match`         |
+| PUT   | `/api/v1/sessions/:id/post-rating`     | rating body, idempotency, `If-Match`         |
+| PUT   | `/api/v1/sessions/:id/follow-up`       | `{ outcome }`, idempotency                   |
+| POST  | `/api/v1/sessions/:id/abandon`         | idempotency, `If-Match`                      |
+| GET   | `/api/v1/sessions/history?limit=1..20` | последние завершённые сессии                 |
 
 Conflict `409` возвращает code и canonical session, чтобы клиент мог восстановить актуальное
 состояние. Повтор идентичной операции возвращает сохранённый результат; повтор key с другим payload
@@ -70,6 +70,20 @@ Coach имеет отдельный rate limit. AI response не меняет an
 
 Dispatch возвращает агрегированную summary и `409`, если текущий процесс уже выполняет запуск.
 cron-job.org не получает DB credentials или bot token.
+
+## Персонализация и рутина
+
+| Метод | Маршрут                        | Назначение                                     |
+| ----- | ------------------------------ | ---------------------------------------------- |
+| GET   | `/api/v1/me/wake-profile`      | текущие возможности и ограничения              |
+| PUT   | `/api/v1/me/wake-profile`      | профиль; `Idempotency-Key`, `If-Match`         |
+| GET   | `/api/v1/me/wake-routine`      | текущая личная рутина                          |
+| PUT   | `/api/v1/me/wake-routine`      | максимум пять пунктов; idempotency, `If-Match` |
+| GET   | `/api/v1/sessions/:id/routine` | сохранённый прогресс рутины завершённой сессии |
+| PUT   | `/api/v1/sessions/:id/routine` | отметить пункты; idempotency, `If-Match`       |
+
+Профиль только исключает неподходящие задания. Контекст и бюджет сохраняются в снимке сессии.
+Рутина отделена от экспериментальных наблюдений и не участвует в аналитике.
 
 ## Legal
 

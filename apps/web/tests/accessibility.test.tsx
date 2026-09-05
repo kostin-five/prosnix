@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import App from "../src/app/App.js";
+import { WakeContextSheet } from "../src/features/personalization/wake-context-sheet.js";
 
 async function settle(): Promise<void> {
   await act(async () => {
@@ -34,5 +35,22 @@ describe("мобильные состояния доступности", () => {
     const alert = container.querySelector<HTMLElement>('[role="alert"]');
     expect(alert?.textContent).toContain("Не удалось безопасно войти");
     expect(alert?.querySelector("button")?.textContent).toBe("Повторить");
+  });
+
+  it("даёт клавиатуре и скринридеру выбрать контекст и длительность", () => {
+    act(() =>
+      root.render(
+        <WakeContextSheet
+          defaultDuration={5}
+          profileComplete
+          busy={false}
+          onCancel={() => undefined}
+          onOpenProfile={() => undefined}
+          onStart={() => undefined}
+        />,
+      ),
+    );
+    expect(container.querySelectorAll("button[aria-pressed]")).toHaveLength(7);
+    expect(container.textContent).toContain("сравнивать похожие ситуации");
   });
 });

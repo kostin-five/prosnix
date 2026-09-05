@@ -35,6 +35,8 @@ export class PostgresSessionHistoryRepository implements SessionHistoryRepositor
         id: wakeSessions.id,
         startedAt: wakeSessions.startedAt,
         completedAt: wakeSessions.protocolCompletedAt,
+        wakeContext: wakeSessions.wakeContext,
+        durationMinutes: wakeSessions.durationBudgetMinutes,
       })
       .from(wakeSessions)
       .where(and(eq(wakeSessions.userId, userId), eq(wakeSessions.status, "protocol_completed")))
@@ -80,6 +82,8 @@ export class PostgresSessionHistoryRepository implements SessionHistoryRepositor
             .filter((task) => task.sessionId === session.id)
             .filter((task): task is typeof task & { taskId: TaskId } => isTaskId(task.taskId))
             .map((task) => ({ taskId: task.taskId, category: task.category })),
+          wakeContext: session.wakeContext,
+          durationMinutes: session.durationMinutes as 2 | 5 | 10,
         },
       ];
     });

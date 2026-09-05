@@ -53,6 +53,64 @@ export type RatingInput = Static<typeof RatingInputSchema>;
 export type TaskResultInput = Static<typeof TaskResultInputSchema>;
 export type FollowUpInput = Static<typeof FollowUpInputSchema>;
 
+export const WAKE_CONTEXTS = ["night_sleep", "short_nap", "long_nap", "energy_reset"] as const;
+export const WAKE_DURATIONS = [2, 5, 10] as const;
+export const MOVEMENT_LEVELS = ["none", "light", "full"] as const;
+export const WAKE_RESOURCES = ["water", "bright_light", "floor_space"] as const;
+
+export const WakeContextSchema = Type.Union(WAKE_CONTEXTS.map((value) => Type.Literal(value)));
+export const WakeDurationSchema = Type.Union(WAKE_DURATIONS.map((value) => Type.Literal(value)));
+export const MovementLevelSchema = Type.Union(MOVEMENT_LEVELS.map((value) => Type.Literal(value)));
+export const WakeResourceSchema = Type.Union(WAKE_RESOURCES.map((value) => Type.Literal(value)));
+
+export const CreateWakeSessionInputSchema = Type.Object(
+  {
+    timezone: Type.String({ minLength: 1, maxLength: 100 }),
+    wakeContext: WakeContextSchema,
+    durationMinutes: WakeDurationSchema,
+  },
+  { additionalProperties: false },
+);
+
+export const WakeProfileInputSchema = Type.Object(
+  {
+    movementLevel: MovementLevelSchema,
+    availableResources: Type.Array(WakeResourceSchema, { maxItems: 3, uniqueItems: true }),
+    excludedTaskIds: Type.Array(TaskIdSchema, { maxItems: 10, uniqueItems: true }),
+    defaultDurationMinutes: WakeDurationSchema,
+    onboardingCompleted: Type.Boolean(),
+  },
+  { additionalProperties: false },
+);
+
+export const WakeRoutineItemSchema = Type.Object(
+  {
+    id: Type.String({ minLength: 1, maxLength: 64 }),
+    title: Type.String({ minLength: 1, maxLength: 80 }),
+  },
+  { additionalProperties: false },
+);
+export const WakeRoutineInputSchema = Type.Object(
+  { enabled: Type.Boolean(), items: Type.Array(WakeRoutineItemSchema, { maxItems: 5 }) },
+  { additionalProperties: false },
+);
+export const WakeRoutineProgressInputSchema = Type.Object(
+  {
+    completedItemIds: Type.Array(Type.String({ minLength: 1, maxLength: 64 }), {
+      maxItems: 5,
+      uniqueItems: true,
+    }),
+  },
+  { additionalProperties: false },
+);
+
+export type WakeContext = Static<typeof WakeContextSchema>;
+export type WakeDurationMinutes = Static<typeof WakeDurationSchema>;
+export type CreateWakeSessionInput = Static<typeof CreateWakeSessionInputSchema>;
+export type WakeProfileInput = Static<typeof WakeProfileInputSchema>;
+export type WakeRoutineInput = Static<typeof WakeRoutineInputSchema>;
+export type WakeRoutineProgressInput = Static<typeof WakeRoutineProgressInputSchema>;
+
 export const BOT_STATUSES = ["unknown", "available", "blocked"] as const;
 export const BotStatusSchema = Type.Union(BOT_STATUSES.map((value) => Type.Literal(value)));
 
@@ -105,6 +163,8 @@ export interface SessionHistoryItemResponse {
     taskId: TaskId;
     category: TaskCategory;
   }>;
+  wakeContext: "unspecified" | WakeContext;
+  durationMinutes: WakeDurationMinutes;
 }
 
 export interface SessionHistoryResponse {

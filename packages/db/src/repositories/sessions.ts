@@ -9,6 +9,8 @@ import {
   acceptPostRating,
   acceptTaskResult,
   selectLearningAssignment,
+  personalizeAssignment,
+  SAFE_WAKE_PROFILE,
   type ExperimentAssignment,
   type ProtocolStep,
   type SessionCommand,
@@ -18,6 +20,8 @@ import {
   type TaskCategory,
   type TaskId,
   type WakeSession,
+  type WakeCapabilityProfile,
+  type WakePersonalizationSnapshot,
 } from "@awc/domain";
 import {
   experimentAssignments,
@@ -28,6 +32,7 @@ import {
   taskObservations,
   users,
   wakeSessions,
+  wakeCapabilityProfiles,
 } from "../schema.js";
 import type { Database } from "./types.js";
 
@@ -66,6 +71,66 @@ function parseSteps(value: unknown): readonly ProtocolStep[] {
       category: step.category as TaskCategory,
     };
   });
+}
+
+function parseSnapshot(value: unknown): WakePersonalizationSnapshot {
+  if (typeof value !== "object" || value === null) {
+    return {
+      profileRevision: 0,
+      movementLevel: "none",
+      availableResources: [],
+      excludedTaskIds: [],
+      fallbackReason: "profile_missing",
+    };
+  }
+  const snapshot = value as Partial<WakePersonalizationSnapshot>;
+  return {
+    profileRevision: typeof snapshot.profileRevision === "number" ? snapshot.profileRevision : 0,
+    movementLevel:
+      snapshot.movementLevel === "light" || snapshot.movementLevel === "full"
+        ? snapshot.movementLevel
+        : "none",
+    availableResources: Array.isArray(snapshot.availableResources)
+      ? snapshot.availableResources.filter(
+          (resource): resource is "water" | "bright_light" | "floor_space" =>
+            resource === "water" || resource === "bright_light" || resource === "floor_space",
+        )
+      : [],
+    excludedTaskIds: Array.isArray(snapshot.excludedTaskIds)
+      ? snapshot.excludedTaskIds.filter(
+          (taskId): taskId is TaskId =>
+            typeof taskId === "string" && TASK_IDS.has(taskId as TaskId),
+        )
+      : [],
+    fallbackReason:
+      snapshot.fallbackReason === "none" || snapshot.fallbackReason === "limited_eligible_tasks"
+        ? snapshot.fallbackReason
+        : "profile_missing",
+  };
+}
+
+function mapProfile(
+  row: typeof wakeCapabilityProfiles.$inferSelect | undefined,
+): WakeCapabilityProfile {
+  if (!row) return SAFE_WAKE_PROFILE;
+  return {
+    movementLevel: row.movementLevel,
+    availableResources: Array.isArray(row.availableResources)
+      ? row.availableResources.filter(
+          (resource): resource is "water" | "bright_light" | "floor_space" =>
+            resource === "water" || resource === "bright_light" || resource === "floor_space",
+        )
+      : [],
+    excludedTaskIds: Array.isArray(row.excludedTaskIds)
+      ? row.excludedTaskIds.filter(
+          (taskId): taskId is TaskId =>
+            typeof taskId === "string" && TASK_IDS.has(taskId as TaskId),
+        )
+      : [],
+    defaultDurationMinutes: row.defaultDurationMinutes as 2 | 5 | 10,
+    onboardingCompleted: row.onboardingCompletedAt !== null,
+    revision: row.revision,
+  };
 }
 
 async function loadSession(
@@ -127,6 +192,9 @@ async function loadSession(
       steps: parseSteps(aggregate.protocol.steps),
       ...(comparison ? { comparison } : {}),
     },
+    wakeContext: aggregate.session.wakeContext,
+    durationMinutes: aggregate.session.durationBudgetMinutes as 2 | 5 | 10,
+    personalization: parseSnapshot(aggregate.session.personalizationSnapshot),
     status: aggregate.session.status,
     currentStepIndex: aggregate.session.currentStepIndex,
     version: aggregate.session.version,
@@ -183,7 +251,18 @@ async function createSession(
     .where(eq(users.id, envelope.userId))
     .limit(1);
   if (!user) throw new SessionCommandConflict("session_not_found", "Профиль не найден", null);
-  const planned = selectLearningAssignment(user.learningSessionCount);
+  const baseAssignment = selectLearningAssignment(user.learningSessionCount);
+  const [profileRow] = await db
+    .select()
+    .from(wakeCapabilityProfiles)
+    .where(eq(wakeCapabilityProfiles.userId, envelope.userId))
+    .limit(1);
+  const personalized = personalizeAssignment(
+    { ...baseAssignment, id: "pending" },
+    mapProfile(profileRow),
+    envelope.command.durationMinutes,
+  );
+  const planned = personalized.assignment;
   await db
     .update(users)
     .set({
@@ -230,13 +309,23 @@ async function createSession(
       evaluatedFactor: planned.comparison?.factorKey,
       comparisonGroupKey: planned.comparison?.groupKey,
       comparisonLevel: planned.comparison?.level,
-      evidenceSnapshot: {},
+      evidenceSnapshot: {
+        wakeContext: envelope.command.wakeContext,
+        durationMinutes: envelope.command.durationMinutes,
+        personalization: personalized.snapshot,
+      },
     })
     .returning({ id: experimentAssignments.id });
   if (!assignment) throw new Error("Не удалось создать назначение эксперимента");
   const [row] = await db
     .insert(wakeSessions)
-    .values({ userId: envelope.userId, assignmentId: assignment.id })
+    .values({
+      userId: envelope.userId,
+      assignmentId: assignment.id,
+      wakeContext: envelope.command.wakeContext,
+      durationBudgetMinutes: envelope.command.durationMinutes,
+      personalizationSnapshot: personalized.snapshot,
+    })
     .returning({ id: wakeSessions.id });
   if (!row) throw new Error("Не удалось создать wake-сессию");
   const session = await loadSession(db, envelope.userId, row.id);

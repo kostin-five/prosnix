@@ -40,6 +40,15 @@ describe("auth and bootstrap API contract", () => {
       activeSession: null,
       dueFollowUpSessionId: null,
       wakeSchedule: null,
+      wakeProfile: {
+        movementLevel: "none",
+        availableResources: [],
+        excludedTaskIds: [],
+        defaultDurationMinutes: 5,
+        onboardingCompleted: false,
+        revision: 0,
+      },
+      wakeRoutine: { enabled: false, items: [], revision: 0 },
     });
     await app.close();
   });

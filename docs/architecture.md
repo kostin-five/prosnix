@@ -1,7 +1,7 @@
 # Фактическая архитектура Prosnix
 
-**Актуально на:** 1 сентября 2026 года  
-**Версия кода:** `0.1.0`, commit `8d43657` в `dev`
+**Актуально на:** 5 сентября 2026 года
+**Версия кода:** незавершённый кандидат `0.2` поверх commit `9122ec5` в `dev`
 
 Этот документ описывает реализованную систему. Планируемые изменения находятся в
 [`product-roadmap.md`](product-roadmap.md).
@@ -30,7 +30,9 @@ cron-job.org
 `apps/web` — React 18 и Vite 6. Основные области:
 
 - аутентификация из Telegram WebApp `initData` и загрузка bootstrap;
-- возобновляемый wake-up flow: baseline, задания, post-rating, результат, follow-up;
+- ручной запуск после любого сна: контекст, бюджет времени, baseline, задания, post-rating, результат
+  и follow-up;
+- профиль допустимых заданий и отдельная редактируемая рутина после измеряемого протокола;
 - статистика, история с раскрываемыми деталями эксперимента и AI-объяснение;
 - настройки расписания, snooze, юридические документы и удаление профиля;
 - публичные `/privacy` и `/terms`;
@@ -49,6 +51,7 @@ repositories и gateways.
 
 - `auth` — HMAC-проверка Telegram `initData`, срок запуска, серверная `awc_session` cookie;
 - `sessions` — versioned state machine и идемпотентные команды;
+- `personalization` — versioned профиль возможностей, рутина и прогресс конкретной сессии;
 - `analytics` — пересчёт профиля из канонических наблюдений;
 - `coach` — подготовка обезличенного контекста, DeepSeek, JSON validation, cache и fallback;
 - `notifications` — расписание, snooze, daily/follow-up dispatch, retry и retention logs;
@@ -95,12 +98,19 @@ assigned -> in_progress -> protocol_completed -> follow-up observation
 повторную оценку одного типа или повторный результат шага. Bootstrap возвращает активную сессию и
 due follow-up, поэтому сценарий восстанавливается после закрытия Mini App.
 
+Перед созданием новой сессии пользователь выбирает контекст и бюджет 2, 5 или 10 минут. Сервер
+фильтрует протокол по сохранённому профилю возможностей и записывает неизменяемый снимок применённых
+ограничений. При нехватке допустимых заданий назначается короткий безопасный fallback. Ручной запуск
+не требует расписания; экран snooze открывается только из wake-напоминания через `?source=wake`.
+
 ## Эксперименты и аналитика
 
 Назначение хранит protocol version, strategy version, phase, hypothesis и evidence snapshot.
 Исходные оценки, task results и follow-up не перезаписываются AI-ответом. Analytics repository
 пересчитывает производные показатели с method version, evidence count, confidence и evidence IDs.
 Смешанный протокол не приписывает общий эффект каждой категории без сопоставимого сравнения.
+Протокольные и факторные сравнения разделяются по контексту пробуждения. Выполнение личной рутины
+никогда не входит в evidence и не меняет confidence.
 
 ## AI
 
@@ -127,9 +137,10 @@ production gate из [`release-checklist.md`](release-checklist.md).
 ## Хранение данных
 
 PostgreSQL 17/Neon — единственный production source of truth. Основные таблицы: users, schedules,
-notification deliveries, protocol definitions, assignments, sessions, rating/task/follow-up
-observations, idempotency records, analytics projections, coach insights, legal acceptances,
-billing checkouts, subscriptions, Stars payments/updates и audit events.
+notification deliveries, protocol definitions, assignments, sessions, capability profiles,
+wake routines и их session snapshots, rating/task/follow-up observations, idempotency records,
+analytics projections, coach insights, legal acceptances, billing checkouts, subscriptions, Stars
+payments/updates и audit events.
 
 Миграции находятся в `packages/db/migrations` и применяются только вперёд. Удаление профиля каскадно
 удаляет персональные сессии, настройки, AI cache, принятия и billing-записи в приложении.

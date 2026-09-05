@@ -30,6 +30,8 @@ export class TelegramBotGateway implements TelegramNotificationGateway {
     attempt: number;
     now: Date;
   }): Promise<NotificationResult> {
+    const appUrl = new URL(this.webAppUrl);
+    appUrl.searchParams.set("source", input.kind === "wake" ? "wake" : "follow_up");
     let response: Response;
     try {
       response = await this.fetcher(`https://api.telegram.org/bot${this.token}/sendMessage`, {
@@ -46,7 +48,7 @@ export class TelegramBotGateway implements TelegramNotificationGateway {
               [
                 {
                   text: input.kind === "wake" ? "Начать пробуждение" : "Ответить на follow-up",
-                  web_app: { url: this.webAppUrl },
+                  web_app: { url: appUrl.toString() },
                 },
               ],
             ],
