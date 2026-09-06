@@ -1,4 +1,4 @@
-import type { ExperimentAssignment, ProtocolStep } from "../model.js";
+import type { ExperimentAssignment, ProtocolStep, TaskId } from "../model.js";
 
 export type PlannedAssignment = Omit<ExperimentAssignment, "id">;
 
@@ -76,13 +76,23 @@ const FALLBACK: PlannedAssignment = {
   ],
 };
 
-export function selectLearningAssignment(completedLearningSessions: number): PlannedAssignment {
+export function selectLearningAssignment(
+  completedLearningSessions: number,
+  previousTaskIds: readonly TaskId[] = [],
+): PlannedAssignment {
   if (
     Number.isInteger(completedLearningSessions) &&
     completedLearningSessions >= 0 &&
     completedLearningSessions < LEARNING_ASSIGNMENTS.length
   ) {
-    return LEARNING_ASSIGNMENTS[completedLearningSessions] as PlannedAssignment;
+    const planned = LEARNING_ASSIGNMENTS[completedLearningSessions] as PlannedAssignment;
+    const signature = previousTaskIds.join(",");
+    if (planned.steps.map(({ taskId }) => taskId).join(",") !== signature) return planned;
+    return (
+      LEARNING_ASSIGNMENTS.find(
+        (candidate) => candidate.steps.map(({ taskId }) => taskId).join(",") !== signature,
+      ) ?? planned
+    );
   }
   return FALLBACK;
 }

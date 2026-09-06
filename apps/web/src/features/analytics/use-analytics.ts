@@ -7,7 +7,7 @@ export type AnalyticsState =
   | { status: "ready"; profile: AnalyticsProfileResponse }
   | { status: "error"; message: string };
 
-export function useAnalyticsProfile(enabled: boolean): AnalyticsState {
+export function useAnalyticsProfile(enabled: boolean, refreshKey = 0): AnalyticsState {
   const [state, setState] = useState<AnalyticsState>({ status: "idle" });
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export function useAnalyticsProfile(enabled: boolean): AnalyticsState {
     return () => {
       cancelled = true;
     };
-  }, [enabled]);
+  }, [enabled, refreshKey]);
 
   return state;
 }

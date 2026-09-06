@@ -1055,8 +1055,8 @@ function HomeScreen({
   sessions: Session[];
   demo: boolean;
 }) {
-  const analytics = useAnalyticsProfile(!demo);
-  const history = useSessionHistory(!demo);
+  const analytics = useAnalyticsProfile(!demo, sessions.length);
+  const history = useSessionHistory(!demo, sessions.length);
   const valid = sessions.filter((s) => s.endAlertness > 0);
   const serverItems = history.status === "ready" ? history.items : [];
   const apiProfile = analytics.status === "ready" ? analytics.profile : null;
@@ -1619,9 +1619,9 @@ function StatsScreen({
   demo: boolean;
   routine: WakeRoutine;
 }) {
-  const analytics = useAnalyticsProfile(!demo);
+  const analytics = useAnalyticsProfile(!demo, sessions.length);
   const { state: coach, requestInsight, resetInsight } = useCoachInsight(!demo);
-  const history = useSessionHistory(!demo);
+  const history = useSessionHistory(!demo, sessions.length);
   const [openHistoryIds, setOpenHistoryIds] = useState<Set<string>>(() => new Set());
   const [showAllHistory, setShowAllHistory] = useState(false);
   const apiProfile = analytics.status === "ready" ? analytics.profile : null;

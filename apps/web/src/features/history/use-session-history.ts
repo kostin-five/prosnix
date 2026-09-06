@@ -7,7 +7,7 @@ type HistoryState =
   | { status: "ready"; items: SessionHistoryItemResponse[] }
   | { status: "error"; items: SessionHistoryItemResponse[]; message: string };
 
-export function useSessionHistory(enabled: boolean): HistoryState {
+export function useSessionHistory(enabled: boolean, refreshKey = 0): HistoryState {
   const [state, setState] = useState<HistoryState>({
     status: enabled ? "loading" : "idle",
     items: [],
@@ -31,7 +31,7 @@ export function useSessionHistory(enabled: boolean): HistoryState {
     return () => {
       active = false;
     };
-  }, [enabled]);
+  }, [enabled, refreshKey]);
 
   return state;
 }

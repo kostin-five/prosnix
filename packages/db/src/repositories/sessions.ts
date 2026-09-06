@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import {
   SessionCommandConflict,
@@ -252,7 +252,30 @@ async function createSession(
     .where(eq(users.id, envelope.userId))
     .limit(1);
   if (!user) throw new SessionCommandConflict("session_not_found", "Профиль не найден", null);
-  const baseAssignment = selectLearningAssignment(user.learningSessionCount);
+  const [previous] = await db
+    .select({ steps: protocolDefinitions.steps })
+    .from(wakeSessions)
+    .innerJoin(experimentAssignments, eq(wakeSessions.assignmentId, experimentAssignments.id))
+    .innerJoin(
+      protocolDefinitions,
+      eq(experimentAssignments.protocolDefinitionId, protocolDefinitions.id),
+    )
+    .where(
+      and(eq(wakeSessions.userId, envelope.userId), eq(wakeSessions.status, "protocol_completed")),
+    )
+    .orderBy(desc(wakeSessions.protocolCompletedAt))
+    .limit(1);
+  const previousTaskIds = Array.isArray(previous?.steps)
+    ? previous.steps.flatMap((step) =>
+        typeof step === "object" &&
+        step !== null &&
+        "taskId" in step &&
+        typeof step.taskId === "string"
+          ? [step.taskId as TaskId]
+          : [],
+      )
+    : [];
+  const baseAssignment = selectLearningAssignment(user.learningSessionCount, previousTaskIds);
   const [profileRow] = await db
     .select()
     .from(wakeCapabilityProfiles)
