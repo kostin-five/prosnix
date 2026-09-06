@@ -56,6 +56,7 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
             comparisonGroupKey: experimentAssignments.comparisonGroupKey,
             comparisonLevel: experimentAssignments.comparisonLevel,
             wakeContext: wakeSessions.wakeContext,
+            durationMinutes: wakeSessions.durationBudgetMinutes,
             completedAt: wakeSessions.protocolCompletedAt,
           })
           .from(wakeSessions)
@@ -103,7 +104,7 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
             (session.comparisonLevel === "with" || session.comparisonLevel === "without")
               ? {
                   factorKey: session.evaluatedFactor,
-                  groupKey: `${session.comparisonGroupKey}:${session.wakeContext}`,
+                  groupKey: `${session.comparisonGroupKey}:${session.wakeContext}:${session.durationMinutes}m`,
                   level: session.comparisonLevel as "with" | "without",
                 }
               : undefined;
