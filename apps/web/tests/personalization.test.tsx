@@ -116,6 +116,7 @@ describe("персонализация пробуждения", () => {
         />,
       ),
     );
+    act(() => findButton(container, "Развернуть").click());
     act(() => findButton(container, "Добавить пункт").click());
     const input = container.querySelector<HTMLInputElement>('input[aria-label="Пункт рутины 1"]');
     if (!input) throw new Error("Routine input not found");

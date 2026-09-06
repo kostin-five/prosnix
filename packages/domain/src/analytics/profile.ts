@@ -51,10 +51,7 @@ export function computeAnalyticsProfile(
   const protocolEffects = [...protocolGroups.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([key, group]) => {
-      const value =
-        group.length < 3
-          ? null
-          : mean(group.map(({ baseline, postRating }) => postRating - baseline));
+      const value = mean(group.map(({ baseline, postRating }) => postRating - baseline));
       return metric(`protocol:${key}`, value, group);
     });
 

@@ -214,21 +214,7 @@ export class CoachService {
       };
     }
     if (cached && generatedToday) {
-      return {
-        status: cached.model === "deterministic-fallback" ? "unavailable" : "ready",
-        evidenceCount,
-        cached: true,
-        source: cached.model === "deterministic-fallback" ? "fallback" : "cache",
-        limitReached: true,
-        refreshAvailableAt,
-        insight: {
-          summary: cached.summary,
-          nextExperiment: cached.nextExperiment,
-          caveat: `${cached.caveat} Новые данные будут учтены после следующего доступного обновления.`,
-          confidence: profile.averageDelta.confidence,
-          generatedAt: cached.generatedAt.toISOString(),
-        },
-      };
+      return deterministicFallback(profile, now, refreshAvailableAt, true);
     }
     if (evidenceCount < 3 && !confirmEarly) {
       return {

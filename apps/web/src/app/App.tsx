@@ -57,9 +57,8 @@ import {
   type DifficultyLevel,
 } from "../features/tasks/task-engine.js";
 import { LazyBoundary } from "./lazy-boundary.js";
-import { ProsnixBrand, ProductBetaBadge } from "../features/brand/prosnix-brand.js";
+import { ProsnixBrand } from "../features/brand/prosnix-brand.js";
 
-const DemoWakeChart = lazy(() => import("../features/analytics/demo-wake-chart.js"));
 const HomeWakeChart = lazy(() =>
   import("../features/analytics/home-wake-chart.js").then((module) => ({
     default: module.HomeWakeChart,
@@ -1617,6 +1616,7 @@ function StatsScreen({
   const { state: coach, requestInsight, resetInsight } = useCoachInsight(!demo);
   const history = useSessionHistory(!demo);
   const [openHistoryIds, setOpenHistoryIds] = useState<Set<string>>(() => new Set());
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const apiProfile = analytics.status === "ready" ? analytics.profile : null;
   const valid = sessions.filter((s) => s.endAlertness > 0);
   const evidenceCount = demo ? valid.length : (apiProfile?.averageDelta.evidenceCount ?? 0);
@@ -1680,21 +1680,6 @@ function StatsScreen({
     .sort((left, right) => (right.value ?? 0) - (left.value ?? 0))[0];
   const bestProtocolTasks = bestProtocol ? protocolTaskIds(bestProtocol.key) : [];
 
-  // Chart data
-  const chartData = demo
-    ? sessions.slice(-7).map((s, i) => ({
-        name: `s${i}`,
-        label: s.date.replace(" авг", ".08"),
-        value: s.endAlertness - s.startAlertness,
-        evidenceCount: 1,
-      }))
-    : (apiProfile?.dailyTrend ?? []).map((point) => ({
-        name: point.localDate,
-        label: point.localDate.slice(5).split("-").reverse().join("."),
-        value: point.averageDelta,
-        evidenceCount: point.evidenceCount,
-      }));
-
   // Next plan
   const nextPlan = computeNextPlan(sessions);
   const nextTaskMeta = nextPlan.taskIds.map((id) => TASK_META[id]);
@@ -1703,7 +1688,6 @@ function StatsScreen({
     <div className="flex flex-col flex-1 px-5 pt-14 pb-28 overflow-y-auto">
       <div className="mb-1 flex items-center gap-2">
         <h1 className="text-2xl font-bold">Статистика</h1>
-        <ProductBetaBadge />
       </div>
       <p className="text-sm text-muted-foreground mb-6">
         Что приложение узнало о твоём пробуждении?
@@ -1738,7 +1722,6 @@ function StatsScreen({
           <div className="mb-3 flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-accent" />
             <p className="text-sm font-semibold">Персональный отчёт</p>
-            <ProductBetaBadge className="ml-auto" />
           </div>
           {coach.status === "ready" && coach.insight.status === "confirmation_required" ? (
             <div className="rounded-xl border border-accent/20 bg-secondary/60 p-3">
@@ -1889,7 +1872,9 @@ function StatsScreen({
           })
         ) : sortedCats.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Пройди несколько сессий, чтобы увидеть профиль.
+            {evidenceCount >= 7
+              ? `Профиль готов по ${evidenceCount} завершённым сессиям. Сравнение отдельных факторов появится после трёх пар наблюдений.`
+              : `Сохранено ${evidenceCount} завершённых сессий. Первый общий профиль появится после 7.`}
           </p>
         ) : (
           sortedCats.map(([cat, data]) => {
@@ -1935,11 +1920,16 @@ function StatsScreen({
 
       {/* Best sequence */}
       <div className="bg-card border border-border rounded-2xl p-4 mb-5">
-        <p className="text-sm font-semibold mb-3">Твой лучший протокол</p>
+        <p className="text-sm font-semibold mb-3">Текущий лидирующий протокол</p>
         {!demo && bestProtocol ? (
           <>
             <p className="text-sm font-semibold text-green-400">
               {protocolLabel(bestProtocol.key)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {bestProtocol.evidenceCount === 1
+                ? "Предварительный результат · n=1"
+                : `${CONF_LABEL[bestProtocol.confidence]} · n=${bestProtocol.evidenceCount}`}
             </p>
             {bestProtocolTasks.length > 0 && (
               <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -1993,29 +1983,6 @@ function StatsScreen({
           </p>
         )}
       </div>
-
-      {/* Chart */}
-      {(demo || analytics.status === "ready") && (
-        <div className="bg-card border border-border rounded-2xl p-4 mb-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold">Средний прирост по датам</p>
-            <span className="text-[11px] text-muted-foreground">все типы сна</span>
-          </div>
-          <LazyBoundary>
-            <Suspense
-              fallback={
-                <div
-                  className="h-36 animate-pulse rounded-xl bg-muted"
-                  role="status"
-                  aria-label="Загружаем график"
-                />
-              }
-            >
-              <DemoWakeChart data={chartData} />
-            </Suspense>
-          </LazyBoundary>
-        </div>
-      )}
 
       {!demo && apiProfile && (
         <details className="mb-5 px-1 text-xs text-muted-foreground">
@@ -2133,7 +2100,7 @@ function StatsScreen({
         )}
         {!demo &&
           history.status === "ready" &&
-          history.items.map((item, index) => {
+          (showAllHistory ? history.items : history.items.slice(0, 5)).map((item, index) => {
             const delta = item.postRating - item.baseline;
             const deltaColor =
               delta >= 4 ? "text-green-400" : delta >= 2 ? "text-yellow-300" : "text-red-400";
@@ -2221,6 +2188,15 @@ function StatsScreen({
               </details>
             );
           })}
+        {!demo && history.status === "ready" && history.items.length > 5 && (
+          <button
+            type="button"
+            onClick={() => setShowAllHistory((current) => !current)}
+            className="mt-3 min-h-11 w-full rounded-xl bg-secondary px-3 text-sm font-semibold"
+          >
+            {showAllHistory ? "Скрыть ранние сессии" : `Показать ещё ${history.items.length - 5}`}
+          </button>
+        )}
         {((demo && valid.length === 0) ||
           (!demo && history.status === "ready" && history.items.length === 0)) && (
           <p className="text-sm text-muted-foreground">Ещё нет завершённых сессий.</p>

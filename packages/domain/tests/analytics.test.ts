@@ -21,6 +21,15 @@ function evidence(
 }
 
 describe("analytics v1", () => {
+  it("publishes a preliminary protocol result after one completed session", () => {
+    const profile = computeAnalyticsProfile([evidence("s1", 2, 6)]);
+    expect(profile.protocolEffects[0]).toMatchObject({
+      value: 4,
+      evidenceCount: 1,
+      confidence: "insufficient",
+    });
+  });
+
   it("does not infer a factor effect from mixed protocols without comparison metadata", () => {
     const profile = computeAnalyticsProfile([
       evidence("s1", 2, 7),

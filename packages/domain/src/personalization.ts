@@ -30,6 +30,14 @@ const ESTIMATED_SECONDS: Record<TaskId, number> = {
 };
 
 const FALLBACK_ORDER: readonly TaskId[] = ["reaction", "stroop", "memory", "math", "shake"];
+const ACTIVE_TASK_IDS = new Set<TaskId>([
+  "steps",
+  "squats",
+  "shake",
+  "water",
+  "window",
+  "curtains",
+]);
 
 function allowed(taskId: TaskId, profile: WakeCapabilityProfile): boolean {
   if (profile.excludedTaskIds.includes(taskId)) return false;
@@ -88,6 +96,24 @@ export function personalizeAssignment(
     fallbackReason = "limited_eligible_tasks";
   } else if (eligible.length !== assignment.steps.length) {
     fallbackReason = "limited_eligible_tasks";
+  }
+
+  if (durationMinutes >= 5 && !steps.some((step) => ACTIVE_TASK_IDS.has(step.taskId))) {
+    const active = (Object.keys(ESTIMATED_SECONDS) as TaskId[])
+      .filter((taskId) => ACTIVE_TASK_IDS.has(taskId) && allowed(taskId, profile))
+      .find((taskId) => !steps.some((step) => step.taskId === taskId));
+    if (active) {
+      const category: ProtocolStep["category"] =
+        active === "steps" || active === "squats" || active === "shake"
+          ? "movement"
+          : active === "water"
+            ? "behavioral"
+            : "environment";
+      steps = fitBudget(
+        [...steps, { index: steps.length, taskId: active, category }],
+        durationMinutes,
+      );
+    }
   }
 
   const suffix = steps.map(({ taskId }) => taskId).join("-") || "safe";

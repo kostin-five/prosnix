@@ -71,6 +71,15 @@ describe("персонализация протокола", () => {
     ]);
   });
 
+  it("добавляет доступное активное действие к пяти минутам", () => {
+    const result = personalizeAssignment(
+      { ...assignment, steps: [{ index: 0, taskId: "math", category: "cognitive" }] },
+      profile,
+      5,
+    );
+    expect(result.assignment.steps.map(({ taskId }) => taskId)).toContain("steps");
+  });
+
   it("выбирает консервативный fallback без нарушения явных запретов", () => {
     const result = personalizeAssignment(
       { ...assignment, steps: [{ index: 0, taskId: "squats", category: "movement" }] },

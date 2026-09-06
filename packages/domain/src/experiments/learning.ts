@@ -5,6 +5,8 @@ export type PlannedAssignment = Omit<ExperimentAssignment, "id">;
 const CORE: readonly ProtocolStep[] = [
   { index: 0, taskId: "math", category: "cognitive" },
   { index: 1, taskId: "memory", category: "cognitive" },
+  { index: 2, taskId: "stroop", category: "cognitive" },
+  { index: 3, taskId: "reaction", category: "cognitive" },
 ];
 
 function plan(
