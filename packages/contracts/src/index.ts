@@ -140,8 +140,15 @@ export type BotStatus = Static<typeof BotStatusSchema>;
 export type WakeScheduleInput = Static<typeof WakeScheduleInputSchema>;
 export type WakeScheduleResponse = Static<typeof WakeScheduleSchema>;
 
+export const CoachInsightRequestSchema = Type.Object(
+  { confirmEarly: Type.Optional(Type.Boolean()) },
+  { additionalProperties: false },
+);
+
+export type CoachInsightRequest = Static<typeof CoachInsightRequestSchema>;
+
 export interface CoachInsightResponse {
-  status: "ready" | "insufficient" | "unavailable";
+  status: "ready" | "confirmation_required" | "unavailable";
   evidenceCount: number;
   cached: boolean;
   source: "provider" | "cache" | "fallback";

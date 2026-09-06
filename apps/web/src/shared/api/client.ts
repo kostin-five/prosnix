@@ -141,7 +141,7 @@ export interface AnalyticsProfileResponse {
 }
 
 export interface CoachInsightResponse {
-  status: "ready" | "insufficient" | "unavailable";
+  status: "ready" | "confirmation_required" | "unavailable";
   evidenceCount: number;
   cached: boolean;
   source: "provider" | "cache" | "fallback";
@@ -215,9 +215,14 @@ export async function loadAnalyticsProfile(): Promise<AnalyticsProfileResponse> 
   return (await response.json()) as AnalyticsProfileResponse;
 }
 
-export async function loadCoachInsight(): Promise<CoachInsightResponse> {
+export async function loadCoachInsight(confirmEarly = false): Promise<CoachInsightResponse> {
   const response = await expectSuccess(
-    await fetch("/api/v1/coach/insight", { method: "POST", credentials: "same-origin" }),
+    await fetch("/api/v1/coach/insight", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ confirmEarly }),
+    }),
   );
   return (await response.json()) as CoachInsightResponse;
 }

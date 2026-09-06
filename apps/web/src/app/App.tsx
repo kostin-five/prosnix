@@ -57,8 +57,14 @@ import {
   type DifficultyLevel,
 } from "../features/tasks/task-engine.js";
 import { LazyBoundary } from "./lazy-boundary.js";
+import { ProsnixBrand, ProductBetaBadge } from "../features/brand/prosnix-brand.js";
 
 const DemoWakeChart = lazy(() => import("../features/analytics/demo-wake-chart.js"));
+const HomeWakeChart = lazy(() =>
+  import("../features/analytics/home-wake-chart.js").then((module) => ({
+    default: module.HomeWakeChart,
+  })),
+);
 const SettingsScreen = lazy(() =>
   import("../features/settings/settings-screen.js").then((module) => ({
     default: module.SettingsScreen,
@@ -1061,31 +1067,38 @@ function HomeScreen({
     ? sessions.slice(-7).map((session) => ({
         key: session.id,
         label: session.date.split(" ")[0] ?? session.date,
-        delta: session.endAlertness - session.startAlertness,
+        value: session.endAlertness - session.startAlertness,
+        evidenceCount: 1,
       }))
-    : serverItems
-        .slice(0, 7)
-        .reverse()
-        .map((session) => ({
-          key: session.id,
-          label: new Date(session.completedAt).toLocaleDateString("ru-RU", { day: "numeric" }),
-          delta: session.postRating - session.baseline,
-        }));
+    : (apiProfile?.dailyTrend ?? []).slice(-7).map((point) => ({
+        key: point.localDate,
+        label: new Date(`${point.localDate}T12:00:00`).toLocaleDateString("ru-RU", {
+          day: "numeric",
+          month: "short",
+        }),
+        value: point.averageDelta,
+        evidenceCount: point.evidenceCount,
+      }));
   const isLearning = experimentCount < 7;
   const lp = Math.min(experimentCount, 7);
 
   return (
     <div className="flex flex-col flex-1 px-5 pt-14 pb-28 overflow-y-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-bold">Prosnix</h1>
-          <p className="text-sm text-muted-foreground">Помогает прийти в себя после любого сна</p>
+      <div className="mb-6">
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <ProsnixBrand />
+          <div
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1.5"
+            aria-label={`Завершено сессий: ${experimentCount}`}
+          >
+            <Flame className="h-4 w-4 text-primary" />
+            <span className="text-sm font-bold">{experimentCount}</span>
+            <span className="hidden text-xs text-muted-foreground min-[350px]:inline">сессий</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 bg-card border border-border rounded-full px-3 py-1.5">
-          <Flame className="w-4 h-4 text-primary" />
-          <span className="text-sm font-bold">{experimentCount}</span>
-          <span className="text-xs text-muted-foreground">сессий</span>
-        </div>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Помогает прийти в себя после любого сна
+        </p>
       </div>
 
       {/* Learning status */}
@@ -1124,7 +1137,9 @@ function HomeScreen({
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="text-xs text-muted-foreground mb-1">Средний прирост</p>
           <div className="flex items-end gap-1">
-            <span className="text-3xl font-extrabold">{avgGain === "—" ? "—" : `+${avgGain}`}</span>
+            <span className="text-3xl font-extrabold">
+              {avgGain === "—" ? "—" : `${(averageValue ?? 0) >= 0 ? "+" : ""}${avgGain}`}
+            </span>
             {experimentCount > 0 && (
               <span className="text-muted-foreground text-sm mb-0.5">балла</span>
             )}
@@ -1140,30 +1155,35 @@ function HomeScreen({
       </div>
 
       {/* Mini chart */}
-      {chartItems.length > 0 && (
-        <div className="bg-card border border-border rounded-2xl p-4 mb-6">
-          <p className="text-sm font-semibold mb-3">Прирост бодрости по дням</p>
-          <div className="flex items-end gap-1.5 h-14">
-            {chartItems.map((item) => {
-              const pct = Math.max(4, (Math.max(0, item.delta) / 8) * 100);
-              const color =
-                item.delta >= 5
-                  ? "bg-green-500/70"
-                  : item.delta >= 3
-                    ? "bg-primary/70"
-                    : item.delta >= 0
-                      ? "bg-yellow-500/50"
-                      : "bg-muted";
-              return (
-                <div key={item.key} className="flex-1 flex flex-col items-center gap-1">
-                  <div className={`w-full rounded-sm ${color}`} style={{ height: `${pct}%` }} />
-                  <span className="text-xs text-muted-foreground">{item.label}</span>
-                </div>
-              );
-            })}
-          </div>
+      <div className="mb-6 rounded-2xl border border-border bg-card p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold">Прирост бодрости по дням</p>
+          <span className="text-[10px] text-muted-foreground">среднее за день</span>
         </div>
-      )}
+        {!demo && analytics.status === "loading" ? (
+          <div
+            className="h-28 animate-pulse rounded-xl bg-secondary/50"
+            aria-label="Загружаем график"
+          />
+        ) : !demo && analytics.status === "error" ? (
+          <p className="rounded-xl bg-secondary/50 p-3 text-xs text-muted-foreground">
+            Динамика временно не загрузилась. Остальные данные пробуждений сохранены.
+          </p>
+        ) : (
+          <LazyBoundary>
+            <Suspense
+              fallback={
+                <div
+                  className="h-28 animate-pulse rounded-xl bg-secondary/50"
+                  aria-label="Загружаем график"
+                />
+              }
+            >
+              <HomeWakeChart data={chartItems} />
+            </Suspense>
+          </LazyBoundary>
+        )}
+      </div>
 
       <button
         onClick={onStart}
@@ -1594,7 +1614,7 @@ function StatsScreen({
   routine: WakeRoutine;
 }) {
   const analytics = useAnalyticsProfile(!demo);
-  const { state: coach, requestInsight } = useCoachInsight(!demo);
+  const { state: coach, requestInsight, resetInsight } = useCoachInsight(!demo);
   const history = useSessionHistory(!demo);
   const [openHistoryIds, setOpenHistoryIds] = useState<Set<string>>(() => new Set());
   const apiProfile = analytics.status === "ready" ? analytics.profile : null;
@@ -1681,7 +1701,10 @@ function StatsScreen({
 
   return (
     <div className="flex flex-col flex-1 px-5 pt-14 pb-28 overflow-y-auto">
-      <h1 className="text-2xl font-bold mb-1">Статистика</h1>
+      <div className="mb-1 flex items-center gap-2">
+        <h1 className="text-2xl font-bold">Статистика</h1>
+        <ProductBetaBadge />
+      </div>
       <p className="text-sm text-muted-foreground mb-6">
         Что приложение узнало о твоём пробуждении?
       </p>
@@ -1714,30 +1737,60 @@ function StatsScreen({
         <section className="mb-5 rounded-2xl border border-accent/25 bg-card p-4">
           <div className="mb-3 flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-accent" />
-            <p className="text-sm font-semibold">AI-наставник</p>
+            <p className="text-sm font-semibold">Персональный отчёт</p>
+            <ProductBetaBadge className="ml-auto" />
           </div>
-          {coach.status === "idle" ? (
+          {coach.status === "ready" && coach.insight.status === "confirmation_required" ? (
+            <div className="rounded-xl border border-accent/20 bg-secondary/60 p-3">
+              <p className="text-sm font-semibold">Пока мало данных для устойчивого вывода</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Сохранено {evidenceCount} из 3 рекомендуемых пробуждений. Можно подождать следующую
+                сессию или потратить сегодняшний отчёт сейчас — он будет предварительным.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={resetInsight}
+                  className="min-h-11 flex-1 rounded-xl bg-secondary px-3 text-sm font-semibold"
+                >
+                  Подождать
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void requestInsight(true);
+                  }}
+                  className="min-h-11 flex-1 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground"
+                >
+                  Создать всё равно
+                </button>
+              </div>
+            </div>
+          ) : coach.status === "idle" ? (
             <>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                AI по запросу объяснит уже рассчитанные показатели. Доступен один новый бесплатный
-                разбор в день; открытие статистики запрос не расходует.
+                Отчёт найдёт устойчивость результата, сравнит доступные протоколы и предложит один
+                следующий эксперимент. Доступен один новый бесплатный отчёт в день.
               </p>
               <button
                 type="button"
                 onClick={() => void requestInsight()}
                 className="mt-3 min-h-11 w-full rounded-xl bg-primary font-semibold text-primary-foreground"
               >
-                Получить AI-разбор
+                Создать персональный отчёт
               </button>
             </>
           ) : coach.status === "loading" ? (
-            <p className="text-sm text-muted-foreground">Готовим объяснение показателей…</p>
+            <p className="text-sm text-muted-foreground">Ищем закономерности в твоих данных…</p>
           ) : coach.status === "error" ? (
             <p className="text-sm text-muted-foreground">{coach.message}</p>
           ) : coach.status === "ready" ? (
             coach.insight.insight ? (
               <>
-                <p className="text-sm leading-relaxed">{coach.insight.insight.summary}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+                  Что удалось заметить
+                </p>
+                <p className="mt-1 text-sm leading-relaxed">{coach.insight.insight.summary}</p>
                 <div className="mt-3 rounded-xl bg-secondary/60 p-3">
                   <p className="text-xs font-semibold text-accent">Следующий эксперимент</p>
                   <p className="mt-1 text-sm">{coach.insight.insight.nextExperiment}</p>
@@ -1749,10 +1802,10 @@ function StatsScreen({
                   {CONF_LABEL[coach.insight.insight.confidence]} · {coach.insight.evidenceCount}{" "}
                   подтверждённых сессий ·{" "}
                   {coach.insight.source === "provider"
-                    ? "Новый AI-разбор"
+                    ? "Новый персональный отчёт"
                     : coach.insight.source === "cache"
-                      ? "Сохранённый разбор"
-                      : "Безопасное объяснение без AI"}
+                      ? "Сохранённый отчёт"
+                      : "Базовый расчёт по данным"}
                 </p>
                 {coach.insight.limitReached && (
                   <p className="mt-2 text-xs text-muted-foreground">
@@ -1768,11 +1821,7 @@ function StatsScreen({
                 )}
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                {coach.insight.status === "insufficient"
-                  ? `Нужно минимум 3 завершённые сессии. Сейчас: ${coach.insight.evidenceCount}.`
-                  : "DeepSeek временно недоступен. Исходные показатели продолжают считаться без AI."}
-              </p>
+              <p className="text-sm text-muted-foreground">Отчёт пока недоступен.</p>
             )
           ) : null}
         </section>

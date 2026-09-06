@@ -5,7 +5,7 @@ import { createApp } from "../../src/app/create-app.js";
 import { authenticateTestUser, createMemoryDependencies, testConfig, testNow } from "../helpers.js";
 
 describe("coach insight contract", () => {
-  it("requires auth and returns insufficient without provider", async () => {
+  it("requires auth and asks for confirmation without calling provider", async () => {
     const dependencies = createMemoryDependencies();
     const profile: AnalyticsProfile = {
       methodVersion: "analytics-v1",
@@ -46,6 +46,7 @@ describe("coach insight contract", () => {
       method: "POST",
       url: "/api/v1/coach/insight",
       headers: { cookie },
+      payload: { confirmEarly: false },
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
@@ -54,14 +55,28 @@ describe("coach insight contract", () => {
       refreshAvailableAt: expect.any(String),
     });
     expect(response.json()).toMatchObject({
-      status: "insufficient",
+      status: "confirmation_required",
       evidenceCount: 2,
       cached: false,
-      insight: {
-        confidence: "insufficient",
-        nextExperiment: expect.any(String),
-      },
+      insight: null,
     });
+
+    const confirmed = await app.inject({
+      method: "POST",
+      url: "/api/v1/coach/insight",
+      headers: { cookie },
+      payload: { confirmEarly: true },
+    });
+    expect(confirmed.statusCode).toBe(200);
+    expect(confirmed.json()).toMatchObject({ status: "unavailable", evidenceCount: 2 });
+
+    const invalid = await app.inject({
+      method: "POST",
+      url: "/api/v1/coach/insight",
+      headers: { cookie },
+      payload: { confirmEarly: true, unexpected: true },
+    });
+    expect(invalid.statusCode).toBe(400);
     await app.close();
   });
 });

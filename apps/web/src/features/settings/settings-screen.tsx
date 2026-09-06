@@ -7,6 +7,7 @@ import { ProCard } from "../billing/pro-card.js";
 import { CapabilityProfileCard } from "../personalization/capability-profile-card.js";
 import { WakeRoutineCard } from "../personalization/wake-routine-card.js";
 import type { WakeProfile, WakeRoutine } from "../../shared/api/client.js";
+import { ProductBetaBadge } from "../brand/prosnix-brand.js";
 
 export function SettingsScreen({
   alarmTime,
@@ -40,7 +41,10 @@ export function SettingsScreen({
       <div className="mb-6 flex items-center gap-3">
         <Settings2 className="h-6 w-6 text-primary" />
         <div>
-          <h1 className="text-2xl font-bold">Настройки</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Настройки</h1>
+            <ProductBetaBadge />
+          </div>
           <p className="text-sm text-muted-foreground">Напоминания и данные профиля</p>
         </div>
       </div>
@@ -68,12 +72,12 @@ export function SettingsScreen({
       <section className="mb-4 rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-accent" />
-          <p className="text-sm font-semibold">AI-разбор результатов</p>
+          <p className="text-sm font-semibold">Персональный отчёт Beta</p>
         </div>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          Это необязательное объяснение по кнопке в статистике. AI не оценивает задания, не меняет
-          сохранённые ответы и не управляет протоколом. Бесплатно создаётся один новый разбор в
-          день; повторное открытие показывает сохранённый результат.
+          Он по твоему запросу ищет устойчивость результата, сравнивает доступные протоколы и
+          предлагает следующий эксперимент. Отчёт не меняет оценки и не управляет протоколом.
+          Бесплатно создаётся один новый отчёт в день; повторное открытие показывает сохранённый.
         </p>
       </section>
 

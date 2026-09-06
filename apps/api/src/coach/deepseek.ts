@@ -11,6 +11,11 @@ export interface CoachAggregatePayload {
   riseSuccess: CoachAggregateMetric;
   protocolEffects: CoachAggregateMetric[];
   factorEffects: CoachAggregateMetric[];
+  trendSignals: {
+    observedDays: number;
+    recentDirection: "improving" | "stable" | "declining" | "unknown";
+    variability: number | null;
+  };
 }
 
 export interface GeneratedCoachInsight {
@@ -38,7 +43,7 @@ function validatedContent(value: unknown): Omit<GeneratedCoachInsight, "model"> 
   if (Object.keys(record).some((key) => !allowed.includes(key))) {
     throw new Error("DeepSeek returned unsupported fields");
   }
-  const limits = { summary: 400, nextExperiment: 300, caveat: 300 } as const;
+  const limits = { summary: 600, nextExperiment: 350, caveat: 350 } as const;
   const result = {} as Record<keyof typeof limits, string>;
   for (const key of allowed as Array<keyof typeof limits>) {
     const text = record[key];
@@ -46,6 +51,9 @@ function validatedContent(value: unknown): Omit<GeneratedCoachInsight, "model"> 
       throw new Error(`DeepSeek returned invalid ${key}`);
     }
     result[key] = text.trim();
+  }
+  if (/средн[а-яё]*\s+прирост[а-яё]*\s+бодрост/i.test(result.summary)) {
+    throw new Error("DeepSeek repeated an already visible average metric");
   }
   return result;
 }
@@ -73,13 +81,13 @@ export class DeepSeekCoachGateway implements CoachGateway {
       body: JSON.stringify({
         model: this.options.model,
         stream: false,
-        max_tokens: 450,
+        max_tokens: 650,
         response_format: { type: "json_object" },
         messages: [
           {
             role: "system",
             content:
-              'Ты AI Wake Coach. Анализируй только переданные агрегаты. Не ставь диагнозы, не выдумывай причинность и не упоминай внутренние ключи. Верни только JSON вида {"summary":"...","nextExperiment":"...","caveat":"..."}. Пиши кратко по-русски.',
+              'Ты персональный аналитик пробуждения Prosnix. Анализируй только переданные обезличенные агрегаты. В summary опиши новые закономерности: устойчивость результата по дням, долю сохранённых подъёмов через 15 минут, сильные и слабые сопоставимые сигналы. Не пересказывай средний прирост бодрости как основной вывод: это число уже показано отдельно. В nextExperiment предложи один конкретный контролируемый эксперимент и объясни, что он проверит. В caveat честно укажи размер и ограничения выборки. Не ставь диагнозы, не давай медицинских обещаний, не выдумывай причинность и не упоминай внутренние ключи или техническую инфраструктуру. Верни только JSON вида {"summary":"...","nextExperiment":"...","caveat":"..."}. Пиши ясным русским языком, содержательно и без лишнего вступления.',
           },
           {
             role: "user",

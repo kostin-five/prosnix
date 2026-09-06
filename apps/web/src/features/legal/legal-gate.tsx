@@ -35,7 +35,9 @@ export function LegalGate({
     <main className="flex min-h-screen items-center justify-center bg-background p-5 text-foreground">
       <section className="w-full max-w-sm rounded-3xl border border-border bg-card p-6">
         <ShieldCheck className="h-9 w-9 text-primary" />
-        <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-primary">Prosnix</p>
+        <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-primary">
+          Prosnix Beta
+        </p>
         <h1 className="mt-1 text-2xl font-bold">Сначала — прозрачные правила</h1>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           Мы сохраняем Telegram ID, оценки бодрости, выполнение протоколов и ответы через 15 минут,

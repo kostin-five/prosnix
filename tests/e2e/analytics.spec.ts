@@ -132,6 +132,10 @@ test("профиль показывает только воспроизводи�
   );
 
   await page.goto("/");
+  await expect(page.getByLabel("Prosnix Beta")).toBeVisible();
+  await expect(page.getByLabel("Прирост бодрости по дням")).toBeVisible();
+  await expect(page.getByText("+4.0", { exact: true })).toBeVisible();
+  await expect(page.getByText("n=1").first()).toBeVisible();
   await page.getByRole("button", { name: "Статистика" }).click();
 
   await expect(page.getByText("+3.5", { exact: true })).toBeVisible();
@@ -151,10 +155,94 @@ test("профиль показывает только воспроизводи�
   await page.getByText("Справка об аналитике").click();
   await expect(page.getByText(/Прирост — разница оценок после/)).toBeVisible();
   await expect(page.getByText(/Сессия s1/)).toHaveCount(0);
-  await expect(page.getByText("AI-наставник")).toBeVisible();
-  await expect(page.getByText(/один новый бесплатный разбор в день/)).toBeVisible();
+  await expect(page.getByText("Персональный отчёт", { exact: true })).toBeVisible();
+  await expect(page.getByText(/один новый бесплатный отчёт в день/)).toBeVisible();
   expect(coachRequests).toBe(0);
-  await page.getByRole("button", { name: "Получить AI-разбор" }).click();
+  await page.getByRole("button", { name: "Создать персональный отчёт" }).click();
   await expect(page.getByText(/Движение даёт наиболее устойчивый/)).toBeVisible();
   expect(coachRequests).toBe(1);
+});
+
+test("ранний отчёт требует явного подтверждения и header помещается на 320 px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await openTelegramApp(page);
+  await page.route("**/api/v1/analytics/profile", (route) =>
+    json(route, {
+      methodVersion: "analytics-v1",
+      computedAt: "2026-09-06T08:00:00.000Z",
+      averageDelta: {
+        key: "average-delta",
+        value: 1.5,
+        evidenceCount: 2,
+        evidenceIds: ["s1", "s2"],
+        confidence: "insufficient",
+      },
+      riseSuccess: {
+        key: "rise-success",
+        value: 0.5,
+        evidenceCount: 2,
+        evidenceIds: ["s1", "s2"],
+        confidence: "insufficient",
+      },
+      protocolEffects: [],
+      factorEffects: [],
+      dailyTrend: [
+        { localDate: "2026-09-06", averageDelta: 1.5, evidenceCount: 2, sessionIds: ["s1", "s2"] },
+      ],
+    }),
+  );
+  await page.route("**/api/v1/sessions/history?limit=10", (route) => json(route, { sessions: [] }));
+  let endpointRequests = 0;
+  let confirmedRequests = 0;
+  await page.route("**/api/v1/coach/insight", async (route) => {
+    endpointRequests += 1;
+    const body = route.request().postDataJSON() as { confirmEarly?: boolean };
+    if (!body.confirmEarly) {
+      return json(route, {
+        status: "confirmation_required",
+        evidenceCount: 2,
+        cached: false,
+        source: "fallback",
+        limitReached: false,
+        refreshAvailableAt: "2026-09-06T21:00:00.000Z",
+        insight: null,
+      });
+    }
+    confirmedRequests += 1;
+    return json(route, {
+      status: "ready",
+      evidenceCount: 2,
+      cached: false,
+      source: "provider",
+      limitReached: true,
+      refreshAvailableAt: "2026-09-06T21:00:00.000Z",
+      insight: {
+        summary:
+          "Результат пока меняется между сессиями, но проверка подъёма уже даёт первый сигнал.",
+        nextExperiment: "Повтори назначенный протокол и ответь на проверку через 15 минут.",
+        caveat: "Вывод предварительный и основан на двух сессиях.",
+        confidence: "insufficient",
+        generatedAt: "2026-09-06T08:00:00.000Z",
+      },
+    });
+  });
+
+  await page.goto("/");
+  const brand = await page.getByLabel("Prosnix Beta").boundingBox();
+  const counter = await page.getByLabel("Завершено сессий: 2").boundingBox();
+  expect(brand).not.toBeNull();
+  expect(counter).not.toBeNull();
+  expect(brand!.x + brand!.width).toBeLessThanOrEqual(counter!.x);
+
+  await page.getByRole("button", { name: "Статистика" }).click();
+  await page.getByRole("button", { name: "Создать персональный отчёт" }).click();
+  await expect(page.getByText("Пока мало данных для устойчивого вывода")).toBeVisible();
+  expect(endpointRequests).toBe(1);
+  expect(confirmedRequests).toBe(0);
+  await page.getByRole("button", { name: "Создать всё равно" }).click();
+  await expect(page.getByText("Что удалось заметить")).toBeVisible();
+  expect(endpointRequests).toBe(2);
+  expect(confirmedRequests).toBe(1);
 });

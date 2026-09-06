@@ -8,6 +8,7 @@ const payload: CoachAggregatePayload = {
   riseSuccess: { key: "rise-success", value: 0.75, evidenceCount: 4, confidence: "low" },
   protocolEffects: [],
   factorEffects: [],
+  trendSignals: { observedDays: 3, recentDirection: "improving", variability: 0.8 },
 };
 
 describe("DeepSeek coach gateway", () => {
@@ -21,8 +22,8 @@ describe("DeepSeek coach gateway", () => {
           {
             message: {
               content: JSON.stringify({
-                summary: "Средний прирост бодрости — 3 балла.",
-                nextExperiment: "Повтори текущий протокол ещё два раза.",
+                summary: "Подъём удерживается чаще, а дневные результаты становятся стабильнее.",
+                nextExperiment: "Повтори текущий протокол ещё два раза и ответь через 15 минут.",
                 caveat: "Вывод основан на четырёх сессиях.",
               }),
             },
@@ -39,12 +40,14 @@ describe("DeepSeek coach gateway", () => {
     });
 
     await expect(gateway.generate(payload)).resolves.toMatchObject({
-      summary: "Средний прирост бодрости — 3 балла.",
+      summary: "Подъём удерживается чаще, а дневные результаты становятся стабильнее.",
       model: "deepseek-v4-flash",
     });
     const sent = JSON.parse(String(request?.body)) as { messages: Array<{ content: string }> };
     expect(JSON.stringify(sent)).not.toMatch(/[0-9a-f]{8}-[0-9a-f-]{27}/i);
     expect(sent.messages[1]?.content).toContain("average-delta");
+    expect(sent.messages[1]?.content).toContain("recentDirection");
+    expect(sent.messages[0]?.content).toContain("Не пересказывай средний прирост");
   });
 
   it("rejects untrusted fields", async () => {
@@ -72,5 +75,31 @@ describe("DeepSeek coach gateway", () => {
       fetcher,
     });
     await expect(gateway.generate(payload)).rejects.toThrow("unsupported fields");
+  });
+
+  it("rejects a report that spends its main conclusion on the visible average", async () => {
+    const fetcher = vi.fn(async () =>
+      Response.json({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                summary: "Средний прирост бодрости составил три балла.",
+                nextExperiment: "Повтори протокол.",
+                caveat: "Выборка небольшая.",
+              }),
+            },
+          },
+        ],
+      }),
+    ) as unknown as typeof fetch;
+    const gateway = new DeepSeekCoachGateway({
+      apiKey: "secret",
+      baseUrl: "https://api.deepseek.com",
+      model: "deepseek-v4-flash",
+      timeoutMs: 1_000,
+      fetcher,
+    });
+    await expect(gateway.generate(payload)).rejects.toThrow("already visible average");
   });
 });

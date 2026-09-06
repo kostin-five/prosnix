@@ -19,12 +19,36 @@ function safeMetric(metric: Metric): CoachAggregateMetric {
 }
 
 export function coachPayload(profile: AnalyticsProfile): CoachAggregatePayload {
+  const points = profile.dailyTrend ?? [];
+  const values = points.map(({ averageDelta }) => averageDelta);
+  const center =
+    values.length === 0 ? null : values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variability =
+    center === null
+      ? null
+      : Math.round(
+          (values.reduce((sum, value) => sum + Math.abs(value - center), 0) / values.length) * 10,
+        ) / 10;
+  const change = values.length >= 2 ? values.at(-1)! - values[0]! : null;
+  const recentDirection =
+    change === null
+      ? "unknown"
+      : change > 0.5
+        ? "improving"
+        : change < -0.5
+          ? "declining"
+          : "stable";
   return {
     methodVersion: profile.methodVersion,
     averageDelta: safeMetric(profile.averageDelta),
     riseSuccess: safeMetric(profile.riseSuccess),
     protocolEffects: profile.protocolEffects.map(safeMetric),
     factorEffects: profile.factorEffects.map(safeMetric),
+    trendSignals: {
+      observedDays: points.length,
+      recentDirection,
+      variability,
+    },
   };
 }
 
@@ -88,34 +112,43 @@ function nextLocalMidnight(date: Date, timezone: string): string {
 
 function deterministicFallback(
   profile: AnalyticsProfile,
-  status: "insufficient" | "unavailable",
   now: Date,
   refreshAvailableAt: string,
   limitReached = false,
 ): CoachInsightResponse {
   const evidenceCount = profile.averageDelta.evidenceCount;
-  const average = profile.averageDelta.value;
-  const summary =
-    average === null
-      ? `Сохранено ${evidenceCount} из 3 пробуждений, необходимых для первого персонального вывода.`
-      : `По ${evidenceCount} подтверждённым сессиям средний прирост бодрости — ${average >= 0 ? "+" : ""}${average.toFixed(1)} балла.`;
+  const signals = coachPayload(profile).trendSignals;
+  const rise = profile.riseSuccess.value;
+  const stability =
+    rise === null
+      ? "Проверок через 15 минут пока недостаточно, чтобы оценить устойчивость подъёма."
+      : `Через 15 минут подъём сохранялся в ${Math.round(rise * 100)}% отвеченных проверок.`;
+  const direction =
+    signals.recentDirection === "improving"
+      ? "Последние дневные результаты улучшаются."
+      : signals.recentDirection === "declining"
+        ? "Последние дневные результаты слабее первых; стоит проверить условия пробуждения."
+        : signals.recentDirection === "stable"
+          ? "Дневные результаты пока остаются примерно на одном уровне."
+          : "Для оценки динамики нужны результаты хотя бы за два дня.";
+  const spread =
+    signals.variability === null
+      ? ""
+      : signals.variability <= 0.75
+        ? " Результат между днями достаточно ровный."
+        : ` Разброс между днями заметный (${signals.variability.toFixed(1)} балла), поэтому вывод пока нестабилен.`;
   return {
-    status,
+    status: "unavailable",
     evidenceCount,
     cached: false,
     source: "fallback",
     limitReached,
     refreshAvailableAt,
     insight: {
-      summary,
+      summary: `${stability} ${direction}${spread}`,
       nextExperiment:
-        evidenceCount < 3
-          ? "Пройди следующий назначенный протокол полностью и оцени бодрость до и после."
-          : "Продолжи следующий назначенный протокол: приложение сохранит результат и уточнит вывод.",
-      caveat:
-        status === "unavailable"
-          ? "DeepSeek временно недоступен, поэтому показан воспроизводимый вывод без AI."
-          : "Данных пока недостаточно для сравнения протоколов; это описание прогресса, а не закономерность.",
+        "В следующей сессии пройди назначенный протокол полностью и ответь на проверку через 15 минут. Так мы сравним не только мгновенную бодрость, но и устойчивость результата.",
+      caveat: `Базовый отчёт основан на ${evidenceCount} ${evidenceCount === 1 ? "сессии" : "сессиях"}. Это предварительные наблюдения, а не доказанная причина или медицинский вывод.`,
       confidence: profile.averageDelta.confidence,
       generatedAt: now.toISOString(),
     },
@@ -131,27 +164,33 @@ export class CoachService {
     private readonly gateway: CoachGateway | null,
   ) {}
 
-  async getInsight(userId: string, now = new Date()): Promise<CoachInsightResponse> {
-    const existing = this.inFlightByUser.get(userId);
+  async getInsight(
+    userId: string,
+    now = new Date(),
+    options: { confirmEarly?: boolean } = {},
+  ): Promise<CoachInsightResponse> {
+    const inFlightKey = `${userId}:${options.confirmEarly === true ? "confirmed" : "standard"}`;
+    const existing = this.inFlightByUser.get(inFlightKey);
     if (existing) return existing;
 
-    const request = this.computeInsight(userId, now);
-    this.inFlightByUser.set(userId, request);
+    const request = this.computeInsight(userId, now, options.confirmEarly === true);
+    this.inFlightByUser.set(inFlightKey, request);
     try {
       return await request;
     } finally {
-      if (this.inFlightByUser.get(userId) === request) this.inFlightByUser.delete(userId);
+      if (this.inFlightByUser.get(inFlightKey) === request) this.inFlightByUser.delete(inFlightKey);
     }
   }
 
-  private async computeInsight(userId: string, now: Date): Promise<CoachInsightResponse> {
+  private async computeInsight(
+    userId: string,
+    now: Date,
+    confirmEarly: boolean,
+  ): Promise<CoachInsightResponse> {
     const timezone = safeTimezone((await this.cache.findTimezoneByUserId?.(userId)) ?? "UTC");
     const refreshAvailableAt = nextLocalMidnight(now, timezone);
     const profile = await this.analytics.recompute(userId, now);
     const evidenceCount = profile.averageDelta.evidenceCount;
-    if (evidenceCount < 3) {
-      return deterministicFallback(profile, "insufficient", now, refreshAvailableAt);
-    }
     const payload = coachPayload(profile);
     const evidenceFingerprint = fingerprint(payload);
     const cached = await this.cache.findByUserId(userId);
@@ -191,8 +230,19 @@ export class CoachService {
         },
       };
     }
+    if (evidenceCount < 3 && !confirmEarly) {
+      return {
+        status: "confirmation_required",
+        evidenceCount,
+        cached: false,
+        source: "fallback",
+        limitReached: false,
+        refreshAvailableAt,
+        insight: null,
+      };
+    }
     if (!this.gateway) {
-      return deterministicFallback(profile, "unavailable", now, refreshAvailableAt);
+      return deterministicFallback(profile, now, refreshAvailableAt);
     }
     try {
       const generated = await this.gateway.generate(payload);
@@ -225,7 +275,7 @@ export class CoachService {
         },
       };
     } catch {
-      const fallback = deterministicFallback(profile, "unavailable", now, refreshAvailableAt, true);
+      const fallback = deterministicFallback(profile, now, refreshAvailableAt, true);
       if (fallback.insight) {
         await this.cache.save(
           {

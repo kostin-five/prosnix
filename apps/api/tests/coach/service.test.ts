@@ -29,6 +29,12 @@ function profile(evidenceCount: number): AnalyticsProfile {
     },
     protocolEffects: [],
     factorEffects: [],
+    dailyTrend: Array.from({ length: Math.min(evidenceCount, 3) }, (_, index) => ({
+      localDate: `2026-09-0${index + 1}`,
+      averageDelta: index + 1,
+      evidenceCount: 1,
+      sessionIds: [`session-${index}`],
+    })),
   };
 }
 
@@ -54,17 +60,41 @@ function setup(evidenceCount: number) {
 }
 
 describe("CoachService", () => {
-  it("does not call AI with insufficient evidence", async () => {
+  it("asks for confirmation and does not call AI with insufficient evidence", async () => {
     const { service, gateway } = setup(2);
     await expect(service.getInsight("user-1")).resolves.toMatchObject({
-      status: "insufficient",
+      status: "confirmation_required",
       evidenceCount: 2,
-      insight: {
-        confidence: "insufficient",
-        nextExperiment: expect.any(String),
-      },
+      insight: null,
     });
     expect(gateway.generate).not.toHaveBeenCalled();
+  });
+
+  it("creates one preliminary report after explicit early confirmation", async () => {
+    const { service, gateway } = setup(2);
+    await expect(
+      service.getInsight("user-1", new Date("2026-09-05T08:00:00.000Z"), {
+        confirmEarly: true,
+      }),
+    ).resolves.toMatchObject({ status: "ready", evidenceCount: 2, source: "provider" });
+    expect(gateway.generate).toHaveBeenCalledOnce();
+  });
+
+  it("returns a cached preliminary report without asking for confirmation again", async () => {
+    const { service, gateway } = setup(2);
+    const now = new Date("2026-09-05T08:00:00.000Z");
+
+    await expect(service.getInsight("user-1", now, { confirmEarly: true })).resolves.toMatchObject({
+      status: "ready",
+      cached: false,
+      source: "provider",
+    });
+    await expect(service.getInsight("user-1", now)).resolves.toMatchObject({
+      status: "ready",
+      cached: true,
+      source: "cache",
+    });
+    expect(gateway.generate).toHaveBeenCalledOnce();
   });
 
   it("caches an insight by aggregate fingerprint", async () => {
@@ -87,13 +117,25 @@ describe("CoachService", () => {
     await expect(service.getInsight("user-1")).resolves.toMatchObject({
       status: "unavailable",
       insight: {
-        summary: expect.stringContaining("По 4 подтверждённым сессиям"),
+        summary: expect.stringContaining("Через 15 минут"),
         nextExperiment: expect.any(String),
-        caveat: expect.stringContaining("DeepSeek"),
+        caveat: expect.stringContaining("Базовый отчёт"),
       },
     });
     await service.getInsight("user-1", new Date("2026-09-05T10:00:00.000Z"));
     expect(gateway.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes evidence ids and derives stable trend signals", async () => {
+    const { service, gateway } = setup(4);
+    await service.getInsight("user-1");
+    const payload = gateway.generate.mock.calls[0]?.[0];
+    expect(payload?.trendSignals).toEqual({
+      observedDays: 3,
+      recentDirection: "improving",
+      variability: 0.7,
+    });
+    expect(JSON.stringify(payload)).not.toContain("session-0");
   });
 
   it("does not call the provider twice in one local day when evidence changes", async () => {
