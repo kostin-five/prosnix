@@ -13,6 +13,10 @@ Prosnix — Telegram Mini App для персональных экспериме
 3. [`docs/architecture.md`](docs/architecture.md) — фактическое устройство;
 4. актуальную спецификацию в `specs/`, если изменение относится к feature.
 
+Для подключения нового AI-чата используйте готовый
+[`docs/handoffs/NEW_CHAT_PROMPT.md`](docs/handoffs/NEW_CHAT_PROMPT.md). Он не заменяет документы
+выше: агент обязан прочитать их и сначала выполнить только read-only аудит.
+
 ## Карта репозитория
 
 - `apps/web` — React/Vite Mini App и публичные страницы;

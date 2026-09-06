@@ -11,6 +11,9 @@
 Перед работой прочитайте [`../../AGENTS.md`](../../AGENTS.md) и
 [`CURRENT.md`](CURRENT.md).
 
+Для нового AI-чата скопируйте [`NEW_CHAT_PROMPT.md`](NEW_CHAT_PROMPT.md). Первый ответ нового агента
+должен быть read-only аудитом; до подтверждения владельца он не меняет код, ветки и внешние сервисы.
+
 ## 2. Установка
 
 ```bash
@@ -137,3 +140,10 @@ pnpm verify:release:full
 6. В PR опишите пользовательский эффект, проверки, риски и отсутствие migration/secrets.
 
 Для material feature начните со Spec Kit, а не с кода.
+
+## 10. Текущая точка продолжения
+
+Этап `010-beta-mvp-finish` находится в commit `74d61fe` ветки `dev`. Он прошёл полный локальный gate
+на отдельной PostgreSQL: 115 unit/contract/component, 13 integration и 13 mobile Chromium E2E
+тестов. Это не подтверждает состояние Render: точный deploy SHA, CI и Telegram smoke-test всегда
+проверяются отдельно по [`CURRENT.md`](CURRENT.md) и release checklist.

@@ -120,6 +120,7 @@ GitHub Actions повторяет полный набор на чистой Post
 - [фактическая архитектура](docs/architecture.md);
 - [тестирование](docs/testing.md) и [release checklist](docs/release-checklist.md);
 - [текущий handoff](docs/handoffs/CURRENT.md) и [onboarding](docs/handoffs/DEVELOPER_ONBOARDING.md);
+- [стартовый промпт для нового AI-чата](docs/handoffs/NEW_CHAT_PROMPT.md);
 - [API-контракты](docs/api-contracts.md) и [архитектурные решения](docs/decisions/ADR-001-modular-monolith.md);
 - [история раннего release roadmap](docs/release-roadmap.md);
 - [переход на production-бота Prosnix](docs/prosnix-production.md);

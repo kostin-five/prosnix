@@ -25,7 +25,7 @@
 - CI, dependency audit, bundle/security checks, integration и mobile Chromium E2E;
 - Render/Neon/cron инструкции и production runbook.
 
-Базовый релиз `0.1.0` сохранён в истории. Текущая линия `dev` находится на commit `abda6ce`; это не
+Базовый релиз `0.1.0` сохранён в истории. Текущая линия `dev` находится на commit `74d61fe`; это не
 доказательство того, что внешний Render deploy уже использует этот SHA.
 
 ## Текущая версия: `0.2` — перевод на Prosnix и измеримый пилот
@@ -82,7 +82,7 @@
 Этап вошёл в commit `abda6ce` и отправлен пользователем в `dev`. Фактический production SHA и
 применение migration `0006` всё ещё проверяются отдельно перед release decision.
 
-### Реализуется: `010-beta-mvp-finish`
+### Реализовано в `dev`: `010-beta-mvp-finish`
 
 - новый компактный wordmark согласован с актуальным жёлто-оранжевым брендом;
 - статус Beta одинаково виден на главной, в статистике, настройках и legal-flow;
@@ -94,10 +94,10 @@
 - fallback остаётся содержательным и не называется заглушкой или технической ошибкой provider;
 - новый datastore, migration, framework и provider не добавляются.
 
-До выпуска нужны полный локальный gate, review diff, зелёный CI, ручная проверка в Telegram на iOS и
-отдельное решение владельца о deploy.
+Этап находится в commit `74d61fe` и прошёл полный локальный gate. До выпуска нужны зелёный CI
+точного SHA, ручная проверка в Telegram на iOS и отдельное решение владельца о deploy.
 
-- подтвердить SHA активного Render deploy и применить migration `0005`;
+- подтвердить SHA активного Render deploy и наличие migrations `0005` и `0006` в production;
 - переключить текущий backend на `@prosnix_bot` и выполнить smoke-test;
 - заполнить реальные реквизиты оператора и URL в BotFather;
 - оставить Stars выключенными;
