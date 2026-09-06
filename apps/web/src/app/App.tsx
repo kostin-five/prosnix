@@ -981,10 +981,12 @@ function ConfirmTask({ taskId, onDone }: { taskId: TaskId; onDone: (r: TaskResul
 function TasksContainer({
   taskIds,
   taskIndex,
+  reason,
   onDone,
 }: {
   taskIds: TaskId[];
   taskIndex: number;
+  reason: string | null;
   onDone: (r: TaskResult) => void;
 }) {
   const id = taskIds[taskIndex];
@@ -994,6 +996,11 @@ function TasksContainer({
   return (
     <div className="flex flex-col flex-1 p-6">
       <div className="mb-8">
+        {reason && (
+          <p className="mb-3 rounded-xl bg-secondary px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+            Почему этот протокол: {reason} Оцениваем изменение бодрости до и после выполнения.
+          </p>
+        )}
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-muted-foreground">
             Шаг {taskIndex + 1} из {taskIds.length}
@@ -2666,7 +2673,16 @@ function PrototypeApp({
         )}
         {screen === "startRating" && <StartRatingScreen onDone={handleStartRating} />}
         {screen === "tasks" && (
-          <TasksContainer taskIds={taskIds} taskIndex={taskIndex} onDone={handleTaskDone} />
+          <TasksContainer
+            taskIds={taskIds}
+            taskIndex={taskIndex}
+            reason={
+              demo
+                ? "Пробуем следующую комбинацию заданий"
+                : (serverSession?.assignment.hypothesis ?? null)
+            }
+            onDone={handleTaskDone}
+          />
         )}
         {screen === "endRating" && (
           <EndRatingScreen startAlertness={startAlertness} onDone={handleEndRating} />
