@@ -9,7 +9,7 @@ export function TermsOfUse() {
     <main className="min-h-screen bg-background px-5 py-10 text-foreground">
       <article className="mx-auto max-w-2xl rounded-3xl border border-border bg-card p-6 sm:p-8">
         <LegalBack />
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary">Prosnix Beta</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary">Prosnix</p>
         <h1 className="mt-2 text-3xl font-bold">Пользовательское соглашение</h1>
         <p className="mt-2 text-sm text-muted-foreground">Обновлено: {UPDATED_AT}</p>
 

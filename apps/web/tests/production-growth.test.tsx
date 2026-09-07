@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProCard } from "../src/features/billing/pro-card.js";
 import { LegalGate } from "../src/features/legal/legal-gate.js";
+import { PrivacyPolicy } from "../src/features/legal/privacy-policy.js";
+import { TermsOfUse } from "../src/features/legal/terms-of-use.js";
 
 async function settle(): Promise<void> {
   await act(async () => {
@@ -51,6 +53,27 @@ describe("production growth UI", () => {
     act(() => button.click());
     await settle();
     expect(accepted).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the Beta label off legal screens", () => {
+    act(() => root.render(<PrivacyPolicy />));
+    expect(container.textContent).not.toContain("Beta");
+    act(() => root.render(<TermsOfUse />));
+    expect(container.textContent).not.toContain("Beta");
+    act(() =>
+      root.render(
+        <LegalGate
+          legal={{
+            privacyVersion: "2026-08-31",
+            termsVersion: "2026-08-31",
+            accepted: false,
+            acceptedAt: null,
+          }}
+          onAccepted={() => undefined}
+        />,
+      ),
+    );
+    expect(container.textContent).not.toContain("Beta");
   });
 
   it("does not offer a payment while billing is disabled", async () => {
