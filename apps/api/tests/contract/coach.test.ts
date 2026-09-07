@@ -26,6 +26,7 @@ describe("coach insight contract", () => {
       },
       protocolEffects: [],
       factorEffects: [],
+      sequenceEffects: [],
     };
     const cache: CoachInsightRepository = {
       findByUserId: async () => null,

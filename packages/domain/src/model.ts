@@ -115,6 +115,8 @@ export interface CompletedSessionEvidence {
   baseline: number;
   postRating: number;
   followUp: FollowUpOutcome | null;
+  /** Точный порядок фактически выполненных заданий; не содержит пользовательских данных. */
+  sequenceKey?: string;
   completedAt?: string;
   comparison?: ExperimentAssignment["comparison"];
 }
@@ -134,6 +136,7 @@ export interface AnalyticsProfile {
   riseSuccess: Metric;
   protocolEffects: readonly Metric[];
   factorEffects: readonly Metric[];
+  sequenceEffects: readonly Metric[];
   dailyTrend?: readonly DailyWakeTrendPoint[];
 }
 

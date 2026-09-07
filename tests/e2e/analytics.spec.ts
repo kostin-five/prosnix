@@ -39,6 +39,9 @@ async function openTelegramApp(page: Page) {
       dueFollowUpSessionId: null,
     }),
   );
+  await page.route("**/api/v1/experiment-feedback", (route) =>
+    json(route, { eligible: false, submitted: false }),
+  );
 }
 
 test("профиль показывает только воспроизводимые метрики смешанных протоколов", async ({ page }) => {
@@ -85,6 +88,15 @@ test("профиль показывает только воспроизводи�
           evidenceCount: 3,
           evidenceIds: ["s1", "s2", "s3", "s4", "s5", "s6"],
           confidence: "low",
+        },
+      ],
+      sequenceEffects: [
+        {
+          key: "sequence:water>memory",
+          value: 4.5,
+          evidenceCount: 2,
+          evidenceIds: ["s1", "s2"],
+          confidence: "insufficient",
         },
       ],
       dailyTrend: [
@@ -143,10 +155,9 @@ test("профиль показывает только воспроизводи�
   await expect(page.getByText("1м", { exact: true })).toBeVisible();
   await expect(page.getByText("Движение", { exact: true })).toBeVisible();
   await expect(page.getByText("Низкая уверенность · 3 парных сравнения")).toBeVisible();
-  await expect(page.getByText("Разминка для мозга + движение")).toBeVisible();
-  await expect(page.getByText(/Математика/).first()).toBeVisible();
-  await expect(page.getByText("Средний прирост по датам")).toBeVisible();
-  await expect(page.getByText("n=1")).toBeVisible();
+  await expect(page.getByText("Стакан воды → Память")).toBeVisible();
+  await expect(page.getByText("Недостаточно данных · n=2")).toBeVisible();
+  await expect(page.getByText("Средний прирост по датам")).toHaveCount(0);
   await page.getByLabel("Открыть эксперимент 1").click();
   await expect(page.getByText("Что было в эксперименте")).toBeVisible();
   await expect(page.getByText("Бодрость: 3 → 7")).toBeVisible();
@@ -161,6 +172,57 @@ test("профиль показывает только воспроизводи�
   await page.getByRole("button", { name: "Создать персональный отчёт" }).click();
   await expect(page.getByText(/Движение даёт наиболее устойчивый/)).toBeVisible();
   expect(coachRequests).toBe(1);
+});
+
+test("после пяти сессий feedback показывается один раз и отправляется без влияния на wake flow", async ({
+  page,
+}) => {
+  await openTelegramApp(page);
+  await page.route("**/api/v1/analytics/profile", (route) =>
+    json(route, {
+      methodVersion: "analytics-v1",
+      computedAt: "2026-09-07T06:00:00.000Z",
+      averageDelta: {
+        key: "average-delta",
+        value: 2,
+        evidenceCount: 5,
+        evidenceIds: ["s1", "s2", "s3", "s4", "s5"],
+        confidence: "low",
+      },
+      riseSuccess: {
+        key: "rise-success",
+        value: null,
+        evidenceCount: 0,
+        evidenceIds: [],
+        confidence: "insufficient",
+      },
+      protocolEffects: [],
+      factorEffects: [],
+      sequenceEffects: [],
+      dailyTrend: [],
+    }),
+  );
+  await page.route("**/api/v1/sessions/history?limit=10", (route) => json(route, { sessions: [] }));
+  let submitted = false;
+  await page.route("**/api/v1/experiment-feedback", async (route) => {
+    if (route.request().method() === "GET") return json(route, { eligible: true, submitted });
+    expect(route.request().postDataJSON()).toEqual({
+      helpful: 5,
+      irritating: 1,
+      continueIntent: 5,
+    });
+    submitted = true;
+    return json(route, { eligible: true, submitted });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Статистика" }).click();
+  await expect(page.getByText("Помоги улучшить эксперимент")).toBeVisible();
+  await page.getByLabel("Насколько формат оказался полезен?").selectOption("5");
+  await page.getByLabel("Насколько он раздражал?").selectOption("1");
+  await page.getByLabel("Насколько хочешь продолжать?").selectOption("5");
+  await page.getByRole("button", { name: "Отправить ответы" }).click();
+  await expect(page.getByText("Помоги улучшить эксперимент")).toHaveCount(0);
 });
 
 test("ранний отчёт требует явного подтверждения и header помещается на 320 px", async ({
@@ -188,6 +250,7 @@ test("ранний отчёт требует явного подтвержден
       },
       protocolEffects: [],
       factorEffects: [],
+      sequenceEffects: [],
       dailyTrend: [
         { localDate: "2026-09-06", averageDelta: 1.5, evidenceCount: 2, sessionIds: ["s1", "s2"] },
       ],

@@ -31,6 +31,7 @@ describe("Coach rate limit", () => {
       },
       protocolEffects: [],
       factorEffects: [],
+      sequenceEffects: [],
     };
     const recompute = vi.fn(async () => profile);
     const generate = vi.fn(async () => ({

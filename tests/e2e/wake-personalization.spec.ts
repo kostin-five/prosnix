@@ -16,6 +16,11 @@ test("пользователь настраивает возможности, к
   await page.getByRole("button", { name: "2 мин" }).click();
   await page.getByRole("button", { name: "Сохранить возможности" }).click();
 
+  await page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Рутина после пробуждения" }) })
+    .getByRole("button", { name: "Развернуть" })
+    .click();
   await page.getByRole("button", { name: "Добавить пункт" }).click();
   await page.getByLabel("Пункт рутины 1").fill("Выпить воды");
   await page.getByText("Показывать рутину").click();

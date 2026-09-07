@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import {
   computeAnalyticsProfile,
@@ -14,6 +14,7 @@ import {
   followUpObservations,
   protocolDefinitions,
   ratingObservations,
+  taskObservations,
   wakeSessions,
   users,
 } from "../schema.js";
@@ -25,6 +26,7 @@ function projectionRows(userId: string, profile: AnalyticsProfile, computedAt: D
     { metric: profile.riseSuccess, subjectKey: "profile" },
     ...profile.protocolEffects.map((metric) => ({ metric, subjectKey: metric.key })),
     ...profile.factorEffects.map((metric) => ({ metric, subjectKey: metric.key })),
+    ...profile.sequenceEffects.map((metric) => ({ metric, subjectKey: metric.key })),
   ];
   return metrics.map(({ metric, subjectKey }) => ({
     userId,
@@ -73,7 +75,7 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
       let evidence: CompletedSessionEvidence[] = [];
       if (sessions.length > 0) {
         const sessionIds = sessions.map(({ sessionId }) => sessionId);
-        const [ratings, followUps] = await Promise.all([
+        const [ratings, followUps, tasks] = await Promise.all([
           db
             .select({
               sessionId: ratingObservations.sessionId,
@@ -89,6 +91,14 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
             })
             .from(followUpObservations)
             .where(inArray(followUpObservations.sessionId, sessionIds)),
+          db
+            .select({
+              sessionId: taskObservations.sessionId,
+              taskId: taskObservations.taskId,
+            })
+            .from(taskObservations)
+            .where(inArray(taskObservations.sessionId, sessionIds))
+            .orderBy(asc(taskObservations.protocolStepIndex)),
         ]);
         evidence = sessions.flatMap((session) => {
           const baseline = ratings.find(
@@ -117,6 +127,10 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
               postRating,
               followUp:
                 followUps.find(({ sessionId }) => sessionId === session.sessionId)?.outcome ?? null,
+              sequenceKey: tasks
+                .filter((task) => task.sessionId === session.sessionId)
+                .map((task) => task.taskId)
+                .join(">"),
               ...(session.completedAt ? { completedAt: session.completedAt.toISOString() } : {}),
               ...(comparison ? { comparison } : {}),
             },

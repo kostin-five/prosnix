@@ -8,6 +8,7 @@ const payload: CoachAggregatePayload = {
   riseSuccess: { key: "rise-success", value: 0.75, evidenceCount: 4, confidence: "low" },
   protocolEffects: [],
   factorEffects: [],
+  sequenceEffects: [],
   trendSignals: { observedDays: 3, recentDirection: "improving", variability: 0.8 },
 };
 

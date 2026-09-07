@@ -11,6 +11,7 @@ export interface CoachAggregatePayload {
   riseSuccess: CoachAggregateMetric;
   protocolEffects: CoachAggregateMetric[];
   factorEffects: CoachAggregateMetric[];
+  sequenceEffects: CoachAggregateMetric[];
   trendSignals: {
     observedDays: number;
     recentDirection: "improving" | "stable" | "declining" | "unknown";

@@ -82,6 +82,10 @@ export async function registerAdminRoutes(
             ...item,
             completionRate: rate(item.completed, item.sessions),
           })),
+          experiments: summary.breakdowns.experiments.map((item) => ({
+            ...item,
+            completionRate: rate(item.completed, item.assigned),
+          })),
         },
         features: summary.features,
         deliveries: {

@@ -29,6 +29,7 @@ function profile(evidenceCount: number): AnalyticsProfile {
     },
     protocolEffects: [],
     factorEffects: [],
+    sequenceEffects: [],
     dailyTrend: Array.from({ length: Math.min(evidenceCount, 3) }, (_, index) => ({
       localDate: `2026-09-0${index + 1}`,
       averageDelta: index + 1,

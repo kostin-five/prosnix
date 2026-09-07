@@ -99,6 +99,23 @@ export function computeAnalyticsProfile(
       ];
     });
 
+  const sequenceGroups = new Map<string, CompletedSessionEvidence[]>();
+  for (const item of evidence) {
+    if (!item.sequenceKey) continue;
+    const group = sequenceGroups.get(item.sequenceKey) ?? [];
+    group.push(item);
+    sequenceGroups.set(item.sequenceKey, group);
+  }
+  const sequenceEffects = [...sequenceGroups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, group]) =>
+      metric(
+        `sequence:${key}`,
+        mean(group.map(({ baseline, postRating }) => postRating - baseline)),
+        group,
+      ),
+    );
+
   let dateFormatter: Intl.DateTimeFormat;
   try {
     dateFormatter = new Intl.DateTimeFormat("sv-SE", {
@@ -146,6 +163,7 @@ export function computeAnalyticsProfile(
     ),
     protocolEffects,
     factorEffects,
+    sequenceEffects,
     dailyTrend,
   };
 }

@@ -44,6 +44,7 @@ export function coachPayload(profile: AnalyticsProfile): CoachAggregatePayload {
     riseSuccess: safeMetric(profile.riseSuccess),
     protocolEffects: profile.protocolEffects.map(safeMetric),
     factorEffects: profile.factorEffects.map(safeMetric),
+    sequenceEffects: profile.sequenceEffects.map(safeMetric),
     trendSignals: {
       observedDays: points.length,
       recentDirection,

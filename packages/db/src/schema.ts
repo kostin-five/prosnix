@@ -433,6 +433,26 @@ export const coachInsights = pgTable("coach_insights", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const experimentFeedback = pgTable(
+  "experiment_feedback",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    experimentVersion: text("experiment_version").notNull(),
+    helpful: integer().notNull(),
+    irritating: integer().notNull(),
+    continueIntent: integer("continue_intent").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.experimentVersion] }),
+    check("experiment_feedback_helpful_valid", sql`${table.helpful} between 1 and 5`),
+    check("experiment_feedback_irritating_valid", sql`${table.irritating} between 1 and 5`),
+    check("experiment_feedback_intent_valid", sql`${table.continueIntent} between 1 and 5`),
+  ],
+);
+
 export const legalAcceptances = pgTable("legal_acceptances", {
   userId: uuid("user_id")
     .primaryKey()

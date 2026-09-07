@@ -54,6 +54,16 @@ export type RatingInput = Static<typeof RatingInputSchema>;
 export type TaskResultInput = Static<typeof TaskResultInputSchema>;
 export type FollowUpInput = Static<typeof FollowUpInputSchema>;
 
+export const ExperimentFeedbackInputSchema = Type.Object(
+  {
+    helpful: Type.Integer({ minimum: 1, maximum: 5 }),
+    irritating: Type.Integer({ minimum: 1, maximum: 5 }),
+    continueIntent: Type.Integer({ minimum: 1, maximum: 5 }),
+  },
+  { additionalProperties: false },
+);
+export type ExperimentFeedbackInput = Static<typeof ExperimentFeedbackInputSchema>;
+
 export const WAKE_CONTEXTS = ["night_sleep", "short_nap", "long_nap", "energy_reset"] as const;
 export const WAKE_DURATIONS = [2, 5, 10] as const;
 export const MOVEMENT_LEVELS = ["none", "light", "full"] as const;

@@ -159,6 +159,9 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL фундаме
     const profile = await new PostgresAnalyticsRepository(database.db).recompute(user.id);
     expect(profile.averageDelta).toMatchObject({ value: 4, evidenceCount: 1 });
     expect(profile.riseSuccess).toMatchObject({ value: 1, evidenceCount: 1 });
+    expect(profile.sequenceEffects).toEqual([
+      expect.objectContaining({ evidenceCount: 1, confidence: "insufficient" }),
+    ]);
     expect(profile.dailyTrend).toEqual([
       {
         localDate: "2026-08-29",

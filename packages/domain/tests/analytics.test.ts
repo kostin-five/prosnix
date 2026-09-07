@@ -30,6 +30,29 @@ describe("analytics v1", () => {
     });
   });
 
+  it("calculates an effect for each exact task sequence without inferring causation", () => {
+    const profile = computeAnalyticsProfile([
+      evidence("s1", 2, 5, { sequenceKey: "water>memory" }),
+      evidence("s2", 3, 7, { sequenceKey: "water>memory" }),
+      evidence("s3", 2, 3, { sequenceKey: "math" }),
+    ]);
+
+    expect(profile.sequenceEffects).toEqual([
+      expect.objectContaining({
+        key: "sequence:math",
+        value: 1,
+        evidenceCount: 1,
+        confidence: "insufficient",
+      }),
+      expect.objectContaining({
+        key: "sequence:water>memory",
+        value: 3.5,
+        evidenceCount: 2,
+        confidence: "insufficient",
+      }),
+    ]);
+  });
+
   it("does not infer a factor effect from mixed protocols without comparison metadata", () => {
     const profile = computeAnalyticsProfile([
       evidence("s1", 2, 7),

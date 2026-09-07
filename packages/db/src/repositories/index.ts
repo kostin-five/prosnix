@@ -26,6 +26,7 @@ export { PostgresAdminGrowthRepository } from "./admin-analytics.js";
 export { PostgresBillingRepository } from "./billing.js";
 export { PostgresLegalAcceptanceRepository } from "./legal.js";
 export { PostgresWakePersonalizationRepository } from "./personalization.js";
+export { PostgresExperimentFeedbackRepository } from "./experiment-feedback.js";
 export {
   PostgresWakeNotificationRepository,
   PostgresWakeScheduleRepository,

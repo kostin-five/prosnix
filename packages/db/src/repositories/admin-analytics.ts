@@ -41,6 +41,7 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
       timelineRows,
       contextRows,
       durationRows,
+      experimentRows,
       featureRows,
       dailyDeliveryRows,
       followUpDeliveryRows,
@@ -178,6 +179,19 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
         group by duration_budget_minutes
         order by duration_budget_minutes
       `),
+      this.db.execute<{ version: string; assigned: number; completed: number }>(sql`
+        select
+          a.strategy_version as version,
+          count(*)::int as assigned,
+          count(*) filter (
+            where s.protocol_completed_at is not null and s.protocol_completed_at < ${nowIso}::timestamptz
+          )::int as completed
+        from experiment_assignments a
+        join wake_sessions s on s.assignment_id = a.id
+        where a.assigned_at >= ${fromIso}::timestamptz and a.assigned_at < ${nowIso}::timestamptz
+        group by a.strategy_version
+        order by a.strategy_version
+      `),
       this.db.execute<{
         capability_profiles: number;
         routines_enabled: number;
@@ -286,6 +300,11 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
         durations: durationRows.map((row) => ({
           minutes: number(row.minutes) as WakeDurationMinutes,
           sessions: number(row.sessions),
+          completed: number(row.completed),
+        })),
+        experiments: experimentRows.map((row) => ({
+          version: row.version,
+          assigned: number(row.assigned),
           completed: number(row.completed),
         })),
       },

@@ -31,6 +31,7 @@ const profile: AnalyticsProfile = {
       confidence: "low",
     },
   ],
+  sequenceEffects: [],
 };
 
 describe("контракт профиля аналитики", () => {

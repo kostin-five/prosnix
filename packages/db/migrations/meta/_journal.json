@@ -50,6 +50,13 @@
       "when": 1788642000000,
       "tag": "0006_task_difficulty",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788732000000,
+      "tag": "0007_experiment_feedback",
+      "breakpoints": true
     }
   ]
 }

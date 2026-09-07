@@ -15,6 +15,7 @@ const summary: AdminGrowthSummary = {
   breakdowns: {
     contexts: [{ key: "night_sleep", sessions: 5, completed: 4 }],
     durations: [{ minutes: 5, sessions: 5, completed: 4 }],
+    experiments: [{ version: "learning-v1", assigned: 5, completed: 4 }],
   },
   features: {
     capabilityProfiles: 3,
@@ -55,6 +56,7 @@ describe("admin growth contract", () => {
       retention: { d1: { eligible: 8, retained: 3, rate: 0.375 } },
       breakdowns: {
         contexts: [{ key: "night_sleep", sessions: 5, completed: 4, completionRate: 0.8 }],
+        experiments: [{ version: "learning-v1", assigned: 5, completed: 4, completionRate: 0.8 }],
       },
       features: { routinesEnabled: 2, aiInsightsGenerated: 2 },
       deliveries: { terminal: 11, successRate: 1 },

@@ -132,6 +132,7 @@ export interface AnalyticsProfileResponse {
   riseSuccess: MetricResponse;
   protocolEffects: MetricResponse[];
   factorEffects: MetricResponse[];
+  sequenceEffects: MetricResponse[];
   dailyTrend?: Array<{
     localDate: string;
     averageDelta: number;
@@ -173,6 +174,11 @@ export interface SessionHistoryItemResponse {
 
 export interface SessionHistoryResponse {
   sessions: SessionHistoryItemResponse[];
+}
+
+export interface ExperimentFeedbackStatus {
+  eligible: boolean;
+  submitted: boolean;
 }
 
 export class ApiError extends Error {
@@ -232,6 +238,29 @@ export async function loadSessionHistory(limit = 10): Promise<SessionHistoryResp
     await fetch(`/api/v1/sessions/history?limit=${limit}`, { credentials: "same-origin" }),
   );
   return (await response.json()) as SessionHistoryResponse;
+}
+
+export async function loadExperimentFeedbackStatus(): Promise<ExperimentFeedbackStatus> {
+  const response = await expectSuccess(
+    await fetch("/api/v1/experiment-feedback", { credentials: "same-origin" }),
+  );
+  return (await response.json()) as ExperimentFeedbackStatus;
+}
+
+export async function submitExperimentFeedback(input: {
+  helpful: number;
+  irritating: number;
+  continueIntent: number;
+}): Promise<ExperimentFeedbackStatus> {
+  const response = await expectSuccess(
+    await fetch("/api/v1/experiment-feedback", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+  );
+  return (await response.json()) as ExperimentFeedbackStatus;
 }
 
 export async function deleteProfile(): Promise<void> {

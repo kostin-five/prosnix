@@ -194,6 +194,22 @@ export interface AnalyticsRepository {
   recompute(userId: string, now?: Date): Promise<AnalyticsProfile>;
 }
 
+export interface ExperimentFeedbackStatus {
+  eligible: boolean;
+  submitted: boolean;
+}
+
+export interface ExperimentFeedbackRepository {
+  status(userId: string): Promise<ExperimentFeedbackStatus>;
+  submit(input: {
+    userId: string;
+    helpful: number;
+    irritating: number;
+    continueIntent: number;
+    now: Date;
+  }): Promise<ExperimentFeedbackStatus>;
+}
+
 export interface UserDeletionRepository {
   deleteUser(userId: string, correlationId: string, now?: Date): Promise<boolean>;
 }
@@ -279,6 +295,11 @@ export interface AdminGrowthSummary {
     durations: Array<{
       minutes: WakeDurationMinutes;
       sessions: number;
+      completed: number;
+    }>;
+    experiments: Array<{
+      version: string;
+      assigned: number;
       completed: number;
     }>;
   };

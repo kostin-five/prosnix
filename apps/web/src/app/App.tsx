@@ -69,6 +69,11 @@ const SettingsScreen = lazy(() =>
     default: module.SettingsScreen,
   })),
 );
+const ExperimentFeedbackCard = lazy(() =>
+  import("../features/feedback/experiment-feedback-card.js").then((module) => ({
+    default: module.ExperimentFeedbackCard,
+  })),
+);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Screen =
@@ -368,32 +373,6 @@ const CONF_LABEL: Record<Confidence, string> = {
 function factorLabel(key: string): string {
   const factor = key.split(":")[1] as TaskCategory | undefined;
   return factor && factor in CAT_META ? CAT_META[factor].label : "Фактор протокола";
-}
-
-function protocolLabel(key: string): string {
-  const protocolKey = key.replace(/^protocol:/, "").split("@")[0];
-  const labels: Record<string, string> = {
-    "cognitive-baseline": "Короткая разминка для мозга",
-    "cognitive-core": "Разминка для мозга",
-    "movement-plus": "Разминка для мозга + движение",
-    "movement-with": "Разминка для мозга + движение",
-    "movement-without": "Разминка для мозга",
-    "safe-fallback": "Движение + свет + вода",
-  };
-  return labels[protocolKey ?? ""] ?? "Персональный протокол";
-}
-
-function protocolTaskIds(key: string): TaskId[] {
-  const protocolKey = key.replace(/^protocol:/, "").split("@")[0];
-  const tasks: Record<string, TaskId[]> = {
-    "cognitive-baseline": ["math", "memory"],
-    "cognitive-core": ["math", "memory"],
-    "movement-plus": ["math", "memory", "steps"],
-    "movement-with": ["math", "memory", "steps"],
-    "movement-without": ["math", "memory"],
-    "safe-fallback": ["steps", "window", "water"],
-  };
-  return tasks[protocolKey ?? ""] ?? [];
 }
 
 function taskMeta(taskId: string) {
@@ -1682,10 +1661,15 @@ function StatsScreen({
     ? successSessions.reduce((s, v) => s + (v.endAlertness - v.startAlertness), 0) /
       successSessions.length
     : 0;
-  const bestProtocol = apiProfile?.protocolEffects
+  const bestSequence = apiProfile?.sequenceEffects
     .filter((metric) => metric.value !== null)
     .sort((left, right) => (right.value ?? 0) - (left.value ?? 0))[0];
-  const bestProtocolTasks = bestProtocol ? protocolTaskIds(bestProtocol.key) : [];
+  const bestSequenceTasks = bestSequence
+    ? bestSequence.key
+        .replace(/^sequence:/, "")
+        .split(">")
+        .filter((taskId): taskId is TaskId => taskId in TASK_META)
+    : [];
 
   // Next plan
   const nextPlan = computeNextPlan(sessions);
@@ -1927,25 +1911,25 @@ function StatsScreen({
 
       {/* Best sequence */}
       <div className="bg-card border border-border rounded-2xl p-4 mb-5">
-        <p className="text-sm font-semibold mb-3">Текущий лидирующий протокол</p>
-        {!demo && bestProtocol ? (
+        <p className="text-sm font-semibold mb-3">Текущая лидирующая последовательность</p>
+        {!demo && bestSequence ? (
           <>
             <p className="text-sm font-semibold text-green-400">
-              {protocolLabel(bestProtocol.key)}
+              {bestSequenceTasks.map((taskId) => TASK_META[taskId].title).join(" → ")}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {bestProtocol.evidenceCount === 1
+              {bestSequence.evidenceCount === 1
                 ? "Предварительный результат · n=1"
-                : `${CONF_LABEL[bestProtocol.confidence]} · n=${bestProtocol.evidenceCount}`}
+                : `${CONF_LABEL[bestSequence.confidence]} · n=${bestSequence.evidenceCount}`}
             </p>
-            {bestProtocolTasks.length > 0 && (
+            {bestSequenceTasks.length > 0 && (
               <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                {bestProtocolTasks.map((taskId, index) => (
-                  <div key={taskId} className="flex items-center gap-1.5">
+                {bestSequenceTasks.map((taskId, index) => (
+                  <div key={`${taskId}-${index}`} className="flex items-center gap-1.5">
                     <span className="rounded-lg bg-secondary px-2 py-1 text-xs font-medium">
                       {TASK_META[taskId].emoji} {TASK_META[taskId].title}
                     </span>
-                    {index < bestProtocolTasks.length - 1 && (
+                    {index < bestSequenceTasks.length - 1 && (
                       <ArrowRight className="h-3 w-3 text-muted-foreground" />
                     )}
                   </div>
@@ -1953,9 +1937,9 @@ function StatsScreen({
               </div>
             )}
             <p className="text-xs text-muted-foreground mt-2">
-              Средний прирост бодрости {bestProtocol.value! >= 0 ? "+" : ""}
-              {bestProtocol.value!.toFixed(1)} · {CONF_LABEL[bestProtocol.confidence].toLowerCase()}{" "}
-              · проверено на {bestProtocol.evidenceCount} сессиях.
+              Наблюдаемый прирост бодрости {bestSequence.value! >= 0 ? "+" : ""}
+              {bestSequence.value!.toFixed(1)} · {CONF_LABEL[bestSequence.confidence].toLowerCase()}{" "}
+              · проверено на {bestSequence.evidenceCount} сессиях.
             </p>
           </>
         ) : demo && hasBestSeq && bestSession ? (
@@ -1990,6 +1974,12 @@ function StatsScreen({
           </p>
         )}
       </div>
+
+      {!demo && (
+        <Suspense fallback={null}>
+          <ExperimentFeedbackCard refreshKey={sessions.length} />
+        </Suspense>
+      )}
 
       {!demo && apiProfile && (
         <details className="mb-5 px-1 text-xs text-muted-foreground">
