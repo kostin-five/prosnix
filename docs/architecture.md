@@ -62,7 +62,8 @@ repositories и gateways.
 - `billing` — выключенный по умолчанию Telegram Stars checkout/webhook/subscription foundation;
 - `admin` — закрытая продуктовая сводка за 7/30/90 дней: когортная воронка, парное изменение
   бодрости, follow-up, D1/D7, UTC-динамика, разбивки, использование функций, интерес к будущему Pro,
-  доставки и billing;
+  доставки и billing; billing aggregate сравнивает enum как текст, чтобы ранняя схема без
+  `past_due` не обрушала всю панель;
 - `observability` — структурные события request/session/dispatch/coach и `requestId`;
 - `runtime` — readiness и graceful shutdown.
 
@@ -183,6 +184,8 @@ payments/updates и audit events. `task_observations.difficulty_level` — nulla
 
 Миграции находятся в `packages/db/migrations` и применяются только вперёд. Удаление профиля каскадно
 удаляет персональные сессии, настройки, AI cache, принятия и billing-записи в приложении.
+Migration `0009_subscription_status_repair` идемпотентно добавляет отсутствующее значение
+`past_due` в ранние варианты enum `subscription_status`; уже применённая `0004` не изменяется.
 
 ## Среды, deploy и rollback
 

@@ -28,3 +28,19 @@
   Stars/цену.
 - Migration `0008` forward-only; её production-применение подтверждено владельцем, но не проверено
   разработчиком напрямую через закрытые Neon/Render.
+
+## Repair admin enum, 7 сентября 2026 года
+
+- По privacy-safe Render log определена причина `500`: production enum `subscription_status` не
+  принимал литерал `past_due` в admin billing aggregate.
+- Добавлена forward-only migration `0009_subscription_status_repair` с `ADD VALUE IF NOT EXISTS`;
+  migration `0004` не изменялась.
+- Admin query сравнивает `status::text`, поэтому ранняя схема не обрушает весь aggregate до repair.
+- На отдельной PostgreSQL 17 `localhost:55434` полная цепочка `0000–0009` применилась с нуля.
+- PostgreSQL regression применил repair дважды к fixture enum без `past_due` и подтвердил итоговый
+  порядок значений; отдельный fixture подтвердил учёт действующей `past_due` подписки.
+- `pnpm verify:release:full` зелёный: 17 integration, 79 API unit/contract, 26 domain unit,
+  21 web unit/component и 16 mobile Chromium E2E; audit не нашёл известных уязвимостей.
+- Initial JavaScript: 238,3 КиБ из лимита 240 КиБ.
+
+Production/Neon migration, CI точного SHA, Render deploy и ручной Telegram smoke-test не выполнялись.

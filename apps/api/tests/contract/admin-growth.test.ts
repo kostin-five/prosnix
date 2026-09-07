@@ -34,7 +34,7 @@ const summary: AdminGrowthSummary = {
     aiInsightsGenerated: 2,
   },
   deliveries: { dailySent: 6, followUpSent: 5, failed: 0, blocked: 0 },
-  billing: { activeSubscriptions: 0, grossStars: 0 },
+  billing: { activeSubscriptions: 2, grossStars: 0 },
 };
 
 describe("admin growth contract", () => {
@@ -70,6 +70,7 @@ describe("admin growth contract", () => {
       },
       features: { routinesEnabled: 2, aiInsightsGenerated: 2 },
       deliveries: { terminal: 11, successRate: 1 },
+      billing: { enabled: false, activeSubscriptions: 2, grossStars: 0 },
     });
     expect(response.body).not.toMatch(/telegramUserId|userId|sessionId|evidenceIds|rating/);
     expect(

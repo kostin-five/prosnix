@@ -103,7 +103,12 @@ describe("admin dashboard", () => {
   it("повторяет запрос после ошибки", async () => {
     const fetch = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(null, { status: 500 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "internal_error", requestId: "safe-request-42" }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        }),
+      )
       .mockResolvedValueOnce(
         new Response(JSON.stringify(summary), {
           status: 200,
@@ -116,6 +121,7 @@ describe("admin dashboard", () => {
       (button) => button.textContent === "Повторить",
     );
     expect(retry).toBeDefined();
+    expect(container.textContent).toContain("Код запроса: safe-request-42");
     act(() => retry!.click());
     await settle();
     expect(fetch).toHaveBeenCalledTimes(2);

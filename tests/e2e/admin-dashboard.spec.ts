@@ -77,7 +77,7 @@ test("владелец видит агрегированную админ-пан
           terminal: 12,
           successRate: 0.9167,
         },
-        billing: { enabled: false, activeSubscriptions: 0, grossStars: 0 },
+        billing: { enabled: false, activeSubscriptions: 23, grossStars: 0 },
       },
     }),
   );
@@ -89,9 +89,39 @@ test("владелец видит агрегированную админ-пан
   await expect(page.getByText("+2.25", { exact: true })).toBeVisible();
   await expect(page.getByText("Ночной сон", { exact: true })).toBeVisible();
   await expect(page.getByText("Ошибки доставки", { exact: true })).toBeVisible();
+  await expect(page.getByText("23", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
+});
+
+test("владелец видит безопасный код запроса при ошибке admin API", async ({ page }) => {
+  await page.route("https://telegram.org/js/telegram-web-app.js*", (route) =>
+    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
+  );
+  await page.addInitScript(() => {
+    window.Telegram = {
+      WebApp: {
+        initData: "signed-owner-launch-data",
+        ready: () => undefined,
+        expand: () => undefined,
+      },
+    };
+  });
+  await page.route("**/api/v1/auth/telegram", (route) => route.fulfill({ status: 204 }));
+  await page.route("**/api/v1/admin/growth?days=*", (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "internal_error", requestId: "safe-admin-request-42" }),
+    }),
+  );
+
+  await page.goto("/?demo=1&tgWebAppStartParam=admin");
+
+  await expect(page.getByRole("heading", { name: "Не удалось загрузить панель" })).toBeVisible();
+  await expect(page.getByText("Код запроса: safe-admin-request-42")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Повторить" })).toBeVisible();
 });
 
 test("обычный пользователь не получает данные панели", async ({ page }) => {

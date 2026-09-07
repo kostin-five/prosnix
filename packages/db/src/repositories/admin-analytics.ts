@@ -250,7 +250,7 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
       `),
       this.db.execute<{ active: number }>(sql`
         select count(*) filter (
-          where status in ('active', 'canceled', 'past_due')
+          where status::text in ('active', 'canceled', 'past_due')
             and current_period_end > ${nowIso}::timestamptz
         )::int as active
         from subscriptions

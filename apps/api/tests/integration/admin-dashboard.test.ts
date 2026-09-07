@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+
 import { afterAll, describe, expect, it } from "vitest";
 
 import { connectDatabase, PostgresAdminGrowthRepository, sql } from "@awc/db";
@@ -17,6 +19,9 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL admin dashboar
   const sessionThree = "00000000-0000-4000-8000-000000008203";
 
   afterAll(async () => {
+    await database.db.execute(
+      sql.raw(`drop schema if exists subscription_status_repair_test cascade`),
+    );
     await database.db.execute(
       sql`delete from users where id in (${userOne}::uuid, ${userTwo}::uuid)`,
     );
@@ -119,6 +124,13 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL admin dashboar
       values (${sessionOne}::uuid, ${userOne}::uuid, '2036-08-30T13:35:00Z', 'blocked', 1,
         '2036-08-30T13:35:00Z', '2036-08-30T13:35:00Z')
     `);
+    await database.db.execute(sql`
+      insert into subscriptions
+        (user_id, plan_key, status, price_stars, telegram_payment_charge_id,
+         current_period_end, created_at, updated_at)
+      values (${userOne}::uuid, 'pro-monthly', 'past_due', 199, 'admin-past-due-fixture',
+        '2036-09-06T12:00:00Z', '2036-08-31T12:00:00Z', '2036-08-31T12:00:00Z')
+    `);
 
     const summary = await new PostgresAdminGrowthRepository(database.db).summarize(
       new Date("2036-08-29T12:00:00.000Z"),
@@ -157,5 +169,47 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL admin dashboar
       failed: 1,
       blocked: 1,
     });
+    expect(summary.billing).toEqual({ activeSubscriptions: 1, grossStars: 0 });
+  });
+
+  it("идемпотентно добавляет past_due в legacy subscription enum", async () => {
+    const fixtureSchema = "subscription_status_repair_test";
+    await database.db.execute(sql.raw(`drop schema if exists ${fixtureSchema} cascade`));
+    await database.db.execute(sql.raw(`create schema ${fixtureSchema}`));
+    await database.db.execute(
+      sql.raw(
+        `create type ${fixtureSchema}.subscription_status as enum ('active', 'canceled', 'expired', 'refunded')`,
+      ),
+    );
+
+    const migration = await readFile(
+      new URL(
+        "../../../../packages/db/migrations/0009_subscription_status_repair.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const fixtureMigration = migration.replace(
+      '"public"."subscription_status"',
+      `"${fixtureSchema}"."subscription_status"`,
+    );
+    await database.db.execute(sql.raw(fixtureMigration));
+    await database.db.execute(sql.raw(fixtureMigration));
+
+    const labels = await database.db.execute<{ enumlabel: string }>(sql`
+      select e.enumlabel
+      from pg_enum e
+      join pg_type t on t.oid = e.enumtypid
+      join pg_namespace n on n.oid = t.typnamespace
+      where n.nspname = ${fixtureSchema} and t.typname = 'subscription_status'
+      order by e.enumsortorder
+    `);
+    expect(labels.map((row) => row.enumlabel)).toEqual([
+      "active",
+      "canceled",
+      "past_due",
+      "expired",
+      "refunded",
+    ]);
   });
 });

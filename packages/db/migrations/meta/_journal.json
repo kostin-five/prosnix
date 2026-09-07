@@ -64,6 +64,13 @@
       "when": 1788782400000,
       "tag": "0008_pro_interest_responses",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788807150000,
+      "tag": "0009_subscription_status_repair",
+      "breakpoints": true
     }
   ]
 }

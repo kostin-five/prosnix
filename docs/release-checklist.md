@@ -24,6 +24,7 @@
 
 - [ ] Новая migration только forward-only и не меняет старые migration-файлы.
 - [ ] Полная цепочка migrations применена с нуля.
+- [ ] Repair migration `0009` проверена дважды на legacy enum без `past_due` и остаётся идемпотентной.
 - [ ] Migration проверена на копии/тестовой базе и совместима с предыдущим API для rollback.
 - [ ] Известны backup, окно восстановления и ответственный за production migration.
 - [ ] Владелец явно разрешил production migration.
@@ -72,6 +73,8 @@
 - [ ] Открытие статистики не вызывает DeepSeek; кнопка возвращает DeepSeek/cache/fallback и не создаёт второй provider-разбор в тот же локальный день.
 - [ ] Privacy/terms доступны без auth; legal acceptance сохраняется.
 - [ ] `/admin` доступен владельцу и скрыт от обычного пользователя.
+- [ ] `/admin` загружает billing aggregate без `500`; при искусственной ошибке показывает только
+      безопасный `requestId`.
 - [ ] Render logs не содержат secrets или пользовательские ответы.
 
 ## 8. Rollback и завершение

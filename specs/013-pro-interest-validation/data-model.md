@@ -18,3 +18,8 @@
 
 `proInterest` возвращает только: `responses`, `interested`, `notNow`, `notInterested`,
 `longHistory`, `deeperExperiments`, `both`. Нули возвращаются явно.
+
+## Совместимость `subscription_status`
+
+Актуальный enum содержит `active`, `canceled`, `past_due`, `expired`, `refunded`. Repair migration
+только добавляет отсутствующее `past_due`; существующие значения и строки не переписываются.

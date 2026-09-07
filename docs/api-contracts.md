@@ -150,6 +150,11 @@ cron-job.org не получает DB credentials или bot token.
 Требуется Telegram auth и server allowlist. Неавторизованный пользователь получает `404`. Ответ не
 содержит Telegram IDs, user/session UUID или индивидуальные оценки.
 
+При внутренней ошибке стандартный error response содержит неперсональный `requestId`. Admin UI может
+показать только этот идентификатор для поиска запроса в server logs. Billing aggregate читает
+subscription status через текстовое представление, поэтому отсутствие `past_due` в ранней версии
+PostgreSQL enum не превращает весь endpoint в `500`.
+
 Query-параметр `days` принимает только `7`, `30` или `90`; без него используется `7`. Ответ включает:
 
 - all-time, новых и активных пользователей;

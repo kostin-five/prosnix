@@ -180,7 +180,11 @@ function BreakdownRows({
 export function AdminScreen() {
   const [days, setDays] = useState<GrowthPeriodDays>(7);
   const [data, setData] = useState<AdminGrowthData | null>(null);
-  const [error, setError] = useState<{ message: string; denied: boolean } | null>(null);
+  const [error, setError] = useState<{
+    message: string;
+    denied: boolean;
+    requestId?: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [requestVersion, setRequestVersion] = useState(0);
 
@@ -201,9 +205,16 @@ export function AdminScreen() {
         });
         if (!response.ok) {
           const denied = response.status === 404;
+          const body = (await response.json().catch(() => null)) as {
+            requestId?: unknown;
+          } | null;
+          const requestId =
+            typeof body?.requestId === "string" && body.requestId.length <= 128
+              ? body.requestId
+              : undefined;
           throw Object.assign(
             new Error(denied ? "Доступ не разрешён" : "Не удалось загрузить метрики"),
-            { denied },
+            { denied, requestId },
           );
         }
         const value = (await response.json()) as AdminGrowthData;
@@ -216,6 +227,12 @@ export function AdminScreen() {
             denied: Boolean(
               reason && typeof reason === "object" && "denied" in reason && reason.denied,
             ),
+            ...(reason &&
+            typeof reason === "object" &&
+            "requestId" in reason &&
+            typeof reason.requestId === "string"
+              ? { requestId: reason.requestId }
+              : {}),
           });
         }
       } finally {
@@ -247,6 +264,11 @@ export function AdminScreen() {
             {error.denied ? "Админ-панель закрыта" : "Не удалось загрузить панель"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+          {error.requestId && (
+            <p className="mt-2 break-all text-xs text-muted-foreground">
+              Код запроса: {error.requestId}
+            </p>
+          )}
           {!error.denied && (
             <button
               type="button"
