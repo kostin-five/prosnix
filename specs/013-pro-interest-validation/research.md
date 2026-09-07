@@ -34,3 +34,13 @@
   восстанавливает соответствие Drizzle schema и поддерживает будущие записи `past_due`.
 - **Альтернативы**: исправить `0004` — отклонено как изменение уже применённой migration; удалить
   `past_due` из аналитики — отклонено как потеря корректного billing-состояния.
+
+## Decision: не читать billing persistence, когда billing выключен
+
+- **Решение**: production composition передаёт repository флаг из server config; цена `0` даёт
+  нулевые billing aggregates без SQL к `subscriptions` и `telegram_star_payments`.
+- **Причина**: выключенная функция не должна обрушать независимую продуктовую аналитику из-за
+  legacy schema drift.
+- **Альтернативы**: ловить PostgreSQL `undefined_table` — отклонено как сокрытие ошибок при реально
+  включённом billing; создавать отсутствующие платёжные таблицы сейчас — отложено до отдельного
+  billing/schema audit.

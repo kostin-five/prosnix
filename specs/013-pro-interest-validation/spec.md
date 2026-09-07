@@ -58,6 +58,9 @@ production-схема была создана ранней версией billin
 схеме, а новая forward-only migration безопасно добавляет `past_due` и повторно применяется без
 ошибки.
 
+При выключенной монетизации admin возвращает нулевые billing-метрики, не обращаясь к необязательным
+billing-таблицам ранней production-схемы.
+
 ## Крайние случаи
 
 - При менее чем семи completed sessions, ошибке сети или временной недоступности API карточка не
@@ -85,6 +88,9 @@ production-схема была создана ранней версией billin
 - **FR-009**: Admin billing aggregate MUST оставаться читаемым на схеме, где enum
   `subscription_status` ещё не содержит `past_due`; новая идемпотентная forward-only migration MUST
   довести enum до актуального набора значений без изменения уже применённых migrations.
+- **FR-010**: При `TELEGRAM_STARS_MONTHLY_PRICE=0` production wiring MUST отключать чтение
+  `subscriptions` и `telegram_star_payments` и возвращать нулевые billing aggregates; включённый
+  billing MUST по-прежнему читать канонические таблицы и fail closed при неполной схеме.
 
 ## Сущности
 
@@ -101,6 +107,8 @@ production-схема была создана ранней версией billin
 - **SC-004**: Ошибка загрузки или отправки не делает статистику или wake flow недоступными.
 - **SC-005**: Unit/contract, PostgreSQL integration и mobile E2E regression подтверждают успешную
   загрузку admin aggregate и безопасную диагностику через неперсональный request ID.
+- **SC-006**: Unit regression подтверждает отсутствие billing SQL-вызовов при выключенной
+  монетизации и сохранение нулевых значений в admin response.
 
 ## Уточнения
 

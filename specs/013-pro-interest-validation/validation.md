@@ -44,3 +44,18 @@
 - Initial JavaScript: 238,3 КиБ из лимита 240 КиБ.
 
 Production/Neon migration, CI точного SHA, Render deploy и ручной Telegram smoke-test не выполнялись.
+
+## Выключенный billing и legacy schema drift, 7 сентября 2026 года
+
+- После выпуска `833134b` enum-ошибка исчезла; следующий безопасный Render log показал независимую
+  причину `500`: отсутствует relation `telegram_star_payments`.
+- Production composition теперь передаёт server-side billing flag в admin repository. При
+  `TELEGRAM_STARS_MONTHLY_PRICE=0` запросы к обеим billing tables не выполняются, aggregates равны
+  нулю. При включённой оплате ошибки неполной схемы не скрываются.
+- Unit regression проверяет ровно 13 основных SQL-вызовов вместо 15 и нулевые billing aggregates.
+- Повторный `pnpm verify:release:full` на отдельной PostgreSQL 17 зелёный: 17 integration, 80 API,
+  26 domain, 21 web и 16 mobile Chromium E2E; audit без известных уязвимостей.
+- Disposable контейнер, сеть и test volume удалены после проверки.
+
+Новый production deploy и ручной Telegram smoke-test ещё не выполнялись. Перед будущим включением
+Stars требуется отдельный audit отсутствующих billing relations; текущий fix не включает оплату.

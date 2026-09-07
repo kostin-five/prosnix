@@ -7,3 +7,4 @@
 - [x] Неблокирующая деградация и повтор сети описаны.
 - [x] Не осталось placeholders или NEEDS CLARIFICATION.
 - [x] Совместимость раннего production enum, идемпотентный repair и отдельный release gate описаны.
+- [x] Выключенный billing отделён от optional persistence, а включённый режим остаётся fail closed.

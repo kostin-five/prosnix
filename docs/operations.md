@@ -115,6 +115,9 @@ Telegram `initData`. Теперь экран предлагает безопас
    forward-only `0009_subscription_status_repair`, затем дождитесь `/ready` и повторите `/admin`.
 4. Код с совместимым `status::text` восстанавливает чтение панели до repair, но создавать состояние
    `past_due` можно только после успешной migration.
+5. Ошибка `relation "telegram_star_payments" does not exist` при выключенном billing означает
+   частичный legacy schema drift. Код должен вернуть нули без чтения billing tables. Не создавайте
+   платёжные таблицы вручную; перед будущим включением Stars проведите отдельный schema audit.
 
 ### Mini App открывается, API отвечает 401
 

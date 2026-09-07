@@ -162,6 +162,10 @@ production-последовательность.
 forward-only migration. Код, migration и regressions считаются готовыми только после зелёного CI
 точного SHA, разрешения production migration и ручного Telegram smoke-test.
 
+Обнаруженный legacy drift `telegram_star_payments` не ремонтируется вручную до запуска оплаты. Пока
+billing выключен, admin возвращает нулевые платёжные метрики без обращения к optional tables. Перед
+любым включением Stars обязателен отдельный audit всей billing schema и test-environment flow.
+
 Возможная модель: бесплатный базовый wake flow; Pro — расширенные персональные эксперименты,
 длинная история, дополнительные протоколы и периодические отчёты. Точный paywall определяется только
 после интервью и данных использования.

@@ -63,7 +63,8 @@ repositories и gateways.
 - `admin` — закрытая продуктовая сводка за 7/30/90 дней: когортная воронка, парное изменение
   бодрости, follow-up, D1/D7, UTC-динамика, разбивки, использование функций, интерес к будущему Pro,
   доставки и billing; billing aggregate сравнивает enum как текст, чтобы ранняя схема без
-  `past_due` не обрушала всю панель;
+  `past_due` не обрушала всю панель, а при выключенной монетизации вообще не читает optional billing
+  tables;
 - `observability` — структурные события request/session/dispatch/coach и `requestId`;
 - `runtime` — readiness и graceful shutdown.
 

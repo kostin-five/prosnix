@@ -48,7 +48,9 @@ const app = await createApp(config, {
   followUpNotificationRepository: new PostgresFollowUpNotificationRepository(database.db),
   notificationMaintenanceRepository: new PostgresNotificationMaintenanceRepository(database.db),
   readinessCheck: database.check,
-  adminGrowthRepository: new PostgresAdminGrowthRepository(database.db),
+  adminGrowthRepository: new PostgresAdminGrowthRepository(database.db, {
+    billingEnabled: config.telegramStarsMonthlyPrice > 0,
+  }),
   legalAcceptanceRepository: new PostgresLegalAcceptanceRepository(database.db),
   wakePersonalizationRepository: new PostgresWakePersonalizationRepository(database.db),
   experimentFeedbackRepository: new PostgresExperimentFeedbackRepository(database.db),

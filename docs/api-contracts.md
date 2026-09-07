@@ -153,7 +153,8 @@ cron-job.org не получает DB credentials или bot token.
 При внутренней ошибке стандартный error response содержит неперсональный `requestId`. Admin UI может
 показать только этот идентификатор для поиска запроса в server logs. Billing aggregate читает
 subscription status через текстовое представление, поэтому отсутствие `past_due` в ранней версии
-PostgreSQL enum не превращает весь endpoint в `500`.
+PostgreSQL enum не превращает весь endpoint в `500`. Когда `TELEGRAM_STARS_MONTHLY_PRICE=0`, endpoint
+возвращает нулевые billing aggregates без запросов к `subscriptions` и `telegram_star_payments`.
 
 Query-параметр `days` принимает только `7`, `30` или `90`; без него используется `7`. Ответ включает:
 

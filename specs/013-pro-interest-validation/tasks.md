@@ -27,3 +27,9 @@
 - [x] T011 [US4] Сделать admin billing query совместимым со старым enum в `packages/db/src/repositories/admin-analytics.ts` и добавить `packages/db/migrations/0009_subscription_status_repair.sql` с journal entry (FR-009).
 - [x] T012 [US4] Добавить mobile E2E успешной billing-метрики и безопасной ошибки в `tests/e2e/admin-dashboard.spec.ts` (SC-005).
 - [x] T013 [US4] Обновить `docs/architecture.md`, `docs/api-contracts.md`, `docs/operations.md`, `docs/release-checklist.md`, `docs/product-roadmap.md`, validation и handoff; выполнить `pnpm verify:release:full` на disposable PostgreSQL (FR-009, SC-005).
+
+## Phase 6: Выключенный billing на неполной legacy schema
+
+- [x] T014 [US4] Добавить unit regression отсутствия billing SQL при цене `0` в `apps/api/tests/admin/admin-growth-repository.test.ts` (FR-010, SC-006).
+- [x] T015 [US4] Передать billing flag из production config в `PostgresAdminGrowthRepository` через `apps/api/src/server.ts` и вернуть нулевые billing aggregates без optional table reads в `packages/db/src/repositories/admin-analytics.ts` (FR-010).
+- [x] T016 [US4] Обновить эксплуатационную документацию, validation и handoff и повторить release gate (FR-010, SC-006).

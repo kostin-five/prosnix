@@ -14,7 +14,10 @@ const rounded = (value: unknown): number | null =>
   value === null || value === undefined ? null : Number(Number(value).toFixed(2));
 
 export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
-  constructor(private readonly db: Database) {}
+  constructor(
+    private readonly db: Database,
+    private readonly options: { billingEnabled: boolean } = { billingEnabled: true },
+  ) {}
 
   async isAllowed(userId: string, telegramUserIds: readonly bigint[]): Promise<boolean> {
     if (telegramUserIds.length === 0) return false;
@@ -248,18 +251,22 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
         from follow_up_notification_deliveries
         where created_at >= ${fromIso}::timestamptz and created_at < ${nowIso}::timestamptz
       `),
-      this.db.execute<{ active: number }>(sql`
-        select count(*) filter (
-          where status::text in ('active', 'canceled', 'past_due')
-            and current_period_end > ${nowIso}::timestamptz
-        )::int as active
-        from subscriptions
-      `),
-      this.db.execute<{ gross: number }>(sql`
-        select coalesce(sum(amount_stars), 0)::int as gross
-        from telegram_star_payments
-        where paid_at >= ${fromIso}::timestamptz and paid_at < ${nowIso}::timestamptz
-      `),
+      this.options.billingEnabled
+        ? this.db.execute<{ active: number }>(sql`
+            select count(*) filter (
+              where status::text in ('active', 'canceled', 'past_due')
+                and current_period_end > ${nowIso}::timestamptz
+            )::int as active
+            from subscriptions
+          `)
+        : Promise.resolve([{ active: 0 }]),
+      this.options.billingEnabled
+        ? this.db.execute<{ gross: number }>(sql`
+            select coalesce(sum(amount_stars), 0)::int as gross
+            from telegram_star_payments
+            where paid_at >= ${fromIso}::timestamptz and paid_at < ${nowIso}::timestamptz
+          `)
+        : Promise.resolve([{ gross: 0 }]),
     ]);
 
     const userCounts = userRows[0];

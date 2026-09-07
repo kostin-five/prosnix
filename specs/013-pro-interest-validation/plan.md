@@ -60,6 +60,8 @@ tests/e2e/admin-dashboard.spec.ts                       # owner/error admin regr
 5. Проверить contracts, disposable DB, E2E и документацию.
 6. Сделать billing aggregate совместимым со старым enum через сравнение `status::text`, затем
    forward-only migration добавить `past_due` в enum для последующих записей.
+7. Передать в PostgreSQL admin repository server-side billing flag; при цене `0` не выполнять
+   запросы к optional billing tables, при включённом billing сохранить канонический подсчёт.
 
 ## Откат и failure mode
 
