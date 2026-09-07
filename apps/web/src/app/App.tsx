@@ -1911,7 +1911,7 @@ function StatsScreen({
 
       {/* Best sequence */}
       <div className="bg-card border border-border rounded-2xl p-4 mb-5">
-        <p className="text-sm font-semibold mb-3">Текущая лидирующая последовательность</p>
+        <p className="text-sm font-semibold mb-3">Лучшая последовательность сейчас</p>
         {!demo && bestSequence ? (
           <>
             <p className="text-sm font-semibold text-green-400">
@@ -1941,6 +1941,12 @@ function StatsScreen({
               {bestSequence.value!.toFixed(1)} · {CONF_LABEL[bestSequence.confidence].toLowerCase()}{" "}
               · проверено на {bestSequence.evidenceCount} сессиях.
             </p>
+            {bestSequence.evidenceCount < 3 && (
+              <p className="mt-2 rounded-lg bg-secondary/70 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground">
+                Это раннее наблюдение, а не готовая рекомендация. Повтори последовательность ещё
+                несколько раз — так результат станет понятнее.
+              </p>
+            )}
           </>
         ) : demo && hasBestSeq && bestSession ? (
           <>
@@ -1969,8 +1975,8 @@ function StatsScreen({
           </>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Мы ещё тестируем разные последовательности. Ответ появится после нескольких успешных
-            сессий.
+            Закончи первый протокол с обеими оценками — здесь появится первая последовательность и
+            её предварительный результат.
           </p>
         )}
       </div>

@@ -59,8 +59,8 @@ export function WakeRoutineCard({
       {!expanded ? (
         <p className="mt-2 text-xs text-muted-foreground">
           {enabled && items.length
-            ? `${items.length} пунктов · на аналитику не влияет`
-            : "Не настроена"}
+            ? `${items.length} пунктов · покажем после измерения`
+            : "Не настроена · можно добавить позже"}
         </p>
       ) : (
         <>

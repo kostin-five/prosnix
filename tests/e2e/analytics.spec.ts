@@ -218,9 +218,9 @@ test("после пяти сессий feedback показывается оди�
   await page.goto("/");
   await page.getByRole("button", { name: "Статистика" }).click();
   await expect(page.getByText("Помоги улучшить эксперимент")).toBeVisible();
-  await page.getByLabel("Насколько формат оказался полезен?").selectOption("5");
-  await page.getByLabel("Насколько он раздражал?").selectOption("1");
-  await page.getByLabel("Насколько хочешь продолжать?").selectOption("5");
+  await page.getByRole("radio", { name: "Насколько формат оказался полезен?: 5" }).click();
+  await page.getByRole("radio", { name: "Насколько формат раздражал?: 1" }).click();
+  await page.getByRole("radio", { name: "Хочешь продолжать эксперимент?: 5" }).click();
   await page.getByRole("button", { name: "Отправить ответы" }).click();
   await expect(page.getByText("Помоги улучшить эксперимент")).toHaveCount(0);
 });
