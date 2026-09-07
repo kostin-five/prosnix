@@ -40,8 +40,11 @@ function profile(evidenceCount: number): AnalyticsProfile {
 }
 
 function setup(evidenceCount: number) {
+  let currentEvidenceCount = evidenceCount;
   let saved: CoachInsightRecord | null = null;
-  const analytics: AnalyticsRepository = { recompute: vi.fn(async () => profile(evidenceCount)) };
+  const analytics: AnalyticsRepository = {
+    recompute: vi.fn(async () => profile(currentEvidenceCount)),
+  };
   const cache: CoachInsightRepository = {
     findByUserId: vi.fn(async () => saved),
     findTimezoneByUserId: vi.fn(async () => "Europe/Moscow"),
@@ -57,7 +60,14 @@ function setup(evidenceCount: number) {
     model: "deepseek-v4-flash",
   });
   const gateway = { generate: vi.fn(generate) };
-  return { service: new CoachService(analytics, cache, gateway), cache, gateway };
+  return {
+    service: new CoachService(analytics, cache, gateway),
+    cache,
+    gateway,
+    setEvidenceCount: (value: number) => {
+      currentEvidenceCount = value;
+    },
+  };
 }
 
 describe("CoachService", () => {
@@ -140,14 +150,21 @@ describe("CoachService", () => {
   });
 
   it("does not call the provider twice in one local day when evidence changes", async () => {
-    const { service, gateway } = setup(4);
+    const { service, gateway, setEvidenceCount } = setup(4);
     await expect(
       service.getInsight("user-1", new Date("2026-09-05T06:00:00.000Z")),
     ).resolves.toMatchObject({ source: "provider", limitReached: true });
 
+    setEvidenceCount(5);
     await expect(
       service.getInsight("user-1", new Date("2026-09-05T18:00:00.000Z")),
-    ).resolves.toMatchObject({ source: "cache", cached: true, limitReached: true });
+    ).resolves.toMatchObject({
+      source: "fallback",
+      cached: false,
+      evidenceCount: 5,
+      limitReached: true,
+      insight: { caveat: expect.stringContaining("5 сессиях") },
+    });
     expect(gateway.generate).toHaveBeenCalledTimes(1);
   });
 

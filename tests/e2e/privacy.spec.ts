@@ -13,7 +13,9 @@ test("политика конфиденциальности доступна б�
 
   await expect(page.getByRole("heading", { name: "Политика конфиденциальности" })).toBeVisible();
   await expect(page.getByText("Какие данные мы обрабатываем")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Открыть @prosnix_bot" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Написать в поддержку: @prosnix_support" }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Назад в приложение" })).toBeVisible();
   expect(authRequests).toBe(0);
 });

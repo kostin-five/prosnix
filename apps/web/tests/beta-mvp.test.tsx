@@ -2,8 +2,9 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { HomeWakeChart } from "../src/features/analytics/home-wake-chart.js";
 import { ProsnixBrand } from "../src/features/brand/prosnix-brand.js";
+import { PrivacyPolicy } from "../src/features/legal/privacy-policy.js";
+import { TermsOfUse } from "../src/features/legal/terms-of-use.js";
 
 describe("финальная Beta-полировка", () => {
   let root: Root;
@@ -28,27 +29,14 @@ describe("финальная Beta-полировка", () => {
     expect(container.querySelector("svg")).not.toBeNull();
   });
 
-  it("показывает положительный, нулевой и отрицательный день со значением и n", () => {
-    act(() =>
-      root.render(
-        <HomeWakeChart
-          data={[
-            { key: "a", label: "4 сент.", value: 2, evidenceCount: 2 },
-            { key: "b", label: "5 сент.", value: 0, evidenceCount: 1 },
-            { key: "c", label: "6 сент.", value: -1.5, evidenceCount: 3 },
-          ]}
-        />,
-      ),
-    );
-    expect(container.textContent).toContain("+2.0");
-    expect(container.textContent).toContain("+0.0");
-    expect(container.textContent).toContain("-1.5");
-    expect(container.textContent).toContain("n=3");
-    expect(container.querySelectorAll("[style]")).toHaveLength(4);
-  });
+  it("показывает актуального оператора и отдельный контакт поддержки", () => {
+    act(() => root.render(<PrivacyPolicy />));
+    expect(container.textContent).toContain("разработчик разработчик Денисович");
+    expect(container.textContent).toContain("@prosnix_support");
+    expect(container.querySelector('a[href="https://t.me/prosnix_support"]')).not.toBeNull();
 
-  it("показывает понятное пустое состояние", () => {
-    act(() => root.render(<HomeWakeChart data={[]} />));
-    expect(container.textContent).toContain("после первой полностью завершённой сессии");
+    act(() => root.render(<TermsOfUse />));
+    expect(container.textContent).toContain("разработчик разработчик Денисович");
+    expect(container.textContent).toContain("@prosnix_support");
   });
 });

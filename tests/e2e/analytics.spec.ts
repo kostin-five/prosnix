@@ -148,9 +148,8 @@ test("профиль показывает только воспроизводи�
 
   await page.goto("/");
   await expect(page.getByLabel("Prosnix Beta")).toBeVisible();
-  await expect(page.getByLabel("Прирост бодрости по дням")).toBeVisible();
-  await expect(page.getByText("+4.0", { exact: true })).toBeVisible();
-  await expect(page.getByText("n=1").first()).toBeVisible();
+  await expect(page.getByLabel("Прирост бодрости по дням")).toHaveCount(0);
+  await expect(page.getByText("Средний прирост")).toBeVisible();
   await page.getByRole("button", { name: "Статистика" }).click();
 
   await expect(page.getByText("+3.5", { exact: true })).toBeVisible();

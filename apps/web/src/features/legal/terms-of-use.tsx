@@ -1,8 +1,9 @@
 import { LegalBack } from "./legal-back.js";
 
-const UPDATED_AT = "5 сентября 2026 года";
-const OPERATOR_NAME = import.meta.env.VITE_LEGAL_OPERATOR_NAME || "Владелец сервиса Prosnix";
-const OPERATOR_CONTACT = import.meta.env.VITE_LEGAL_CONTACT || "@prosnix_bot";
+const UPDATED_AT = "7 сентября 2026 года";
+const OPERATOR_NAME = import.meta.env.VITE_LEGAL_OPERATOR_NAME || "разработчик разработчик Денисович";
+const OPERATOR_CONTACT = import.meta.env.VITE_LEGAL_CONTACT || "@prosnix_support";
+const OPERATOR_CONTACT_URL = `https://t.me/${OPERATOR_CONTACT.replace(/^@/, "")}`;
 
 export function TermsOfUse() {
   return (
@@ -58,8 +59,8 @@ export function TermsOfUse() {
           <a className="font-semibold text-primary underline" href="/privacy">
             Политика
           </a>
-          <a className="font-semibold text-primary underline" href="https://t.me/prosnix_bot">
-            @prosnix_bot
+          <a className="font-semibold text-primary underline" href={OPERATOR_CONTACT_URL}>
+            {OPERATOR_CONTACT}
           </a>
         </div>
       </article>

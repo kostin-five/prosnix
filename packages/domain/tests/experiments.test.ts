@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { selectLearningAssignment } from "../src/experiments/learning.js";
+import {
+  learningAssignmentCandidates,
+  selectLearningAssignment,
+} from "../src/experiments/learning.js";
 
 describe("план первоначальных экспериментов", () => {
   it("фиксирует сопоставимую пару с движением до начала сессии", () => {
@@ -22,11 +25,30 @@ describe("план первоначальных экспериментов", () 
     );
   });
 
-  it("возвращает безопасный fallback после периода изучения", () => {
-    expect(selectLearningAssignment(7)).toMatchObject({
-      phase: "fallback",
-      strategyVersion: "fallback-v1",
-    });
+  it("чередует безопасные последовательности после периода изучения", () => {
+    const continuation = [7, 8, 9, 10].map((count) => selectLearningAssignment(count));
+
+    expect(continuation[0]).toMatchObject({ phase: "fallback" });
+    expect(continuation[1]).toMatchObject({ strategyVersion: "continuation-v1" });
+    expect(continuation[2]).toMatchObject({ strategyVersion: "continuation-v1" });
+    expect(continuation[3]?.protocolKey).toBe(continuation[0]?.protocolKey);
+    expect(
+      continuation.slice(1).every((assignment, index) => {
+        const previous = continuation[index]!;
+        return (
+          assignment.steps.map(({ taskId }) => taskId).join(",") !==
+          previous.steps.map(({ taskId }) => taskId).join(",")
+        );
+      }),
+    ).toBe(true);
+  });
+
+  it("предлагает альтернативы для проверки после персонализации", () => {
+    expect(learningAssignmentCandidates(8).map(({ protocolKey }) => protocolKey)).toEqual([
+      "cognitive-refresh",
+      "activation-mix",
+      "safe-fallback",
+    ]);
   });
 
   it("за семь сессий накапливает три независимых сравнения одного фактора", () => {

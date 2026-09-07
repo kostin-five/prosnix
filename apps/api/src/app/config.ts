@@ -63,8 +63,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const authRateLimitMax = boundedInteger(env, "AUTH_RATE_LIMIT_MAX", 30, 1, 1_000);
   const coachRateLimitMax = boundedInteger(env, "COACH_RATE_LIMIT_MAX", 10, 1, 1_000);
   const billingRateLimitMax = boundedInteger(env, "BILLING_RATE_LIMIT_MAX", 10, 1, 100);
-  const legalPrivacyVersion = env.LEGAL_PRIVACY_VERSION?.trim() || "2026-08-31";
-  const legalTermsVersion = env.LEGAL_TERMS_VERSION?.trim() || "2026-08-31";
+  const legalPrivacyVersion = env.LEGAL_PRIVACY_VERSION?.trim() || "2026-09-07";
+  const legalTermsVersion = env.LEGAL_TERMS_VERSION?.trim() || "2026-09-07";
   const telegramStarsMonthlyPrice = boundedInteger(
     env,
     "TELEGRAM_STARS_MONTHLY_PRICE",

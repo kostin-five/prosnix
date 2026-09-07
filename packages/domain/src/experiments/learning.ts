@@ -76,23 +76,63 @@ const FALLBACK: PlannedAssignment = {
   ],
 };
 
+const CONTINUATION_ASSIGNMENTS: readonly PlannedAssignment[] = [
+  FALLBACK,
+  {
+    protocolKey: "cognitive-refresh",
+    protocolVersion: 1,
+    strategyVersion: "continuation-v1",
+    phase: "fallback",
+    hypothesis: "Меняем порядок коротких когнитивных заданий для следующего наблюдения",
+    steps: [
+      { index: 0, taskId: "reaction", category: "cognitive" },
+      { index: 1, taskId: "memory", category: "cognitive" },
+      { index: 2, taskId: "stroop", category: "cognitive" },
+      { index: 3, taskId: "math", category: "cognitive" },
+    ],
+  },
+  {
+    protocolKey: "activation-mix",
+    protocolVersion: 1,
+    strategyVersion: "continuation-v1",
+    phase: "fallback",
+    hypothesis: "Проверяем другую последовательность доступных действий",
+    steps: [
+      { index: 0, taskId: "shake", category: "movement" },
+      { index: 1, taskId: "stroop", category: "cognitive" },
+      { index: 2, taskId: "math", category: "cognitive" },
+      { index: 3, taskId: "water", category: "behavioral" },
+      { index: 4, taskId: "window", category: "environment" },
+    ],
+  },
+];
+
+function rotate<T>(values: readonly T[], start: number): readonly T[] {
+  const index = start % values.length;
+  return [...values.slice(index), ...values.slice(0, index)];
+}
+
+export function learningAssignmentCandidates(
+  completedLearningSessions: number,
+): readonly PlannedAssignment[] {
+  if (!Number.isInteger(completedLearningSessions) || completedLearningSessions < 0) {
+    return [FALLBACK];
+  }
+  if (completedLearningSessions < LEARNING_ASSIGNMENTS.length) {
+    return rotate(LEARNING_ASSIGNMENTS, completedLearningSessions);
+  }
+  return rotate(CONTINUATION_ASSIGNMENTS, completedLearningSessions - LEARNING_ASSIGNMENTS.length);
+}
+
 export function selectLearningAssignment(
   completedLearningSessions: number,
   previousTaskIds: readonly TaskId[] = [],
 ): PlannedAssignment {
-  if (
-    Number.isInteger(completedLearningSessions) &&
-    completedLearningSessions >= 0 &&
-    completedLearningSessions < LEARNING_ASSIGNMENTS.length
-  ) {
-    const planned = LEARNING_ASSIGNMENTS[completedLearningSessions] as PlannedAssignment;
-    const signature = previousTaskIds.join(",");
-    if (planned.steps.map(({ taskId }) => taskId).join(",") !== signature) return planned;
-    return (
-      LEARNING_ASSIGNMENTS.find(
-        (candidate) => candidate.steps.map(({ taskId }) => taskId).join(",") !== signature,
-      ) ?? planned
-    );
-  }
-  return FALLBACK;
+  const candidates = learningAssignmentCandidates(completedLearningSessions);
+  const previousSignature = previousTaskIds.join(",");
+  return (
+    candidates.find(
+      (candidate) => candidate.steps.map(({ taskId }) => taskId).join(",") !== previousSignature,
+    ) ?? candidates[0]!
+  );
 }

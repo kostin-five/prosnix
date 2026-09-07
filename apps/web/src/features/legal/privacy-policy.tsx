@@ -1,8 +1,9 @@
 import { LegalBack } from "./legal-back.js";
 
-const UPDATED_AT = "5 сентября 2026 года";
-const OPERATOR_NAME = import.meta.env.VITE_LEGAL_OPERATOR_NAME || "Владелец сервиса Prosnix";
-const OPERATOR_CONTACT = import.meta.env.VITE_LEGAL_CONTACT || "@prosnix_bot";
+const UPDATED_AT = "7 сентября 2026 года";
+const OPERATOR_NAME = import.meta.env.VITE_LEGAL_OPERATOR_NAME || "разработчик разработчик Денисович";
+const OPERATOR_CONTACT = import.meta.env.VITE_LEGAL_CONTACT || "@prosnix_support";
+const OPERATOR_CONTACT_URL = `https://t.me/${OPERATOR_CONTACT.replace(/^@/, "")}`;
 
 export function PrivacyPolicy() {
   return (
@@ -18,11 +19,10 @@ export function PrivacyPolicy() {
           <p className="text-sm leading-relaxed text-muted-foreground">
             Оператор: {OPERATOR_NAME}. Prosnix — независимое приложение, не связанное с Telegram.
             Связаться по вопросам данных можно через{" "}
-            <a className="text-primary underline" href="https://t.me/prosnix_bot">
+            <a className="text-primary underline" href={OPERATOR_CONTACT_URL}>
               {OPERATOR_CONTACT}
             </a>
-            . До публичного продвижения оператор обязан дополнить этот раздел применимыми
-            реквизитами и адресом.
+            .
           </p>
         </section>
 
@@ -137,8 +137,8 @@ export function PrivacyPolicy() {
         </section>
 
         <div className="mt-8 flex flex-col gap-3 border-t border-border pt-6 text-sm">
-          <a className="font-semibold text-primary underline" href="https://t.me/prosnix_bot">
-            Открыть @prosnix_bot
+          <a className="font-semibold text-primary underline" href={OPERATOR_CONTACT_URL}>
+            Написать в поддержку: {OPERATOR_CONTACT}
           </a>
           <a className="text-muted-foreground underline" href="/terms">
             Пользовательское соглашение Prosnix

@@ -2,11 +2,16 @@
 
 **Дата:** 7 сентября 2026 года
 
-- `pnpm format:check` — успешно.
-- `pnpm typecheck` — успешно.
-- domain tests — 23 успешно.
-- web tests — 21 успешно.
-- API unit/contract tests — 64 успешно; 9 PostgreSQL integration tests пропущены без disposable DB.
-- `pnpm build` — успешно; initial JavaScript 245,18 КБ.
+- `pnpm verify:release:full` на отдельной локальной disposable PostgreSQL — успешно после
+  синхронизации двух E2E-ожиданий с намеренно изменённым UI.
+- PostgreSQL integration — 16 успешно, включая четыре последовательных post-learning назначения.
+- Domain tests — 26 успешно.
+- Web tests — 21 успешно.
+- API tests с подключённой disposable DB — 78 успешно.
+- Mobile Chromium E2E — 15 успешно.
+- Dependency audit — известных production-уязвимостей нет.
+- Build и production boundaries — успешно; initial JavaScript 243,78 КБ (238,1 КиБ) при лимите
+  240 КиБ.
 
-Не проверено: PostgreSQL integration, mobile E2E и ручной Telegram smoke-test. Они требуют отдельной disposable PostgreSQL и запуска окружения.
+Не проверено: CI точного SHA, активный Render SHA и ручной Telegram smoke-test. Neon/production DB
+для проверки не использовалась.

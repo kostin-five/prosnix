@@ -59,7 +59,6 @@ import {
 import { LazyBoundary } from "./lazy-boundary.js";
 import { ProsnixBrand } from "../features/brand/prosnix-brand.js";
 
-const HomeWakeChart = lazy(() => import("../features/analytics/home-wake-chart.js"));
 const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
 const StatsResearchCards = lazy(() => import("../features/research/stats-research-cards.js"));
 
@@ -1036,22 +1035,6 @@ function HomeScreen({
       : null
     : (apiProfile?.averageDelta.value ?? null);
   const avgGain = averageValue === null ? "—" : averageValue.toFixed(1);
-  const chartItems = demo
-    ? sessions.slice(-7).map((session) => ({
-        key: session.id,
-        label: session.date.split(" ")[0] ?? session.date,
-        value: session.endAlertness - session.startAlertness,
-        evidenceCount: 1,
-      }))
-    : (apiProfile?.dailyTrend ?? []).slice(-7).map((point) => ({
-        key: point.localDate,
-        label: new Date(`${point.localDate}T12:00:00`).toLocaleDateString("ru-RU", {
-          day: "numeric",
-          month: "short",
-        }),
-        value: point.averageDelta,
-        evidenceCount: point.evidenceCount,
-      }));
   const isLearning = experimentCount < 7;
   const lp = Math.min(experimentCount, 7);
 
@@ -1125,37 +1108,6 @@ function HomeScreen({
             <span className="text-muted-foreground text-sm mb-0.5">/ {isLearning ? "7" : "∞"}</span>
           </div>
         </div>
-      </div>
-
-      {/* Mini chart */}
-      <div className="mb-6 rounded-2xl border border-border bg-card p-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold">Прирост бодрости по дням</p>
-          <span className="text-[10px] text-muted-foreground">среднее за день</span>
-        </div>
-        {!demo && analytics.status === "loading" ? (
-          <div
-            className="h-28 animate-pulse rounded-xl bg-secondary/50"
-            aria-label="Загружаем график"
-          />
-        ) : !demo && analytics.status === "error" ? (
-          <p className="rounded-xl bg-secondary/50 p-3 text-xs text-muted-foreground">
-            Динамика временно не загрузилась. Остальные данные пробуждений сохранены.
-          </p>
-        ) : (
-          <LazyBoundary>
-            <Suspense
-              fallback={
-                <div
-                  className="h-28 animate-pulse rounded-xl bg-secondary/50"
-                  aria-label="Загружаем график"
-                />
-              }
-            >
-              <HomeWakeChart data={chartItems} />
-            </Suspense>
-          </LazyBoundary>
-        )}
       </div>
 
       <button

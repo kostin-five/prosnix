@@ -6,6 +6,7 @@ import {
   PostgresSessionCommandRepository,
   PostgresUserDeletionRepository,
   PostgresWakePersonalizationRepository,
+  sql,
 } from "@awc/db";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -166,6 +167,95 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
       expect({ ...afterRoutine, computedAt: beforeRoutine.computedAt }).toEqual(beforeRoutine);
 
       await deletion.deleteUser(user.id, "personalization-cleanup-after");
+    });
+
+    it("чередует фактические протоколы после семи завершённых сессий", async () => {
+      const database = connect();
+      const telegramUserId = 910000000017n;
+      let user = await database.unitOfWork.transaction(({ users }) =>
+        users.createFromTelegram({ telegramUserId, locale: "ru" }),
+      );
+      const deletion = new PostgresUserDeletionRepository(database.db);
+      await deletion.deleteUser(user.id, "continuation-cleanup-before");
+      user = await database.unitOfWork.transaction(({ users }) =>
+        users.createFromTelegram({ telegramUserId, locale: "ru" }),
+      );
+      await database.db.execute(
+        sql`update users set learning_session_count = 7 where id = ${user.id}::uuid`,
+      );
+
+      const commands = new PostgresSessionCommandRepository(database.db);
+      const signatures: string[] = [];
+      for (let round = 0; round < 4; round += 1) {
+        const minute = String(round * 5).padStart(2, "0");
+        let session = (
+          await commands.execute({
+            userId: user.id,
+            operationId: `continuation-create-${round}`,
+            requestHash: `continuation-create-hash-${round}`,
+            observedAt: new Date(`2026-09-07T07:${minute}:00.000Z`),
+            command: {
+              type: "create",
+              timezone: "Europe/Moscow",
+              wakeContext: "night_sleep",
+              durationMinutes: 5,
+            },
+          })
+        ).session;
+        signatures.push(session.assignment.steps.map(({ taskId }) => taskId).join(","));
+        session = (
+          await commands.execute({
+            userId: user.id,
+            operationId: `continuation-baseline-${round}`,
+            requestHash: `continuation-baseline-hash-${round}`,
+            observedAt: new Date(`2026-09-07T07:${minute}:10.000Z`),
+            command: {
+              type: "baseline",
+              sessionId: session.id,
+              expectedVersion: session.version,
+              value: 3,
+            },
+          })
+        ).session;
+        for (const step of session.assignment.steps) {
+          session = (
+            await commands.execute({
+              userId: user.id,
+              operationId: `continuation-task-${round}-${step.index}`,
+              requestHash: `continuation-task-hash-${round}-${step.index}`,
+              observedAt: new Date(`2026-09-07T07:${minute}:${20 + step.index}.000Z`),
+              command: {
+                type: "task",
+                sessionId: session.id,
+                expectedVersion: session.version,
+                stepIndex: step.index,
+                taskId: step.taskId,
+                correct: 1,
+                total: 1,
+                durationMs: 1000,
+              },
+            })
+          ).session;
+        }
+        await commands.execute({
+          userId: user.id,
+          operationId: `continuation-post-${round}`,
+          requestHash: `continuation-post-hash-${round}`,
+          observedAt: new Date(`2026-09-07T07:${minute}:40.000Z`),
+          command: {
+            type: "post_rating",
+            sessionId: session.id,
+            expectedVersion: session.version,
+            value: 6,
+          },
+        });
+      }
+
+      expect(signatures).toHaveLength(4);
+      expect(signatures.slice(1).every((signature, index) => signature !== signatures[index])).toBe(
+        true,
+      );
+      await deletion.deleteUser(user.id, "continuation-cleanup-after");
     });
   },
 );

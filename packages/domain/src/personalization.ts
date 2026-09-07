@@ -140,3 +140,22 @@ export function personalizeAssignment(
     },
   };
 }
+
+export function selectPersonalizedAssignment(
+  candidates: readonly ExperimentAssignment[],
+  profile: WakeCapabilityProfile,
+  durationMinutes: WakeDurationMinutes,
+  previousTaskIds: readonly TaskId[] = [],
+): { assignment: ExperimentAssignment; snapshot: WakePersonalizationSnapshot } {
+  if (candidates.length === 0) throw new Error("At least one assignment candidate is required");
+  const personalized = candidates.map((candidate) =>
+    personalizeAssignment(candidate, profile, durationMinutes),
+  );
+  const previousSignature = previousTaskIds.join(",");
+  return (
+    personalized.find(
+      ({ assignment }) =>
+        assignment.steps.map(({ taskId }) => taskId).join(",") !== previousSignature,
+    ) ?? personalized[0]!
+  );
+}

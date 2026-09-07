@@ -8,9 +8,9 @@ import {
   acceptFollowUp,
   acceptPostRating,
   acceptTaskResult,
-  selectLearningAssignment,
-  personalizeAssignment,
+  learningAssignmentCandidates,
   SAFE_WAKE_PROFILE,
+  selectPersonalizedAssignment,
   type ExperimentAssignment,
   type ProtocolStep,
   type SessionCommand,
@@ -275,16 +275,20 @@ async function createSession(
           : [],
       )
     : [];
-  const baseAssignment = selectLearningAssignment(user.learningSessionCount, previousTaskIds);
   const [profileRow] = await db
     .select()
     .from(wakeCapabilityProfiles)
     .where(eq(wakeCapabilityProfiles.userId, envelope.userId))
     .limit(1);
-  const personalized = personalizeAssignment(
-    { ...baseAssignment, id: "pending" },
-    mapProfile(profileRow),
+  const profile = mapProfile(profileRow);
+  const personalized = selectPersonalizedAssignment(
+    learningAssignmentCandidates(user.learningSessionCount).map((candidate) => ({
+      ...candidate,
+      id: "pending",
+    })),
+    profile,
     envelope.command.durationMinutes,
+    previousTaskIds,
   );
   const planned = personalized.assignment;
   await db
