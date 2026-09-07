@@ -42,6 +42,9 @@ async function openTelegramApp(page: Page) {
   await page.route("**/api/v1/experiment-feedback", (route) =>
     json(route, { eligible: false, submitted: false }),
   );
+  await page.route("**/api/v1/pro-interest", (route) =>
+    json(route, { eligible: false, submitted: false }),
+  );
 }
 
 test("профиль показывает только воспроизводимые метрики смешанных протоколов", async ({ page }) => {
@@ -223,6 +226,52 @@ test("после пяти сессий feedback показывается оди�
   await page.getByRole("radio", { name: "Хочешь продолжать эксперимент?: 5" }).click();
   await page.getByRole("button", { name: "Отправить ответы" }).click();
   await expect(page.getByText("Помоги улучшить эксперимент")).toHaveCount(0);
+});
+
+test("исследование Pro не запускает оплату и скрывается после одного ответа", async ({ page }) => {
+  await openTelegramApp(page);
+  await page.route("**/api/v1/analytics/profile", (route) =>
+    json(route, {
+      methodVersion: "analytics-v1",
+      computedAt: "2026-09-07T12:00:00.000Z",
+      averageDelta: {
+        key: "average-delta",
+        value: 2,
+        evidenceCount: 7,
+        evidenceIds: [],
+        confidence: "low",
+      },
+      riseSuccess: {
+        key: "rise-success",
+        value: null,
+        evidenceCount: 0,
+        evidenceIds: [],
+        confidence: "insufficient",
+      },
+      protocolEffects: [],
+      factorEffects: [],
+      sequenceEffects: [],
+      dailyTrend: [],
+    }),
+  );
+  await page.route("**/api/v1/sessions/history?limit=10", (route) => json(route, { sessions: [] }));
+  let submitted = false;
+  await page.route("**/api/v1/pro-interest", async (route) => {
+    if (route.request().method() === "GET") return json(route, { eligible: true, submitted });
+    expect(route.request().postDataJSON()).toEqual({ intent: "interested", interestFocus: "both" });
+    submitted = true;
+    return json(route, { eligible: true, submitted });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Статистика" }).click();
+  await expect(page.getByText("Помоги выбрать, что развивать дальше")).toBeVisible();
+  await expect(page.getByText(/Это не подписка: цены, оплаты и списания/)).toBeVisible();
+  await expect(page.getByText(/Stars/)).toHaveCount(0);
+  await page.getByRole("radio", { name: "Интересно", exact: true }).click();
+  await page.getByRole("radio", { name: "Оба направления" }).click();
+  await page.getByRole("button", { name: "Оставить ответ" }).click();
+  await expect(page.getByText("Помоги выбрать, что развивать дальше")).toHaveCount(0);
 });
 
 test("ранний отчёт требует явного подтверждения и header помещается на 320 px", async ({

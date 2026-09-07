@@ -57,6 +57,13 @@
       "when": 1788732000000,
       "tag": "0007_experiment_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788782400000,
+      "tag": "0008_pro_interest_responses",
+      "breakpoints": true
     }
   ]
 }

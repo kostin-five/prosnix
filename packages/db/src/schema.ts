@@ -453,6 +453,36 @@ export const experimentFeedback = pgTable(
   ],
 );
 
+export const proInterestResponses = pgTable(
+  "pro_interest_responses",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    offerVersion: text("offer_version").notNull(),
+    intent: text().notNull(),
+    interestFocus: text("interest_focus"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("pro_interest_responses_user_offer_unique").on(table.userId, table.offerVersion),
+    check(
+      "pro_interest_responses_intent_valid",
+      sql`${table.intent} in ('interested', 'not_now', 'not_interested')`,
+    ),
+    check(
+      "pro_interest_responses_focus_valid",
+      sql`${table.interestFocus} is null or ${table.interestFocus} in ('long_history', 'deeper_experiments', 'both')`,
+    ),
+    check(
+      "pro_interest_responses_focus_matches_intent",
+      sql`(${table.intent} = 'interested' and ${table.interestFocus} is not null) or (${table.intent} <> 'interested' and ${table.interestFocus} is null)`,
+    ),
+    index("pro_interest_responses_created_idx").on(table.createdAt),
+  ],
+);
+
 export const legalAcceptances = pgTable("legal_acceptances", {
   userId: uuid("user_id")
     .primaryKey()

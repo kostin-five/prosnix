@@ -42,6 +42,7 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
       contextRows,
       durationRows,
       experimentRows,
+      proInterestRows,
       featureRows,
       dailyDeliveryRows,
       followUpDeliveryRows,
@@ -193,6 +194,26 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
         order by a.strategy_version
       `),
       this.db.execute<{
+        responses: number;
+        interested: number;
+        not_now: number;
+        not_interested: number;
+        long_history: number;
+        deeper_experiments: number;
+        both: number;
+      }>(sql`
+        select
+          count(*)::int as responses,
+          count(*) filter (where intent = 'interested')::int as interested,
+          count(*) filter (where intent = 'not_now')::int as not_now,
+          count(*) filter (where intent = 'not_interested')::int as not_interested,
+          count(*) filter (where interest_focus = 'long_history')::int as long_history,
+          count(*) filter (where interest_focus = 'deeper_experiments')::int as deeper_experiments,
+          count(*) filter (where interest_focus = 'both')::int as both
+        from pro_interest_responses
+        where created_at >= ${fromIso}::timestamptz and created_at < ${nowIso}::timestamptz
+      `),
+      this.db.execute<{
         capability_profiles: number;
         routines_enabled: number;
         routine_runs: number;
@@ -307,6 +328,15 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
           assigned: number(row.assigned),
           completed: number(row.completed),
         })),
+        proInterest: {
+          responses: number(proInterestRows[0]?.responses),
+          interested: number(proInterestRows[0]?.interested),
+          notNow: number(proInterestRows[0]?.not_now),
+          notInterested: number(proInterestRows[0]?.not_interested),
+          longHistory: number(proInterestRows[0]?.long_history),
+          deeperExperiments: number(proInterestRows[0]?.deeper_experiments),
+          both: number(proInterestRows[0]?.both),
+        },
       },
       features: {
         capabilityProfiles: number(features?.capability_profiles),

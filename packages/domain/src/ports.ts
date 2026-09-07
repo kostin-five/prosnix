@@ -210,6 +210,24 @@ export interface ExperimentFeedbackRepository {
   }): Promise<ExperimentFeedbackStatus>;
 }
 
+export type ProInterestIntent = "interested" | "not_now" | "not_interested";
+export type ProInterestFocus = "long_history" | "deeper_experiments" | "both";
+
+export interface ProInterestStatus {
+  eligible: boolean;
+  submitted: boolean;
+}
+
+export interface ProInterestRepository {
+  status(userId: string): Promise<ProInterestStatus>;
+  submit(input: {
+    userId: string;
+    intent: ProInterestIntent;
+    interestFocus?: ProInterestFocus;
+    now: Date;
+  }): Promise<ProInterestStatus>;
+}
+
 export interface UserDeletionRepository {
   deleteUser(userId: string, correlationId: string, now?: Date): Promise<boolean>;
 }
@@ -302,6 +320,15 @@ export interface AdminGrowthSummary {
       assigned: number;
       completed: number;
     }>;
+    proInterest: {
+      responses: number;
+      interested: number;
+      notNow: number;
+      notInterested: number;
+      longHistory: number;
+      deeperExperiments: number;
+      both: number;
+    };
   };
   features: {
     capabilityProfiles: number;

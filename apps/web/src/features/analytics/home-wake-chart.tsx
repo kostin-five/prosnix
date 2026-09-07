@@ -57,3 +57,5 @@ export function HomeWakeChart({ data }: { data: readonly HomeWakeChartPoint[] })
     </div>
   );
 }
+
+export default HomeWakeChart;

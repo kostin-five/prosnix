@@ -59,21 +59,9 @@ import {
 import { LazyBoundary } from "./lazy-boundary.js";
 import { ProsnixBrand } from "../features/brand/prosnix-brand.js";
 
-const HomeWakeChart = lazy(() =>
-  import("../features/analytics/home-wake-chart.js").then((module) => ({
-    default: module.HomeWakeChart,
-  })),
-);
-const SettingsScreen = lazy(() =>
-  import("../features/settings/settings-screen.js").then((module) => ({
-    default: module.SettingsScreen,
-  })),
-);
-const ExperimentFeedbackCard = lazy(() =>
-  import("../features/feedback/experiment-feedback-card.js").then((module) => ({
-    default: module.ExperimentFeedbackCard,
-  })),
-);
+const HomeWakeChart = lazy(() => import("../features/analytics/home-wake-chart.js"));
+const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
+const StatsResearchCards = lazy(() => import("../features/research/stats-research-cards.js"));
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Screen =
@@ -1983,21 +1971,11 @@ function StatsScreen({
 
       {!demo && (
         <Suspense fallback={null}>
-          <ExperimentFeedbackCard refreshKey={sessions.length} />
+          <StatsResearchCards
+            refreshKey={sessions.length}
+            showAnalyticsHelp={Boolean(apiProfile)}
+          />
         </Suspense>
-      )}
-
-      {!demo && apiProfile && (
-        <details className="mb-5 px-1 text-xs text-muted-foreground">
-          <summary className="cursor-pointer font-medium text-foreground">
-            Справка об аналитике
-          </summary>
-          <p className="mt-2 leading-relaxed">
-            Прирост — разница оценок после и до протокола. В среднем участвуют только завершённые
-            сессии с обеими оценками; рядом с датой показан размер выборки. Контексты сна не
-            смешиваются при сравнении протоколов.
-          </p>
-        </details>
       )}
 
       {/* Learning plan */}

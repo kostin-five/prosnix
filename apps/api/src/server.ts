@@ -15,6 +15,7 @@ import {
   PostgresLegalAcceptanceRepository,
   PostgresWakePersonalizationRepository,
   PostgresExperimentFeedbackRepository,
+  PostgresProInterestRepository,
 } from "@awc/db";
 import { createApp } from "./app/create-app.js";
 import { loadConfig } from "./app/config.js";
@@ -51,6 +52,7 @@ const app = await createApp(config, {
   legalAcceptanceRepository: new PostgresLegalAcceptanceRepository(database.db),
   wakePersonalizationRepository: new PostgresWakePersonalizationRepository(database.db),
   experimentFeedbackRepository: new PostgresExperimentFeedbackRepository(database.db),
+  proInterestRepository: new PostgresProInterestRepository(database.db),
   billingRepository: new PostgresBillingRepository(database.db),
   telegramStarsGateway: new TelegramBotStarsGateway(config.botToken),
 });

@@ -20,6 +20,7 @@ import type {
   LegalAcceptanceRepository,
   WakePersonalizationRepository,
   ExperimentFeedbackRepository,
+  ProInterestRepository,
 } from "@awc/domain";
 import { registerAuthRoutes } from "../auth/routes.js";
 import { registerBootstrapRoute } from "./bootstrap-route.js";
@@ -44,6 +45,7 @@ import { BillingService } from "../billing/service.js";
 import type { TelegramStarsGateway } from "../billing/telegram-stars.js";
 import { registerPersonalizationRoutes } from "../personalization/routes.js";
 import { registerExperimentFeedbackRoutes } from "../feedback/routes.js";
+import { registerProInterestRoutes } from "../pro-interest/routes.js";
 
 export interface AppDependencies {
   unitOfWork: UnitOfWork;
@@ -66,6 +68,7 @@ export interface AppDependencies {
   telegramStarsGateway?: TelegramStarsGateway;
   wakePersonalizationRepository?: WakePersonalizationRepository;
   experimentFeedbackRepository?: ExperimentFeedbackRepository;
+  proInterestRepository?: ProInterestRepository;
   now?: () => Date;
 }
 
@@ -248,6 +251,13 @@ export async function createApp(
       await registerExperimentFeedbackRoutes(app, {
         config,
         repository: dependencies.experimentFeedbackRepository,
+        ...(dependencies.now ? { now: dependencies.now } : {}),
+      });
+    }
+    if (dependencies.proInterestRepository) {
+      await registerProInterestRoutes(app, {
+        config,
+        repository: dependencies.proInterestRepository,
         ...(dependencies.now ? { now: dependencies.now } : {}),
       });
     }

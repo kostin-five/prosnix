@@ -58,6 +58,15 @@ export interface AdminGrowthData {
       completed: number;
       completionRate: number;
     }>;
+    proInterest: {
+      responses: number;
+      interested: number;
+      notNow: number;
+      notInterested: number;
+      longHistory: number;
+      deeperExperiments: number;
+      both: number;
+    };
   };
   features: {
     capabilityProfiles: number;
@@ -90,6 +99,15 @@ const percent = (value: number) => `${Math.round(value * 100)}%`;
 const count = (value: number) => new Intl.NumberFormat("ru-RU").format(value);
 const signed = (value: number | null) =>
   value === null ? "Нет данных" : `${value > 0 ? "+" : ""}${value.toFixed(2)}`;
+const emptyProInterest = {
+  responses: 0,
+  interested: 0,
+  notNow: 0,
+  notInterested: 0,
+  longHistory: 0,
+  deeperExperiments: 0,
+  both: 0,
+};
 
 function MetricCard({ title, value, detail }: { title: string; value: string; detail: string }) {
   return (
@@ -243,6 +261,7 @@ export function AdminScreen() {
     );
 
   const empty = Boolean(data && data.funnel.assigned === 0 && data.users.new === 0);
+  const proInterest = data?.breakdowns.proInterest ?? emptyProInterest;
 
   return (
     <main className="min-h-screen bg-background px-4 py-7 text-foreground sm:px-6">
@@ -493,6 +512,34 @@ export function AdminScreen() {
                   title="Использование функций"
                   value={`${count(data.features.aiInsightsGenerated)} AI`}
                   detail={`Рутин за период ${count(data.features.routineRuns)} · завершено ${count(data.features.routineRunsCompleted)}`}
+                />
+              </div>
+            </section>
+
+            <section aria-labelledby="pro-interest-title">
+              <h2 id="pro-interest-title" className="mb-3 text-lg font-bold">
+                Интерес к будущему Pro
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                  title="Ответили на исследование"
+                  value={count(proInterest.responses)}
+                  detail="Это не платёж и не конверсия в подписку"
+                />
+                <MetricCard
+                  title="Интересно"
+                  value={count(proInterest.interested)}
+                  detail={`Пока не нужно: ${count(proInterest.notNow)} · неинтересно: ${count(proInterest.notInterested)}`}
+                />
+                <MetricCard
+                  title="Длинная история"
+                  value={count(proInterest.longHistory)}
+                  detail="Выбрали как будущую ценность"
+                />
+                <MetricCard
+                  title="Глубокие эксперименты"
+                  value={count(proInterest.deeperExperiments)}
+                  detail={`Оба направления: ${count(proInterest.both)}`}
                 />
               </div>
             </section>

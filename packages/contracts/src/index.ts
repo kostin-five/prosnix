@@ -64,6 +64,20 @@ export const ExperimentFeedbackInputSchema = Type.Object(
 );
 export type ExperimentFeedbackInput = Static<typeof ExperimentFeedbackInputSchema>;
 
+export const PRO_INTEREST_INTENTS = ["interested", "not_now", "not_interested"] as const;
+export const PRO_INTEREST_FOCUSES = ["long_history", "deeper_experiments", "both"] as const;
+
+export const ProInterestInputSchema = Type.Object(
+  {
+    intent: Type.Union(PRO_INTEREST_INTENTS.map((value) => Type.Literal(value))),
+    interestFocus: Type.Optional(
+      Type.Union(PRO_INTEREST_FOCUSES.map((value) => Type.Literal(value))),
+    ),
+  },
+  { additionalProperties: false },
+);
+export type ProInterestInput = Static<typeof ProInterestInputSchema>;
+
 export const WAKE_CONTEXTS = ["night_sleep", "short_nap", "long_nap", "energy_reset"] as const;
 export const WAKE_DURATIONS = [2, 5, 10] as const;
 export const MOVEMENT_LEVELS = ["none", "light", "full"] as const;
@@ -263,6 +277,15 @@ export interface AdminGrowthResponse {
       completed: number;
       completionRate: number;
     }>;
+    proInterest: {
+      responses: number;
+      interested: number;
+      notNow: number;
+      notInterested: number;
+      longHistory: number;
+      deeperExperiments: number;
+      both: number;
+    };
   };
   features: {
     capabilityProfiles: number;

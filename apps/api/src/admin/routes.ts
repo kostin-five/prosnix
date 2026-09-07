@@ -86,6 +86,7 @@ export async function registerAdminRoutes(
             ...item,
             completionRate: rate(item.completed, item.assigned),
           })),
+          proInterest: summary.breakdowns.proInterest,
         },
         features: summary.features,
         deliveries: {

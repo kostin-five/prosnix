@@ -8,7 +8,7 @@ import { CapabilityProfileCard } from "../personalization/capability-profile-car
 import { WakeRoutineCard } from "../personalization/wake-routine-card.js";
 import type { WakeProfile, WakeRoutine } from "../../shared/api/client.js";
 
-export function SettingsScreen({
+export default function SettingsScreen({
   alarmTime,
   schedule,
   saving,
