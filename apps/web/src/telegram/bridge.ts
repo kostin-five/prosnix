@@ -1,5 +1,6 @@
 interface TelegramWebApp {
   initData: string;
+  initDataUnsafe?: { start_param?: string };
   ready(): void;
   expand(): void;
   openInvoice?(url: string, callback?: (status: string) => void): void;
@@ -21,6 +22,13 @@ declare global {
 }
 
 export type LaunchContext = { mode: "telegram"; initData: string } | { mode: "demo" };
+
+export function getTelegramStartParam(locationSearch = window.location.search): string | null {
+  return (
+    window.Telegram?.WebApp?.initDataUnsafe?.start_param ??
+    new URLSearchParams(locationSearch).get("tgWebAppStartParam")
+  );
+}
 
 export function getLaunchContext(locationSearch = window.location.search): LaunchContext {
   const webApp = window.Telegram?.WebApp;

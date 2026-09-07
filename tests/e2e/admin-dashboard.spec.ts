@@ -82,7 +82,7 @@ test("владелец видит агрегированную админ-пан
     }),
   );
 
-  await page.goto("/admin");
+  await page.goto("/?demo=1&tgWebAppStartParam=admin");
 
   await expect(page.getByRole("heading", { name: "Продуктовая аналитика" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Воронка пробуждения" })).toBeVisible();
@@ -100,7 +100,7 @@ test("обычный пользователь не получает данные
   );
   await page.route("**/api/v1/admin/growth?days=*", (route) => route.fulfill({ status: 404 }));
 
-  await page.goto("/admin");
+  await page.goto("/admin?demo=1");
 
   await expect(page.getByRole("heading", { name: "Админ-панель закрыта" })).toBeVisible();
   await expect(page.getByText("Доступ не разрешён")).toBeVisible();

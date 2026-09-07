@@ -10,7 +10,7 @@
 - API tests с подключённой disposable DB — 78 успешно.
 - Mobile Chromium E2E — 15 успешно.
 - Dependency audit — известных production-уязвимостей нет.
-- Build и production boundaries — успешно; initial JavaScript 243,78 КБ (238,1 КиБ) при лимите
+- Build и production boundaries — успешно; initial JavaScript 244,00 КБ (238,3 КиБ) при лимите
   240 КиБ.
 
 Не проверено: CI точного SHA, активный Render SHA и ручной Telegram smoke-test. Neon/production DB

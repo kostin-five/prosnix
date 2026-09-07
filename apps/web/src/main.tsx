@@ -12,17 +12,21 @@ const PrivacyPolicy = lazy(() =>
 const TermsOfUse = lazy(() =>
   import("./features/legal/terms-of-use.tsx").then((module) => ({ default: module.TermsOfUse })),
 );
-const AdminScreen = lazy(() =>
-  import("./features/admin/admin-screen.tsx").then((module) => ({ default: module.AdminScreen })),
+const AdminEntry = lazy(() =>
+  import("./features/admin/admin-entry.tsx").then((module) => ({ default: module.AdminEntry })),
 );
+
+const telegramStartParam =
+  window.Telegram?.WebApp?.initDataUnsafe?.start_param ??
+  new URLSearchParams(window.location.search).get("tgWebAppStartParam");
 
 const content =
   window.location.pathname === "/privacy" ? (
     <PrivacyPolicy />
   ) : window.location.pathname === "/terms" ? (
     <TermsOfUse />
-  ) : window.location.pathname === "/admin" ? (
-    <AdminScreen />
+  ) : window.location.pathname === "/admin" || telegramStartParam === "admin" ? (
+    <AdminEntry />
   ) : (
     <App />
   );
