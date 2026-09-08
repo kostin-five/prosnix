@@ -108,9 +108,9 @@ describe("профиль пробуждения", () => {
     expect(container.textContent).toContain("Как проходит пробуждение");
     expect(container.textContent).toContain("небольшой подъём бодрости");
     expect(container.textContent).toContain("подъём сохраняется и через 15 минут");
-    expect(container.textContent).toContain("Пройтись → Реакция → Память");
     expect(container.textContent).toMatch(/13\s+завершённых сессиях/);
     expect(container.textContent).not.toContain("Высокая уверенность");
+    expect(container.textContent).not.toContain("Что попробовать дальше");
     expect(container.querySelectorAll("details")).toHaveLength(1);
     expect(container.textContent?.match(/помогает ли движение/g)).toHaveLength(1);
     expect(container.querySelector('[aria-label="Эффект 2 последних пробуждений"]')).not.toBeNull();

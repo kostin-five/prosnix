@@ -1,4 +1,5 @@
 import { TaskIcon, type TaskId } from "./task-icon.js";
+import { Check } from "lucide-react";
 
 export function TaskTimerVisual({
   taskId,
@@ -65,7 +66,11 @@ export function TaskTimerVisual({
           taskId={taskId}
           className={`mb-1 h-8 w-8 ${complete ? "" : "motion-safe:animate-[pulse_1.8s_ease-in-out_infinite]"}`}
         />
-        <span className="text-4xl font-black tabular-nums">{complete ? "✓" : remaining}</span>
+        {complete ? (
+          <Check className="h-9 w-9" strokeWidth={2.5} />
+        ) : (
+          <span className="text-4xl font-black tabular-nums">{remaining}</span>
+        )}
         {!complete && <span className="text-[11px] font-medium text-muted-foreground">секунд</span>}
       </div>
     </div>

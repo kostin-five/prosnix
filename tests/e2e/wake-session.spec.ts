@@ -177,7 +177,7 @@ test("полный wake-up цикл подтверждается серверо�
   await expect(page.locator('[data-testid="task-timer-light"]')).toBeVisible();
   await page.clock.runFor(31_000);
   await expect(page.getByRole("timer", { name: "Таймер завершён" })).toBeVisible();
-  await page.getByRole("button", { name: "Подошёл ✓" }).click();
+  await page.getByRole("button", { name: "Подошёл" }).click();
   await page.getByRole("button", { name: "7", exact: true }).click();
   await page.getByRole("button", { name: "Сохранить результат" }).click();
   await expect(page.getByRole("heading", { name: "Протокол завершён" })).toBeVisible();

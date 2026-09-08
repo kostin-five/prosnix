@@ -157,8 +157,9 @@ test("профиль показывает только воспроизводи�
   await expect(page.getByText("1м", { exact: true })).toBeVisible();
   await expect(page.getByText("Как проходит пробуждение")).toBeVisible();
   await expect(page.getByText(/заметно выше/)).toBeVisible();
-  await expect(page.getByText("Стакан воды → Память", { exact: true })).toBeVisible();
-  await expect(page.getByText("Недостаточно данных · n=2")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Следующий эксперимент" })).toBeVisible();
+  await expect(page.getByText(/Ближайшая полезная проверка.*Стакан воды → Память/)).toBeVisible();
+  await expect(page.getByText(/Это рабочая проверка, а не доказанный лучший способ/)).toBeVisible();
   await expect(page.getByText("Средний прирост по датам")).toHaveCount(0);
   await page.getByLabel("Открыть эксперимент 1").click();
   await expect(page.getByText("Что было в эксперименте")).toBeVisible();
@@ -173,7 +174,7 @@ test("профиль показывает только воспроизводи�
   expect(coachRequests).toBe(0);
   await page.getByRole("button", { name: "Создать персональный отчёт" }).click();
   await expect(page.getByText("Главный вывод")).toBeVisible();
-  await expect(page.getByText("Что проверить дальше")).toBeVisible();
+  await expect(page.getByText("Повторить протокол с движением и светом.")).toBeVisible();
   await expect(page.getByText("Высокая уверенность")).toHaveCount(0);
   await expect(page.getByText(/Движение даёт наиболее устойчивый/)).toBeVisible();
   expect(coachRequests).toBe(1);
@@ -258,12 +259,15 @@ test("после 13 сессий общий профиль не зависит �
   await page.getByRole("button", { name: "Статистика" }).click();
   await expect(page.getByText(/Основано на 13 завершённых сессиях/)).toBeVisible();
   await expect(page.getByText("Как проходит пробуждение")).toBeVisible();
-  await expect(page.getByText("Что попробовать дальше")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Следующий эксперимент" })).toHaveCount(1);
+  await expect(page.getByText("Что попробовать дальше")).toHaveCount(0);
   await expect(page.getByText("Что Prosnix ещё проверяет")).toBeVisible();
   await expect(page.getByRole("img", { name: "Эффект 2 последних пробуждений" })).toBeVisible();
   await expect(page.getByText("Высокая уверенность")).toHaveCount(0);
   await expect(page.getByText(/Профиль готов по/)).toHaveCount(0);
-  await expect(page.getByText("Пройтись → Реакция → Память", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(/Ближайшая полезная проверка.*Пройтись → Реакция → Память/),
+  ).toBeVisible();
 });
 
 test("после пяти сессий feedback показывается один раз и отправляется без влияния на wake flow", async ({

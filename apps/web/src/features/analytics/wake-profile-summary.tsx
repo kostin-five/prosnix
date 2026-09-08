@@ -3,19 +3,6 @@ import type {
   SessionHistoryItemResponse,
 } from "../../shared/api/client.js";
 
-const TASK_LABELS: Record<string, string> = {
-  math: "Математика",
-  memory: "Память",
-  stroop: "Цвета",
-  reaction: "Реакция",
-  steps: "Пройтись",
-  squats: "Приседания",
-  shake: "Размяться",
-  water: "Стакан воды",
-  window: "Свет у окна",
-  curtains: "Открыть шторы",
-};
-
 function factorLabel(key: string) {
   return key === "movement" || key.split(":")[1] === "movement" ? "движение" : "этот фактор";
 }
@@ -41,14 +28,6 @@ function observationMaturity(confidence: AnalyticsProfileResponse["averageDelta"
   }
   if (confidence === "low") return "Вывод пока предварительный: полезны новые повторы.";
   return "Пока мало повторов для устойчивого вывода.";
-}
-
-function sequenceLabel(key: string) {
-  return key
-    .replace(/^sequence:/, "")
-    .split(">")
-    .map((taskId) => TASK_LABELS[taskId] ?? taskId)
-    .join(" → ");
 }
 
 function RecentEffectChart({ sessions }: { sessions: SessionHistoryItemResponse[] }) {
@@ -137,14 +116,6 @@ export function WakeProfileSummary({
   evidenceCount: number;
   recentSessions?: SessionHistoryItemResponse[];
 }) {
-  const bestSequence = profile.sequenceEffects
-    .filter(({ value }) => value !== null)
-    .sort(
-      (left, right) =>
-        Number(right.evidenceCount >= 2) - Number(left.evidenceCount >= 2) ||
-        (right.value ?? 0) - (left.value ?? 0) ||
-        right.evidenceCount - left.evidenceCount,
-    )[0];
   const progressByFactor = new Map<
     string,
     NonNullable<AnalyticsProfileResponse["comparisonProgress"]>[number]
@@ -161,15 +132,6 @@ export function WakeProfileSummary({
         <p className="text-sm font-semibold">Как проходит пробуждение</p>
         <p className="mt-1 text-sm leading-relaxed">{gainMeaning(profile.averageDelta.value)}</p>
         <p className="mt-2 text-sm leading-relaxed">{riseMeaning(profile.riseSuccess.value)}</p>
-      </div>
-
-      <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
-        <p className="text-sm font-semibold">Что попробовать дальше</p>
-        <p className="mt-1 text-sm leading-relaxed">
-          {bestSequence
-            ? `Самый перспективный порядок сейчас — «${sequenceLabel(bestSequence.key)}». Полезно повторить его в похожих условиях, чтобы проверить, сохраняется ли результат.`
-            : "Продолжай назначенные протоколы и отвечай через 15 минут — так Prosnix сможет сравнить разные порядки заданий, а не выбрать случайного победителя."}
-        </p>
       </div>
 
       <RecentEffectChart sessions={recentSessions} />

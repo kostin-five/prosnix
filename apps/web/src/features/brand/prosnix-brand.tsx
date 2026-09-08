@@ -1,3 +1,5 @@
+import bannerUrl from "../../../../../assets/brand/prosnix-telegram-banner-600x320.png";
+
 export function ProductBetaBadge({ className = "" }: { className?: string }) {
   return (
     <span
@@ -11,37 +13,21 @@ export function ProductBetaBadge({ className = "" }: { className?: string }) {
 export function ProsnixBrand() {
   return (
     <div className="min-w-0" aria-label="Prosnix Beta">
-      <div className="flex items-center gap-2.5">
-        <svg aria-hidden="true" className="h-9 w-9 shrink-0" viewBox="0 0 44 44" fill="none">
-          <defs>
-            <linearGradient id="prosnix-mark" x1="8" y1="37" x2="37" y2="7">
-              <stop stopColor="#ff7a00" />
-              <stop offset="1" stopColor="#facc15" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M10 36 17 9h10.5c6 0 9.5 3.5 9.5 8.7 0 5.7-4.3 9.3-10.7 9.3h-7.4L16.5 36H10Z"
-            stroke="url(#prosnix-mark)"
-            strokeWidth="4.5"
-            strokeLinejoin="round"
+      <div className="flex min-w-0 items-center gap-1.5">
+        <h1 aria-label="Prosnix" className="shrink-0">
+          <img
+            src={bannerUrl}
+            alt=""
+            aria-hidden="true"
+            className="h-11 w-[154px] object-cover object-center"
+            style={{
+              maskImage: "radial-gradient(ellipse 72% 65% at center,black 58%,transparent 100%)",
+              WebkitMaskImage:
+                "radial-gradient(ellipse 72% 65% at center,black 58%,transparent 100%)",
+            }}
           />
-          <path d="M20 21h12" stroke="url(#prosnix-mark)" strokeWidth="4.5" />
-          <g data-brand-sun="true">
-            <circle cx="26.5" cy="16.5" r="3.2" fill="#facc15" />
-            <path
-              d="M26.5 10.5V8.5m5.2 3.2 1.5-1.5m-11.9 1.5-1.5-1.5m13.2 6.3h2m-17 0h2"
-              stroke="#facc15"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-          </g>
-        </svg>
-        <div className="flex min-w-0 items-center gap-2">
-          <h1 className="truncate text-[1.35rem] font-black leading-none tracking-[0.08em]">
-            PROSNI<span className="text-primary">X</span>
-          </h1>
-          <ProductBetaBadge />
-        </div>
+        </h1>
+        <ProductBetaBadge className="-ml-1" />
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import React from "react";
+import { Check } from "lucide-react";
 import type { WakeProfile } from "../../shared/api/client.js";
 
 export function CapabilityProfileCard({
@@ -41,9 +42,7 @@ export function CapabilityProfileCard({
   return (
     <section className="mb-4 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center gap-2">
-        <span aria-hidden="true" className="text-accent">
-          ✓
-        </span>
+        <Check aria-hidden="true" className="h-4 w-4 text-accent" />
         <h2 className="text-sm font-semibold">Что тебе подходит</h2>
       </div>
       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
@@ -103,9 +102,7 @@ export function CapabilityProfileCard({
               >
                 <span>{label}</span>
                 {draft.availableResources.includes(value) && (
-                  <span aria-hidden="true" className="text-accent">
-                    ✓
-                  </span>
+                  <Check aria-hidden="true" className="h-4 w-4 text-accent" />
                 )}
               </button>
             ))}

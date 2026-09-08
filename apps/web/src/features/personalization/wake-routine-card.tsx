@@ -1,5 +1,7 @@
 import React from "react";
+import { Check } from "lucide-react";
 import type { WakeRoutine, WakeRoutineRun } from "../../shared/api/client.js";
+import { TaskIcon } from "../tasks/task-icon.js";
 import { loadWakeRoutineRun, saveWakeRoutineRun } from "./personalization-api.js";
 
 export function WakeRoutineCard({
@@ -43,9 +45,7 @@ export function WakeRoutineCard({
   return (
     <section className="mb-4 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center gap-2">
-        <span aria-hidden="true" className="text-accent">
-          ☀
-        </span>
+        <TaskIcon taskId="window" className="h-4 w-4 text-accent" />
         <h2 className="text-sm font-semibold">Рутина после пробуждения</h2>
         <button
           type="button"
@@ -242,7 +242,7 @@ export function WakeRoutineChecklist({
               <span
                 className={`flex h-5 w-5 items-center justify-center rounded border ${run.completedItemIds.includes(item.id) ? "border-accent bg-accent text-accent-foreground" : "border-border"}`}
               >
-                {run.completedItemIds.includes(item.id) ? "✓" : ""}
+                {run.completedItemIds.includes(item.id) && <Check className="h-3.5 w-3.5" />}
               </span>
               {item.title}
             </button>

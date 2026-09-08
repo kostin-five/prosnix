@@ -24,11 +24,10 @@ describe("финальная Beta-полировка", () => {
 
   it("показывает фирменный wordmark и статус Beta", () => {
     act(() => root.render(<ProsnixBrand />));
-    expect(container.querySelector("h1")?.textContent).toBe("PROSNIX");
     expect(container.textContent).toContain("Beta");
-    expect(container.querySelector("svg")).not.toBeNull();
-    expect(container.querySelector('[data-brand-sun="true"] circle')).not.toBeNull();
-    expect(container.querySelector('[data-brand-sun="true"] path')).not.toBeNull();
+    const banner = container.querySelector<HTMLImageElement>("img");
+    expect(banner?.src).toContain("prosnix-telegram-banner-600x320.png");
+    expect(banner?.getAttribute("style")).toContain("radial-gradient");
   });
 
   it("показывает актуального оператора и отдельный контакт поддержки", () => {

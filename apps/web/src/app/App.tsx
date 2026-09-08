@@ -38,8 +38,6 @@ import {
   type WakeSchedule,
 } from "../features/schedule/schedule-api.js";
 import { LegalGate } from "../features/legal/legal-gate.js";
-import { WakeContextSheet } from "../features/personalization/wake-context-sheet.js";
-import { WakeRoutineChecklist } from "../features/personalization/wake-routine-card.js";
 import {
   saveWakeProfile,
   saveWakeRoutine,
@@ -65,6 +63,12 @@ const SettingsScreen = lazy(() => import("../features/settings/settings-screen.j
 const StatsResearchCards = lazy(() => import("../features/research/stats-research-cards.js"));
 const TaskTimerVisual = lazy(() => import("../features/tasks/task-timer-visual.js"));
 const WakeProfileSummary = lazy(() => import("../features/analytics/wake-profile-summary.js"));
+const WakeContextSheet = lazy(async () => ({
+  default: (await import("../features/personalization/wake-context-sheet.js")).WakeContextSheet,
+}));
+const WakeRoutineChecklist = lazy(async () => ({
+  default: (await import("../features/personalization/wake-routine-card.js")).WakeRoutineChecklist,
+}));
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Screen =
@@ -176,18 +180,57 @@ const TASK_META: Record<TaskId, { category: TaskCategory; title: string; subtitl
   },
 };
 
-const CAT_META: Record<TaskCategory, { label: string; emoji: string; color: string; bg: string }> =
-  {
-    cognitive: { label: "Когнитивные", emoji: "🧠", color: "text-accent", bg: "bg-accent/10" },
-    movement: { label: "Движение", emoji: "🚶", color: "text-green-400", bg: "bg-green-500/10" },
-    behavioral: { label: "Поведение", emoji: "💧", color: "text-blue-400", bg: "bg-blue-500/10" },
-    environment: {
-      label: "Окружение",
-      emoji: "☀️",
-      color: "text-yellow-400",
-      bg: "bg-yellow-500/10",
-    },
+const CAT_META: Record<TaskCategory, { label: string; color: string; bg: string }> = {
+  cognitive: { label: "Когнитивные", color: "text-accent", bg: "bg-accent/10" },
+  movement: { label: "Движение", color: "text-green-400", bg: "bg-green-500/10" },
+  behavioral: { label: "Поведение", color: "text-blue-400", bg: "bg-blue-500/10" },
+  environment: { label: "Окружение", color: "text-yellow-400", bg: "bg-yellow-500/10" },
+};
+
+function CategoryIcon({
+  category,
+  className = "h-4 w-4",
+}: {
+  category: TaskCategory;
+  className?: string;
+}) {
+  const taskId: Record<TaskCategory, TaskId> = {
+    cognitive: "memory",
+    movement: "steps",
+    behavioral: "water",
+    environment: "window",
   };
+  return <TaskIcon taskId={taskId[category]} className={className} />;
+}
+
+function FollowUpIcon({
+  answer,
+  className = "h-5 w-5",
+}: {
+  answer: Exclude<FollowUp, null>;
+  className?: string;
+}) {
+  if (answer === "up") return <Check className={className} />;
+  if (answer === "back") return <MoonIcon className={className} />;
+  return <Activity className={className} />;
+}
+
+function MoonIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M20.5 14.4A8.5 8.5 0 0 1 9.6 3.5 8.5 8.5 0 1 0 20.5 14.4Z" />
+    </svg>
+  );
+}
 
 const CONFIRM_CONFIG: Partial<
   Record<TaskId, { instruction: string; countdown: number; cta: string }>
@@ -196,35 +239,35 @@ const CONFIRM_CONFIG: Partial<
     instruction:
       "Встаньте и пройдитесь по комнате или коридору. Шаги не измеряются датчиком — отметьте выполнение честно после таймера.",
     countdown: 20,
-    cta: "Прошёл ✓",
+    cta: "Прошёл",
   },
   squats: {
     instruction:
       "Сделайте 5 приседаний медленно, глубоко дыша. Напрягите ноги и выпрямитесь полностью.",
     countdown: 25,
-    cta: "Сделал ✓",
+    cta: "Сделал",
   },
   shake: {
     instruction: "Потрясите руками, подвигайте плечами и шеей. Разбудите тело за 15 секунд.",
     countdown: 15,
-    cta: "Готово ✓",
+    cta: "Готово",
   },
   water: {
     instruction: "Налейте и выпейте стакан воды, если это подходит вам и не запрещено врачом.",
     countdown: 0,
-    cta: "Выпил ✓",
+    cta: "Выпил",
   },
   window: {
     instruction:
       "Подойдите к окну и побудьте при дневном свете 30 секунд. Не смотрите прямо на солнце. Если на улице темно, включите яркий свет в комнате.",
     countdown: 30,
-    cta: "Подошёл ✓",
+    cta: "Подошёл",
   },
   curtains: {
     instruction:
       "Откройте шторы и впустите дневной свет. Не смотрите прямо на солнце; если темно, включите яркий свет в комнате.",
     countdown: 0,
-    cta: "Открыл ✓",
+    cta: "Открыл",
   },
 };
 
@@ -688,7 +731,7 @@ function MemoryTask({ onDone }: { onDone: (r: TaskResult) => void }) {
           disabled={entered.length < seq.length}
           className={`h-12 rounded-xl text-xl font-semibold transition-all ${entered.length === seq.length ? "bg-primary text-white active:scale-95" : "bg-secondary/40 text-muted-foreground"}`}
         >
-          ✓
+          <Check className="mx-auto h-5 w-5" />
         </button>
       </div>
     </div>
@@ -809,7 +852,7 @@ function ReactionTask({ onDone }: { onDone: (r: TaskResult) => void }) {
           {phase === "wait"
             ? "Жди... не нажимай раньше времени"
             : phase === "early"
-              ? "⚠️ Слишком рано!"
+              ? "Слишком рано!"
               : phase === "result"
                 ? `Среднее: ${avgMs} мс`
                 : "Нажимай!"}
@@ -827,15 +870,19 @@ function ReactionTask({ onDone }: { onDone: (r: TaskResult) => void }) {
                 : "bg-secondary border-border text-muted-foreground"
         }`}
       >
-        {phase === "go"
-          ? "ЖМИ!"
-          : phase === "result"
-            ? lastMs
-              ? `${lastMs}мс`
-              : "⚡"
-            : phase === "early"
-              ? "Рано!"
-              : "⏳"}
+        {phase === "go" ? (
+          "ЖМИ!"
+        ) : phase === "result" ? (
+          lastMs ? (
+            `${lastMs}мс`
+          ) : (
+            <Zap className="mx-auto h-8 w-8" />
+          )
+        ) : phase === "early" ? (
+          "Рано!"
+        ) : (
+          <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+        )}
       </button>
       {times.length > 0 && (
         <div className="flex gap-4">
@@ -933,7 +980,9 @@ function ConfirmTask({ taskId, onDone }: { taskId: TaskId; onDone: (r: TaskResul
               : {}
           }
         >
-          {cfg.cta}
+          <span className="inline-flex items-center justify-center gap-2">
+            {cfg.cta} <Check className="h-5 w-5" />
+          </span>
         </button>
       )}
     </div>
@@ -971,7 +1020,10 @@ function TasksContainer({
           <span
             className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${catMeta.bg} border-transparent ${catMeta.color}`}
           >
-            {catMeta.emoji} {catMeta.label}
+            <span className="inline-flex items-center gap-1">
+              <CategoryIcon category={meta.category} className="h-3.5 w-3.5" />
+              {catMeta.label}
+            </span>
           </span>
         </div>
         <div className="h-1 bg-muted rounded-full overflow-hidden">
@@ -1063,7 +1115,7 @@ function HomeScreen({
             <Sparkles className="w-4 h-4 text-primary" />
           )}
           <p className={`text-sm font-semibold ${isLearning ? "text-accent" : "text-primary"}`}>
-            {isLearning ? "🧪 Изучаем твоё пробуждение" : "Первый профиль пробуждения готов"}
+            {isLearning ? "Изучаем твоё пробуждение" : "Первый профиль пробуждения готов"}
           </p>
         </div>
         {isLearning && (
@@ -1194,7 +1246,7 @@ function StartRatingScreen({ onDone }: { onDone: (v: number) => void }) {
   return (
     <div className="flex flex-col flex-1 p-6 justify-center">
       <div className="text-center mb-10">
-        <div className="text-5xl mb-5">😴</div>
+        <MoonIcon className="mx-auto mb-5 h-12 w-12 text-accent" />
         <h1 className="text-2xl font-bold mb-2">Перед протоколом</h1>
         <p className="text-muted-foreground">Насколько бодрым ты себя чувствуешь прямо сейчас?</p>
       </div>
@@ -1234,7 +1286,7 @@ function EndRatingScreen({
   return (
     <div className="flex flex-col flex-1 p-6 justify-center">
       <div className="text-center mb-6">
-        <div className="text-5xl mb-5">☀️</div>
+        <Sun className="mx-auto mb-5 h-12 w-12 text-accent" strokeWidth={1.7} />
         <h1 className="text-2xl font-bold mb-2">Протокол завершён</h1>
         <p className="text-muted-foreground">А сейчас насколько бодрым ты себя чувствуешь?</p>
       </div>
@@ -1352,7 +1404,7 @@ function ResultsScreen({
   let insightTitle = "Сессия сохранена";
   let insightBody = "";
   let insightColor = "border-border bg-secondary/30";
-  let insightIcon = "💾";
+  let insightIcon: "saved" | "experiment" | "profile" = "saved";
 
   if (remaining === null) {
     insightBody =
@@ -1365,12 +1417,12 @@ function ResultsScreen({
     insightTitle = "Почти готово";
     insightBody = `Ещё ${remaining} эксперимент${remaining === 1 ? "" : "а"} до первых персональных выводов.`;
     insightColor = "border-accent/20 bg-accent/8";
-    insightIcon = "🧪";
+    insightIcon = "experiment";
   } else {
     insightTitle = "Профиль обновлён";
     insightBody = `Учтено ${evidenceCount} завершённых сессий. Рекомендации и лучший порядок заданий пересчитаны.`;
     insightColor = "border-primary/20 bg-primary/8";
-    insightIcon = "📊";
+    insightIcon = "profile";
   }
 
   return (
@@ -1443,8 +1495,15 @@ function ResultsScreen({
 
       {/* Insight */}
       <div className={`border rounded-2xl p-4 mb-4 ${insightColor}`}>
-        <p className="text-xs text-muted-foreground mb-1">
-          {insightIcon} {insightTitle}
+        <p className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+          {insightIcon === "profile" ? (
+            <BarChart2 className="h-3.5 w-3.5" />
+          ) : insightIcon === "experiment" ? (
+            <Sparkles className="h-3.5 w-3.5" />
+          ) : (
+            <Check className="h-3.5 w-3.5" />
+          )}
+          {insightTitle}
         </p>
         <p className="text-sm text-foreground leading-relaxed">{insightBody}</p>
       </div>
@@ -1467,11 +1526,10 @@ function ResultsScreen({
             ) : (
               <div className="flex flex-col gap-2">
                 {[
-                  { val: "up" as FollowUp, emoji: "✅", label: "Да, уже встал" },
-                  { val: "back" as FollowUp, emoji: "🛏", label: "Снова лёг" },
+                  { val: "up" as FollowUp, label: "Да, уже встал" },
+                  { val: "back" as FollowUp, label: "Снова лёг" },
                   {
                     val: "drowsy" as FollowUp,
-                    emoji: "😴",
                     label: "Не лёг, но всё ещё очень сонный",
                   },
                 ].map((opt) => (
@@ -1479,9 +1537,10 @@ function ResultsScreen({
                     key={String(opt.val)}
                     onClick={() => opt.val && void answerFollowUp(opt.val)}
                     disabled={followUpSaving}
-                    className="w-full py-3 px-4 rounded-xl bg-secondary border border-border text-sm text-left text-foreground active:scale-[0.99] transition-transform"
+                    className="flex w-full items-center gap-3 rounded-xl border border-border bg-secondary px-4 py-3 text-left text-sm text-foreground transition-transform active:scale-[0.99]"
                   >
-                    {opt.emoji} {opt.label}
+                    <FollowUpIcon answer={opt.val!} className="h-5 w-5 text-accent" />
+                    {opt.label}
                   </button>
                 ))}
                 {followUpSaving && (
@@ -1493,12 +1552,13 @@ function ResultsScreen({
           </>
         ) : (
           <div className={`${followUpAns === "up" ? "text-green-400" : "text-red-400"}`}>
-            <p className="text-sm font-semibold">
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <FollowUpIcon answer={followUpAns} className="h-5 w-5" />
               {followUpAns === "up"
-                ? "✅ Встал и не лёг обратно"
+                ? "Встал и не лёг обратно"
                 : followUpAns === "back"
-                  ? "🛏 Вернулся в кровать"
-                  : "😴 Сонный, но не лёг"}
+                  ? "Вернулся в кровать"
+                  : "Сонный, но не лёг"}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               Ответ сохранён и учтён в профиле пробуждения
@@ -1507,7 +1567,9 @@ function ResultsScreen({
         )}
       </div>
 
-      <WakeRoutineChecklist sessionId={session.id} routine={routine} demo={demo} />
+      <Suspense fallback={null}>
+        <WakeRoutineChecklist sessionId={session.id} routine={routine} demo={demo} />
+      </Suspense>
 
       <div className="flex gap-3">
         <button
@@ -1590,17 +1652,6 @@ function StatsScreen({
     .sort((a, b) => b[1].avgDelta - a[1].avgDelta);
 
   // Best sequence
-  const successSessions = valid.filter((s) => s.followUp === "up" && s.endAlertness >= 7);
-  const hasBestSeq = successSessions.length >= 2;
-  const bestSession = hasBestSeq
-    ? successSessions.reduce((a, b) =>
-        b.endAlertness - b.startAlertness > a.endAlertness - a.startAlertness ? b : a,
-      )
-    : null;
-  const bestAvgDelta = hasBestSeq
-    ? successSessions.reduce((s, v) => s + (v.endAlertness - v.startAlertness), 0) /
-      successSessions.length
-    : 0;
   const sequenceCandidates =
     apiProfile?.sequenceEffects.filter((metric) => metric.value !== null) ?? [];
   const verifiedSequenceCandidates = sequenceCandidates.filter(
@@ -1622,6 +1673,15 @@ function StatsScreen({
   // Next plan
   const nextPlan = computeNextPlan(sessions);
   const nextTaskMeta = nextPlan.taskIds.map((id) => ({ id, ...TASK_META[id] }));
+  const coachExperiment =
+    coach.status === "ready" && coach.insight.insight ? coach.insight.insight.nextExperiment : null;
+  const nextExperimentText = demo
+    ? nextPlan.rationale
+    : coachExperiment
+      ? coachExperiment
+      : bestSequence
+        ? `Ближайшая полезная проверка — повторить порядок «${bestSequenceTasks.map((taskId) => TASK_META[taskId].title).join(" → ")}» после похожего сна и с тем же запасом времени. Ответ через 15 минут покажет, повторяется ли результат.`
+        : "Пройди следующий назначенный протокол после похожего сна и обязательно ответь через 15 минут. Так появится первое честное сравнение последовательностей.";
 
   return (
     <div className="flex flex-col flex-1 px-5 pt-14 pb-28 overflow-y-auto">
@@ -1655,6 +1715,40 @@ function StatsScreen({
           </p>
         </div>
       )}
+
+      <section className="mb-5 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold">Следующий эксперимент</h2>
+          </div>
+          <span className="rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
+            Один следующий шаг
+          </span>
+        </div>
+        {(demo ? nextTaskMeta : bestSequenceTasks).length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            {(demo ? nextTaskMeta.map(({ id }) => id) : bestSequenceTasks).map(
+              (taskId, index, all) => (
+                <div key={`${taskId}-${index}`} className="flex items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-2 py-1 text-xs font-medium">
+                    <TaskIcon taskId={taskId} className="h-3.5 w-3.5 text-primary" />
+                    {TASK_META[taskId].title}
+                  </span>
+                  {index < all.length - 1 && (
+                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                  )}
+                </div>
+              ),
+            )}
+          </div>
+        )}
+        <p className="text-sm leading-relaxed">{nextExperimentText}</p>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          Это рабочая проверка, а не доказанный лучший способ. Сравнение станет полезнее после
+          повторов в похожих условиях.
+        </p>
+      </section>
 
       {!demo && (
         <section className="mb-5 rounded-2xl border border-accent/25 bg-card p-4">
@@ -1691,8 +1785,8 @@ function StatsScreen({
           ) : coach.status === "idle" ? (
             <>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Отчёт найдёт устойчивость результата, сравнит доступные протоколы и предложит один
-                следующий эксперимент. Доступен один новый бесплатный отчёт в день.
+                Отчёт объяснит устойчивость результата и изменения между пробуждениями. Доступен
+                один новый бесплатный отчёт в день.
               </p>
               <button
                 type="button"
@@ -1713,10 +1807,6 @@ function StatsScreen({
                   Главный вывод
                 </p>
                 <p className="mt-1 text-sm leading-relaxed">{coach.insight.insight.summary}</p>
-                <div className="mt-3 rounded-xl bg-secondary/60 p-3">
-                  <p className="text-xs font-semibold text-accent">Что проверить дальше</p>
-                  <p className="mt-1 text-sm">{coach.insight.insight.nextExperiment}</p>
-                </div>
                 <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
                   {coach.insight.insight.caveat}
                 </p>
@@ -1808,7 +1898,7 @@ function StatsScreen({
                 className="flex items-start justify-between py-3 border-b border-border last:border-0"
               >
                 <div className="flex items-start gap-3 flex-1">
-                  <span className="text-xl mt-0.5">{catMeta.emoji}</span>
+                  <CategoryIcon category={cat} className={`mt-0.5 h-5 w-5 ${catMeta.color}`} />
                   <div>
                     <p className="text-sm font-semibold">{catMeta.label}</p>
                     <p className={`text-sm ${eff2.color}`}>{eff2.text}</p>
@@ -1838,79 +1928,6 @@ function StatsScreen({
         )}
       </div>
 
-      {/* Best sequence */}
-      <div className="bg-card border border-border rounded-2xl p-4 mb-5">
-        <p className="text-sm font-semibold mb-3">Лучшая последовательность сейчас</p>
-        {!demo && bestSequence ? (
-          <>
-            <p className="text-sm font-semibold text-green-400">
-              {bestSequenceTasks.map((taskId) => TASK_META[taskId].title).join(" → ")}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {bestSequence.evidenceCount === 1
-                ? "Предварительный результат · n=1"
-                : `${CONF_LABEL[bestSequence.confidence]} · n=${bestSequence.evidenceCount}`}
-            </p>
-            {bestSequenceTasks.length > 0 && (
-              <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                {bestSequenceTasks.map((taskId, index) => (
-                  <div key={`${taskId}-${index}`} className="flex items-center gap-1.5">
-                    <span className="rounded-lg bg-secondary px-2 py-1 text-xs font-medium">
-                      <TaskIcon taskId={taskId} className="mr-1 inline h-3.5 w-3.5" />{" "}
-                      {TASK_META[taskId].title}
-                    </span>
-                    {index < bestSequenceTasks.length - 1 && (
-                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground mt-2">
-              Наблюдаемый прирост бодрости {bestSequence.value! >= 0 ? "+" : ""}
-              {bestSequence.value!.toFixed(1)} · {CONF_LABEL[bestSequence.confidence].toLowerCase()}{" "}
-              · проверено на {bestSequence.evidenceCount} сессиях.
-            </p>
-            {bestSequence.evidenceCount < 3 && (
-              <p className="mt-2 rounded-lg bg-secondary/70 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground">
-                Это раннее наблюдение, а не готовая рекомендация. Повтори последовательность ещё
-                несколько раз — так результат станет понятнее.
-              </p>
-            )}
-          </>
-        ) : demo && hasBestSeq && bestSession ? (
-          <>
-            <div className="flex items-center gap-2 flex-wrap mb-3">
-              {bestSession.tasks.map((t, i) => (
-                <div key={i} className="flex items-center gap-1">
-                  <TaskIcon taskId={t.id} className="h-5 w-5 text-primary" />
-                  {i < bestSession.tasks.length - 1 && (
-                    <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                  )}
-                </div>
-              ))}
-              <div className="ml-2 flex flex-wrap gap-1">
-                {bestSession.tasks.map((t, i) => (
-                  <span key={i} className="text-xs text-muted-foreground">
-                    {TASK_META[t.id].title}
-                    {i < bestSession.tasks.length - 1 ? " →" : ""}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              После этой последовательности бодрость повышалась на +{bestAvgDelta.toFixed(1)} балла,
-              а ты реже возвращался в кровать.
-            </p>
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Закончи первый протокол с обеими оценками — здесь появится первая последовательность и
-            её предварительный результат.
-          </p>
-        )}
-      </div>
-
       {!demo && (
         <Suspense fallback={null}>
           <StatsResearchCards
@@ -1918,59 +1935,6 @@ function StatsScreen({
             showAnalyticsHelp={Boolean(apiProfile)}
           />
         </Suspense>
-      )}
-
-      {/* Learning plan */}
-      {demo && (
-        <div className="bg-card border border-border rounded-2xl p-4 mb-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-accent" />
-              <p className="text-sm font-semibold">
-                {demo ? "✨ Следующий эксперимент" : "Как приложение учится"}
-              </p>
-            </div>
-            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-              {demo ? "Прототип" : "Автоматически"}
-            </span>
-          </div>
-          {demo ? (
-            <>
-              <p className="text-xs text-muted-foreground mb-3">Завтра попробуем:</p>
-              <div className="flex items-center gap-2 flex-wrap mb-3">
-                {nextTaskMeta.map((meta, i) => (
-                  <div key={i} className="flex items-center gap-1.5">
-                    <div
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${CAT_META[meta.category].bg}`}
-                    >
-                      <TaskIcon
-                        taskId={meta.id}
-                        className={`h-4 w-4 ${CAT_META[meta.category].color}`}
-                      />
-                      <span className={`text-xs font-semibold ${CAT_META[meta.category].color}`}>
-                        {meta.title}
-                      </span>
-                    </div>
-                    {i < nextTaskMeta.length - 1 && (
-                      <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                    )}
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">{nextPlan.rationale}</p>
-            </>
-          ) : (
-            <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
-              <p>
-                Приложение само чередует короткие комбинации заданий и сравнивает, после каких ты
-                становишься бодрее и не ложишься обратно.
-              </p>
-              <p className="font-medium text-foreground">
-                Ничего настраивать не нужно — следующий эксперимент будет выбран автоматически.
-              </p>
-            </div>
-          )}
-        </div>
       )}
 
       {/* History */}
@@ -2090,7 +2054,7 @@ function StatsScreen({
                             {meta ? (
                               <TaskIcon taskId={task.taskId as TaskId} className="h-3.5 w-3.5" />
                             ) : (
-                              "✓"
+                              <Check className="h-3.5 w-3.5" />
                             )}
                           </span>
                           <span>
@@ -2111,7 +2075,9 @@ function StatsScreen({
                   </div>
                   {openHistoryIds.has(item.id) && (
                     <div className="mt-3">
-                      <WakeRoutineChecklist sessionId={item.id} routine={routine} demo={false} />
+                      <Suspense fallback={null}>
+                        <WakeRoutineChecklist sessionId={item.id} routine={routine} demo={false} />
+                      </Suspense>
                     </div>
                   )}
                 </div>
@@ -2508,23 +2474,26 @@ function PrototypeApp({
             <button
               disabled={syncing}
               onClick={() => void answerDueFollowUp("up")}
-              className="rounded-xl bg-secondary px-4 py-3 text-left"
+              className="flex items-center gap-3 rounded-xl bg-secondary px-4 py-3 text-left"
             >
-              ✅ Да, уже встал
+              <FollowUpIcon answer="up" className="h-5 w-5 text-green-400" />
+              Да, уже встал
             </button>
             <button
               disabled={syncing}
               onClick={() => void answerDueFollowUp("back")}
-              className="rounded-xl bg-secondary px-4 py-3 text-left"
+              className="flex items-center gap-3 rounded-xl bg-secondary px-4 py-3 text-left"
             >
-              🛏 Снова лёг
+              <FollowUpIcon answer="back" className="h-5 w-5 text-accent" />
+              Снова лёг
             </button>
             <button
               disabled={syncing}
               onClick={() => void answerDueFollowUp("drowsy")}
-              className="rounded-xl bg-secondary px-4 py-3 text-left"
+              className="flex items-center gap-3 rounded-xl bg-secondary px-4 py-3 text-left"
             >
-              😴 Не лёг, но ещё сонный
+              <FollowUpIcon answer="drowsy" className="h-5 w-5 text-yellow-400" />
+              Не лёг, но ещё сонный
             </button>
           </div>
           {syncing && <p className="mt-3 text-xs text-muted-foreground">Сохраняем ответ…</p>}
@@ -2548,17 +2517,23 @@ function PrototypeApp({
           <HomeScreen onStart={() => setScreen("context")} sessions={sessions} demo={demo} />
         )}
         {screen === "context" && (
-          <WakeContextSheet
-            defaultDuration={wakeProfile.defaultDurationMinutes}
-            profileComplete={wakeProfile.onboardingCompleted}
-            busy={syncing}
-            onCancel={() => setScreen("home")}
-            onOpenProfile={() => {
-              setNavTab("settings");
-              setScreen("settings");
-            }}
-            onStart={(context, duration) => void startSession(context, duration)}
-          />
+          <Suspense
+            fallback={
+              <div className="p-5 text-sm text-muted-foreground">Готовим параметры сессии…</div>
+            }
+          >
+            <WakeContextSheet
+              defaultDuration={wakeProfile.defaultDurationMinutes}
+              profileComplete={wakeProfile.onboardingCompleted}
+              busy={syncing}
+              onCancel={() => setScreen("home")}
+              onOpenProfile={() => {
+                setNavTab("settings");
+                setScreen("settings");
+              }}
+              onStart={(context, duration) => void startSession(context, duration)}
+            />
+          </Suspense>
         )}
         {screen === "stats" && (
           <StatsScreen sessions={sessions} demo={demo} routine={wakeRoutine} />

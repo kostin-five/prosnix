@@ -13,10 +13,12 @@
 - API unit/contract: 67 успешно, 14 DB-dependent пропущены без тестовой PostgreSQL;
 - TypeScript strict: успешно;
 - production build: успешно;
-- initial web bundle: 240,0 КиБ из лимита 240 КиБ;
+- initial web bundle после подключения отдельного брендового PNG, выделения optional UI chunks и
+  удаления дублирующих рекомендаций: 229,8 КиБ из лимита 240 КиБ;
 - mobile Chromium E2E: 17 успешно;
 - `pnpm verify:release`: успешно (format, strict types, 120 unit/contract tests, build, bundle и
   production boundaries).
+- пользовательские emoji заменены на единый набор Lucide и task SVG-иконок;
 
 ## Не проверено
 
@@ -26,7 +28,7 @@
 
 ## Риски
 
-- initial bundle находится ровно у лимита, поэтому дальнейшие синхронные UI-зависимости требуют
+- initial bundle находится близко к лимиту, поэтому дальнейшие синхронные UI-зависимости требуют
   выделения chunk или уменьшения основного entry;
 - лучший порядок остаётся наблюдаемым сигналом, а не доказательством причинности;
 - AI provider может вернуть fallback, но fallback теперь даёт конкретную проверку по агрегатам.

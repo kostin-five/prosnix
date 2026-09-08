@@ -1,22 +1,45 @@
 import React from "react";
 import type { WakeContext, WakeDurationMinutes } from "../../shared/api/client.js";
 
-const CONTEXTS: Array<{ value: WakeContext; title: string; hint: string; icon: string }> = [
+const CONTEXTS: Array<{ value: WakeContext; title: string; hint: string }> = [
   {
     value: "night_sleep",
     title: "После ночного сна",
     hint: "Обычное утреннее пробуждение",
-    icon: "☀",
   },
-  { value: "short_nap", title: "После короткого сна", hint: "Дремал до 30 минут", icon: "◷" },
-  { value: "long_nap", title: "После долгого сна", hint: "Спал больше 30 минут днём", icon: "☾" },
+  { value: "short_nap", title: "После короткого сна", hint: "Дремал до 30 минут" },
+  { value: "long_nap", title: "После долгого сна", hint: "Спал больше 30 минут днём" },
   {
     value: "energy_reset",
     title: "Нужно взбодриться",
     hint: "Не спал, но нужна перезагрузка",
-    icon: "↻",
   },
 ];
+
+function ContextIcon({ context }: { context: WakeContext }) {
+  const path = {
+    night_sleep:
+      "M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M5.6 18.4 7 17m10-10 1.4-1.4M8.5 12a3.5 3.5 0 1 0 7 0 3.5 3.5 0 0 0-7 0Z",
+    short_nap:
+      "M12 7v5l3 2M5 4 3 6m16-6 2 6M5 19l-2 2m16-2 2 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z",
+    long_nap: "M20.5 14.4A8.5 8.5 0 0 1 9.6 3.5 8.5 8.5 0 1 0 20.5 14.4Z",
+    energy_reset: "M20 7v5h-5M4 17v-5h5m10.7-4A8 8 0 0 0 6.3 6.3L4 8m16 8-2.3 1.7A8 8 0 0 1 4.3 16",
+  }[context];
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={path} />
+    </svg>
+  );
+}
 
 export function WakeContextSheet({
   defaultDuration,
@@ -41,7 +64,19 @@ export function WakeContextSheet({
         onClick={onCancel}
         className="mb-5 flex min-h-11 items-center gap-2 self-start rounded-xl px-2 text-sm text-muted-foreground"
       >
-        <span aria-hidden="true">←</span> Назад
+        <svg
+          aria-hidden="true"
+          className="h-4 w-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+        Назад
       </button>
       <p className="text-xs font-semibold uppercase tracking-wider text-accent">
         Контекст пробуждения
@@ -78,7 +113,7 @@ export function WakeContextSheet({
                 aria-hidden="true"
                 className={selected ? "w-5 text-primary" : "w-5 text-muted-foreground"}
               >
-                {item.icon}
+                <ContextIcon context={item.value} />
               </span>
               <span>
                 <span className="block text-sm font-semibold">{item.title}</span>
