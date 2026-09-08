@@ -54,6 +54,73 @@ describe("персонализация протокола", () => {
     );
   });
 
+  it("после исследования проверяет лучший сопоставимый вариант", () => {
+    const candidates = learningAssignmentCandidates(11).map((candidate) => ({
+      ...candidate,
+      id: `candidate-${candidate.protocolKey}`,
+    }));
+    const personalized = candidates.map(
+      (candidate) => personalizeAssignment(candidate, profile, 5).assignment,
+    );
+    const best = personalized[0]!;
+    const alternative = personalized[1]!;
+    const sequence = (value: ExperimentAssignment) =>
+      value.steps.map(({ taskId }) => taskId).join(">");
+    const selected = selectPersonalizedAssignment(candidates, profile, 5, [], {
+      completedSessions: 11,
+      wakeContext: "night_sleep",
+      evidence: personalized.flatMap((candidate) =>
+        [0, 1].map((index) => ({
+          sequenceKey: sequence(candidate),
+          wakeContext: "night_sleep" as const,
+          durationMinutes: 5 as const,
+          baseline: 2,
+          postRating: candidate === best ? 7 : candidate === alternative ? 4 : 3,
+          followUp: candidate === best ? ("up" as const) : index === 0 ? ("back" as const) : null,
+        })),
+      ),
+    });
+
+    expect(sequence(selected.assignment)).toBe(sequence(best));
+    expect(selected.assignment.hypothesis).toContain("лучший наблюдаемый");
+  });
+
+  it("не смешивает контексты и не повторяет лучший протокол подряд", () => {
+    const candidates = learningAssignmentCandidates(11).map((candidate) => ({
+      ...candidate,
+      id: `candidate-${candidate.protocolKey}`,
+    }));
+    const personalized = candidates.map(
+      (candidate) => personalizeAssignment(candidate, profile, 5).assignment,
+    );
+    const sequence = (value: ExperimentAssignment) =>
+      value.steps.map(({ taskId }) => taskId).join(">");
+    const previous = personalized[0]!;
+    const selected = selectPersonalizedAssignment(
+      candidates,
+      profile,
+      5,
+      previous.steps.map(({ taskId }) => taskId),
+      {
+        completedSessions: 11,
+        wakeContext: "night_sleep",
+        evidence: [
+          {
+            sequenceKey: sequence(previous),
+            wakeContext: "short_nap",
+            durationMinutes: 5,
+            baseline: 2,
+            postRating: 9,
+            followUp: "up",
+          },
+        ],
+      },
+    );
+
+    expect(sequence(selected.assignment)).not.toBe(sequence(previous));
+    expect(selected.assignment.hypothesis).toContain("новый допустимый вариант");
+  });
+
   it("обнаруживает профиль без единого допустимого задания", () => {
     expect(
       eligibleWakeTasks({

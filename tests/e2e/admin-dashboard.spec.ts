@@ -53,6 +53,13 @@ test("владелец видит агрегированную админ-пан
         retention: {
           d1: { eligible: 10, retained: 4, rate: 0.4 },
           d7: { eligible: 6, retained: 2, rate: 0.3333 },
+          secondSessionWithin7Days: {
+            cohort: 9,
+            eligible: 7,
+            returned: 5,
+            pending: 2,
+            rate: 0.7143,
+          },
         },
         timeline: [
           { date: "2026-09-04", newUsers: 2, startedSessions: 4, completedSessions: 3 },
@@ -88,6 +95,8 @@ test("владелец видит агрегированную админ-пан
   await expect(page.getByRole("heading", { name: "Воронка пробуждения" })).toBeVisible();
   await expect(page.getByText("+2.25", { exact: true })).toBeVisible();
   await expect(page.getByText("Ночной сон", { exact: true })).toBeVisible();
+  await expect(page.getByText("Вернулись ко второй сессии за 7 дней")).toBeVisible();
+  await expect(page.getByText(/ожидают 2/)).toBeVisible();
   await expect(page.getByText("Ошибки доставки", { exact: true })).toBeVisible();
   await expect(page.getByText("23", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(

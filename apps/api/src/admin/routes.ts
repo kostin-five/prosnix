@@ -71,6 +71,13 @@ export async function registerAdminRoutes(
             retained: summary.retention.d7Retained,
             rate: rate(summary.retention.d7Retained, summary.retention.d7Eligible),
           },
+          secondSessionWithin7Days: {
+            ...summary.retention.secondSessionWithin7Days,
+            rate: rate(
+              summary.retention.secondSessionWithin7Days.returned,
+              summary.retention.secondSessionWithin7Days.eligible,
+            ),
+          },
         },
         timeline: summary.timeline,
         breakdowns: {

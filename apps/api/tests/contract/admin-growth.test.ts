@@ -10,7 +10,13 @@ const summary: AdminGrowthSummary = {
   funnel: { assigned: 10, started: 8, completed: 6, followedUp: 4 },
   wakeQuality: { pairedSessions: 6, averageDelta: 2.5, improvedSessions: 5 },
   followUp: { eligible: 6, answered: 4, up: 3, back: 1, drowsy: 0 },
-  retention: { d1Eligible: 8, d1Retained: 3, d7Eligible: 4, d7Retained: 1 },
+  retention: {
+    d1Eligible: 8,
+    d1Retained: 3,
+    d7Eligible: 4,
+    d7Retained: 1,
+    secondSessionWithin7Days: { cohort: 7, eligible: 5, returned: 3, pending: 2 },
+  },
   timeline: [{ date: "2026-08-26", newUsers: 1, startedSessions: 2, completedSessions: 1 }],
   breakdowns: {
     contexts: [{ key: "night_sleep", sessions: 5, completed: 4 }],
@@ -62,7 +68,16 @@ describe("admin growth contract", () => {
       funnel: { assigned: 10, startRate: 0.8, completionRate: 0.75, followUpRate: 0.6667 },
       wakeQuality: { pairedSessions: 6, averageDelta: 2.5, improvedRate: 0.8333 },
       followUp: { eligible: 6, answered: 4, responseRate: 0.6667, stayedUpRate: 0.75 },
-      retention: { d1: { eligible: 8, retained: 3, rate: 0.375 } },
+      retention: {
+        d1: { eligible: 8, retained: 3, rate: 0.375 },
+        secondSessionWithin7Days: {
+          cohort: 7,
+          eligible: 5,
+          returned: 3,
+          pending: 2,
+          rate: 0.6,
+        },
+      },
       breakdowns: {
         contexts: [{ key: "night_sleep", sessions: 5, completed: 4, completionRate: 0.8 }],
         experiments: [{ version: "learning-v1", assigned: 5, completed: 4, completionRate: 0.8 }],

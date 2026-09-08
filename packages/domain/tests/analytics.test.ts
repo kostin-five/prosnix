@@ -111,6 +111,40 @@ describe("analytics v1", () => {
       evidenceCount: 3,
       confidence: "low",
     });
+    expect(profile.comparisonProgress![0]).toEqual({
+      key: "factor:movement:movement-a",
+      factorKey: "movement",
+      groupKey: "movement-a",
+      withCount: 3,
+      withoutCount: 3,
+      pairCount: 3,
+      targetPairs: 3,
+      status: "ready",
+    });
+  });
+
+  it("показывает точный прогресс до готовности факторного сравнения", () => {
+    const profile = computeAnalyticsProfile([
+      evidence("with-1", 2, 6, {
+        comparison: { groupKey: "movement-a", factorKey: "movement", level: "with" },
+      }),
+      evidence("with-2", 3, 7, {
+        comparison: { groupKey: "movement-a", factorKey: "movement", level: "with" },
+      }),
+      evidence("without-1", 2, 4, {
+        comparison: { groupKey: "movement-a", factorKey: "movement", level: "without" },
+      }),
+    ]);
+
+    expect(profile.methodVersion).toBe("analytics-v2");
+    expect(profile.factorEffects).toEqual([]);
+    expect(profile.comparisonProgress![0]).toMatchObject({
+      withCount: 2,
+      withoutCount: 1,
+      pairCount: 1,
+      targetPairs: 3,
+      status: "collecting",
+    });
   });
 
   it("groups paired deltas by the user's local calendar date", () => {

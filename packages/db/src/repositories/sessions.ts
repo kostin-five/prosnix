@@ -12,6 +12,7 @@ import {
   SAFE_WAKE_PROFILE,
   selectPersonalizedAssignment,
   type ExperimentAssignment,
+  type AdaptiveProtocolEvidence,
   type ProtocolStep,
   type SessionCommand,
   type SessionCommandEnvelope,
@@ -252,21 +253,43 @@ async function createSession(
     .where(eq(users.id, envelope.userId))
     .limit(1);
   if (!user) throw new SessionCommandConflict("session_not_found", "Профиль не найден", null);
-  const [previous] = await db
-    .select({ steps: protocolDefinitions.steps })
-    .from(wakeSessions)
-    .innerJoin(experimentAssignments, eq(wakeSessions.assignmentId, experimentAssignments.id))
-    .innerJoin(
-      protocolDefinitions,
-      eq(experimentAssignments.protocolDefinitionId, protocolDefinitions.id),
-    )
-    .where(
-      and(eq(wakeSessions.userId, envelope.userId), eq(wakeSessions.status, "protocol_completed")),
-    )
-    .orderBy(desc(wakeSessions.protocolCompletedAt))
-    .limit(1);
-  const previousTaskIds = Array.isArray(previous?.steps)
-    ? previous.steps.flatMap((step) =>
+  const [completedRows, previousAssignments] = await Promise.all([
+    db
+      .select({
+        sessionId: wakeSessions.id,
+        steps: protocolDefinitions.steps,
+        wakeContext: wakeSessions.wakeContext,
+        durationMinutes: wakeSessions.durationBudgetMinutes,
+        completedAt: wakeSessions.protocolCompletedAt,
+      })
+      .from(wakeSessions)
+      .innerJoin(experimentAssignments, eq(wakeSessions.assignmentId, experimentAssignments.id))
+      .innerJoin(
+        protocolDefinitions,
+        eq(experimentAssignments.protocolDefinitionId, protocolDefinitions.id),
+      )
+      .where(
+        and(
+          eq(wakeSessions.userId, envelope.userId),
+          eq(wakeSessions.status, "protocol_completed"),
+        ),
+      )
+      .orderBy(desc(wakeSessions.protocolCompletedAt))
+      .limit(100),
+    db
+      .select({ steps: protocolDefinitions.steps })
+      .from(wakeSessions)
+      .innerJoin(experimentAssignments, eq(wakeSessions.assignmentId, experimentAssignments.id))
+      .innerJoin(
+        protocolDefinitions,
+        eq(experimentAssignments.protocolDefinitionId, protocolDefinitions.id),
+      )
+      .where(eq(wakeSessions.userId, envelope.userId))
+      .orderBy(desc(wakeSessions.createdAt))
+      .limit(1),
+  ]);
+  const previousTaskIds = Array.isArray(previousAssignments[0]?.steps)
+    ? previousAssignments[0].steps.flatMap((step) =>
         typeof step === "object" &&
         step !== null &&
         "taskId" in step &&
@@ -275,6 +298,59 @@ async function createSession(
           : [],
       )
     : [];
+  const completedIds = completedRows.map(({ sessionId }) => sessionId);
+  const [completedRatings, completedFollowUps] =
+    completedIds.length === 0
+      ? [[], []]
+      : await Promise.all([
+          db
+            .select({
+              sessionId: ratingObservations.sessionId,
+              kind: ratingObservations.kind,
+              value: ratingObservations.value,
+            })
+            .from(ratingObservations)
+            .where(inArray(ratingObservations.sessionId, completedIds)),
+          db
+            .select({
+              sessionId: followUpObservations.sessionId,
+              outcome: followUpObservations.outcome,
+            })
+            .from(followUpObservations)
+            .where(inArray(followUpObservations.sessionId, completedIds)),
+        ]);
+  const adaptiveEvidence: AdaptiveProtocolEvidence[] = completedRows.flatMap((row) => {
+    const baseline = completedRatings.find(
+      (rating) => rating.sessionId === row.sessionId && rating.kind === "baseline",
+    )?.value;
+    const postRating = completedRatings.find(
+      (rating) => rating.sessionId === row.sessionId && rating.kind === "post_protocol",
+    )?.value;
+    if (baseline === undefined || postRating === undefined || !Array.isArray(row.steps)) return [];
+    const sequenceKey = row.steps
+      .flatMap((step) =>
+        typeof step === "object" &&
+        step !== null &&
+        "taskId" in step &&
+        typeof step.taskId === "string"
+          ? [step.taskId]
+          : [],
+      )
+      .join(">");
+    if (!sequenceKey) return [];
+    return [
+      {
+        sequenceKey,
+        wakeContext: row.wakeContext,
+        durationMinutes: row.durationMinutes as 2 | 5 | 10,
+        baseline,
+        postRating,
+        followUp:
+          completedFollowUps.find(({ sessionId }) => sessionId === row.sessionId)?.outcome ?? null,
+        ...(row.completedAt ? { completedAt: row.completedAt.toISOString() } : {}),
+      },
+    ];
+  });
   const [profileRow] = await db
     .select()
     .from(wakeCapabilityProfiles)
@@ -289,6 +365,11 @@ async function createSession(
     profile,
     envelope.command.durationMinutes,
     previousTaskIds,
+    {
+      evidence: adaptiveEvidence,
+      wakeContext: envelope.command.wakeContext,
+      completedSessions: user.learningSessionCount,
+    },
   );
   const planned = personalized.assignment;
   await db

@@ -5,12 +5,12 @@ const baseSession = {
   userId: "00000000-0000-4000-8000-000000000042",
   assignment: {
     id: "00000000-0000-4000-8000-000000000101",
-    protocolKey: "e2e-water",
+    protocolKey: "e2e-light",
     protocolVersion: 1,
     strategyVersion: "e2e-v1",
     phase: "learning",
     hypothesis: "Проверяем полный путь сохранения",
-    steps: [{ index: 0, taskId: "water", category: "behavioral" }],
+    steps: [{ index: 0, taskId: "window", category: "environment" }],
   },
   status: "assigned",
   currentStepIndex: 0,
@@ -55,6 +55,7 @@ async function installTelegram(page: Page) {
 
 test("полный wake-up цикл подтверждается сервером до показа успеха", async ({ page }) => {
   await installTelegram(page);
+  await page.clock.install();
   await page.route("**/api/v1/auth/telegram", (route) => route.fulfill({ status: 204 }));
   await page.route("**/api/v1/legal/status", (route) =>
     route.fulfill({
@@ -93,8 +94,8 @@ test("полный wake-up цикл подтверждается серверо�
   });
   const task = {
     stepIndex: 0,
-    taskId: "water",
-    category: "behavioral",
+    taskId: "window",
+    category: "environment",
     correct: 1,
     total: 1,
     durationMs: 500,
@@ -145,9 +146,14 @@ test("полный wake-up цикл подтверждается серверо�
   await page.getByRole("button", { name: "Начать пробуждение" }).click();
   await page.getByRole("button", { name: "3", exact: true }).click();
   await page.getByRole("button", { name: "Начать протокол →" }).click();
-  await expect(page.getByRole("heading", { name: "Стакан воды" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "К окну" })).toBeVisible();
+  await expect(page.locator('[data-task-icon="window"]').first()).toBeVisible();
   await page.getByRole("button", { name: "Начать", exact: true }).click();
-  await page.getByRole("button", { name: "Выпил ✓" }).click();
+  await expect(page.getByRole("timer", { name: "Осталось 30 секунд" })).toBeVisible();
+  await expect(page.locator('[data-testid="task-timer-light"]')).toBeVisible();
+  await page.clock.runFor(31_000);
+  await expect(page.getByRole("timer", { name: "Таймер завершён" })).toBeVisible();
+  await page.getByRole("button", { name: "Подошёл ✓" }).click();
   await page.getByRole("button", { name: "7", exact: true }).click();
   await page.getByRole("button", { name: "Сохранить результат" }).click();
   await expect(page.getByRole("heading", { name: "Протокол завершён" })).toBeVisible();

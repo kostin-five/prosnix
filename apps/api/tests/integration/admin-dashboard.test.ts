@@ -13,6 +13,9 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL admin dashboar
   const database = connectDatabase(databaseUrl!);
   const userOne = "00000000-0000-4000-8000-000000008001";
   const userTwo = "00000000-0000-4000-8000-000000008002";
+  const userThree = "00000000-0000-4000-8000-000000008003";
+  const userFour = "00000000-0000-4000-8000-000000008004";
+  const userFive = "00000000-0000-4000-8000-000000008005";
   const protocol = "00000000-0000-4000-8000-000000008010";
   const sessionOne = "00000000-0000-4000-8000-000000008201";
   const sessionTwo = "00000000-0000-4000-8000-000000008202";
@@ -23,7 +26,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL admin dashboar
       sql.raw(`drop schema if exists subscription_status_repair_test cascade`),
     );
     await database.db.execute(
-      sql`delete from users where id in (${userOne}::uuid, ${userTwo}::uuid)`,
+      sql`delete from users where id in (${userOne}::uuid, ${userTwo}::uuid, ${userThree}::uuid, ${userFour}::uuid, ${userFive}::uuid)`,
     );
     await database.db.execute(sql`delete from protocol_definitions where id = ${protocol}::uuid`);
     await database.close();
@@ -170,6 +173,57 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL admin dashboar
       blocked: 1,
     });
     expect(summary.billing).toEqual({ activeSubscriptions: 1, grossStars: 0 });
+    expect(summary.retention.secondSessionWithin7Days).toEqual({
+      cohort: 1,
+      eligible: 0,
+      returned: 0,
+      pending: 1,
+    });
+  });
+
+  it("считает возврат ко второй completed session на границе семи суток", async () => {
+    await database.db.execute(
+      sql`delete from users where id in (${userThree}::uuid, ${userFour}::uuid, ${userFive}::uuid)`,
+    );
+    await database.db.execute(sql`
+      insert into users (id, telegram_user_id, locale, timezone, created_at, updated_at)
+      values
+        (${userThree}::uuid, 910000008003, 'ru', 'UTC', '2036-09-01T08:00:00Z', '2036-09-01T08:00:00Z'),
+        (${userFour}::uuid, 910000008004, 'ru', 'UTC', '2036-09-03T08:00:00Z', '2036-09-03T08:00:00Z'),
+        (${userFive}::uuid, 910000008005, 'ru', 'UTC', '2036-09-01T08:00:00Z', '2036-09-01T08:00:00Z')
+    `);
+    await database.db.execute(sql`
+      insert into experiment_assignments
+        (id, user_id, protocol_definition_id, strategy_version, phase, hypothesis, assigned_at)
+      values
+        ('00000000-0000-4000-8000-000000008111', ${userThree}::uuid, ${protocol}::uuid, 'fixture-v1', 'learning', 'fixture', '2036-09-01T09:00:00Z'),
+        ('00000000-0000-4000-8000-000000008112', ${userThree}::uuid, ${protocol}::uuid, 'fixture-v1', 'learning', 'fixture', '2036-09-08T09:00:00Z'),
+        ('00000000-0000-4000-8000-000000008113', ${userFour}::uuid, ${protocol}::uuid, 'fixture-v1', 'learning', 'fixture', '2036-09-03T09:00:00Z'),
+        ('00000000-0000-4000-8000-000000008114', ${userFive}::uuid, ${protocol}::uuid, 'fixture-v1', 'learning', 'fixture', '2036-09-01T10:00:00Z'),
+        ('00000000-0000-4000-8000-000000008115', ${userFive}::uuid, ${protocol}::uuid, 'fixture-v1', 'learning', 'fixture', '2036-09-08T10:01:00Z')
+    `);
+    await database.db.execute(sql`
+      insert into wake_sessions
+        (id, user_id, assignment_id, status, current_step_index, version, wake_context,
+         duration_budget_minutes, personalization_snapshot, protocol_completed_at, created_at, updated_at)
+      values
+        ('00000000-0000-4000-8000-000000008211', ${userThree}::uuid, '00000000-0000-4000-8000-000000008111', 'protocol_completed', 0, 1, 'night_sleep', 5, '{}'::jsonb, '2036-09-01T09:00:00Z', '2036-09-01T09:00:00Z', '2036-09-01T09:00:00Z'),
+        ('00000000-0000-4000-8000-000000008212', ${userThree}::uuid, '00000000-0000-4000-8000-000000008112', 'protocol_completed', 0, 1, 'night_sleep', 5, '{}'::jsonb, '2036-09-08T09:00:00Z', '2036-09-08T09:00:00Z', '2036-09-08T09:00:00Z'),
+        ('00000000-0000-4000-8000-000000008213', ${userFour}::uuid, '00000000-0000-4000-8000-000000008113', 'protocol_completed', 0, 1, 'night_sleep', 5, '{}'::jsonb, '2036-09-03T09:00:00Z', '2036-09-03T09:00:00Z', '2036-09-03T09:00:00Z'),
+        ('00000000-0000-4000-8000-000000008214', ${userFive}::uuid, '00000000-0000-4000-8000-000000008114', 'protocol_completed', 0, 1, 'night_sleep', 5, '{}'::jsonb, '2036-09-01T10:00:00Z', '2036-09-01T10:00:00Z', '2036-09-01T10:00:00Z'),
+        ('00000000-0000-4000-8000-000000008215', ${userFive}::uuid, '00000000-0000-4000-8000-000000008115', 'protocol_completed', 0, 1, 'night_sleep', 5, '{}'::jsonb, '2036-09-08T10:01:00Z', '2036-09-08T10:01:00Z', '2036-09-08T10:01:00Z')
+    `);
+
+    const summary = await new PostgresAdminGrowthRepository(database.db, {
+      billingEnabled: false,
+    }).summarize(new Date("2036-09-01T00:00:00.000Z"), new Date("2036-09-08T12:00:00.000Z"));
+
+    expect(summary.retention.secondSessionWithin7Days).toEqual({
+      cohort: 3,
+      eligible: 2,
+      returned: 1,
+      pending: 1,
+    });
   });
 
   it("идемпотентно добавляет past_due в legacy subscription enum", async () => {

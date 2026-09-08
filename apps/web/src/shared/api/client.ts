@@ -126,12 +126,22 @@ export interface MetricResponse {
 }
 
 export interface AnalyticsProfileResponse {
-  methodVersion: "analytics-v1";
+  methodVersion: "analytics-v1" | "analytics-v2";
   computedAt: string;
   averageDelta: MetricResponse;
   riseSuccess: MetricResponse;
   protocolEffects: MetricResponse[];
   factorEffects: MetricResponse[];
+  comparisonProgress?: Array<{
+    key: string;
+    factorKey: string;
+    groupKey: string;
+    withCount: number;
+    withoutCount: number;
+    pairCount: number;
+    targetPairs: 3;
+    status: "collecting" | "ready";
+  }>;
   sequenceEffects: MetricResponse[];
   dailyTrend?: Array<{
     localDate: string;

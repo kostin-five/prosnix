@@ -38,6 +38,13 @@ export interface AdminGrowthData {
   retention: {
     d1: { eligible: number; retained: number; rate: number };
     d7: { eligible: number; retained: number; rate: number };
+    secondSessionWithin7Days?: {
+      cohort: number;
+      eligible: number;
+      returned: number;
+      pending: number;
+      rate: number;
+    };
   };
   timeline: Array<{
     date: string;
@@ -284,6 +291,13 @@ export function AdminScreen() {
 
   const empty = Boolean(data && data.funnel.assigned === 0 && data.users.new === 0);
   const proInterest = data?.breakdowns.proInterest ?? emptyProInterest;
+  const secondSessionWithin7Days = data?.retention.secondSessionWithin7Days ?? {
+    cohort: 0,
+    eligible: 0,
+    returned: 0,
+    pending: 0,
+    rate: 0,
+  };
 
   return (
     <main className="min-h-screen bg-background px-4 py-7 text-foreground sm:px-6">
@@ -515,6 +529,11 @@ export function AdminScreen() {
                 Удержание и функции
               </h2>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                  title="Вернулись ко второй сессии за 7 дней"
+                  value={percent(secondSessionWithin7Days.rate)}
+                  detail={`${count(secondSessionWithin7Days.returned)} из ${count(secondSessionWithin7Days.eligible)} с закрытым исходом · ожидают ${count(secondSessionWithin7Days.pending)}`}
+                />
                 <MetricCard
                   title="D1 retention"
                   value={percent(data.retention.d1.rate)}

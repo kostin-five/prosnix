@@ -152,8 +152,8 @@ test("профиль показывает только воспроизводи�
   await expect(page.getByText("Средний прирост")).toBeVisible();
   await page.getByRole("button", { name: "Статистика" }).click();
 
-  await expect(page.getByText("+3.5", { exact: true })).toBeVisible();
-  await expect(page.getByText("60%", { exact: true })).toBeVisible();
+  await expect(page.getByText("+3.5", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("60%", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("1м", { exact: true })).toBeVisible();
   await expect(page.getByText("Движение", { exact: true })).toBeVisible();
   await expect(page.getByText("Низкая уверенность · 3 парных сравнения")).toBeVisible();
@@ -174,6 +174,64 @@ test("профиль показывает только воспроизводи�
   await page.getByRole("button", { name: "Создать персональный отчёт" }).click();
   await expect(page.getByText(/Движение даёт наиболее устойчивый/)).toBeVisible();
   expect(coachRequests).toBe(1);
+});
+
+test("после 13 сессий общий профиль не зависит от готовности факторных пар", async ({ page }) => {
+  await openTelegramApp(page);
+  await page.route("**/api/v1/analytics/profile", (route) =>
+    json(route, {
+      methodVersion: "analytics-v2",
+      computedAt: "2026-09-08T00:00:00.000Z",
+      averageDelta: {
+        key: "average-delta",
+        value: 1.2,
+        evidenceCount: 13,
+        evidenceIds: [],
+        confidence: "high",
+      },
+      riseSuccess: {
+        key: "rise-success",
+        value: 0.85,
+        evidenceCount: 13,
+        evidenceIds: [],
+        confidence: "high",
+      },
+      protocolEffects: [],
+      factorEffects: [],
+      comparisonProgress: [
+        {
+          key: "factor:movement:movement-a:night_sleep:5m",
+          factorKey: "movement",
+          groupKey: "movement-a:night_sleep:5m",
+          withCount: 2,
+          withoutCount: 1,
+          pairCount: 1,
+          targetPairs: 3,
+          status: "collecting",
+        },
+      ],
+      sequenceEffects: [
+        {
+          key: "sequence:steps>reaction>memory",
+          value: 2.5,
+          evidenceCount: 2,
+          evidenceIds: [],
+          confidence: "insufficient",
+        },
+      ],
+      dailyTrend: [],
+    }),
+  );
+  await page.route("**/api/v1/sessions/history?limit=10", (route) => json(route, { sessions: [] }));
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Статистика" }).click();
+  await expect(page.getByText("13 завершённых сессий")).toBeVisible();
+  await expect(page.getByText("Типичный прирост")).toBeVisible();
+  await expect(page.getByText("Подъём сохранился")).toBeVisible();
+  await expect(page.getByText(/Сопоставимых пар: 1\/3/)).toBeVisible();
+  await expect(page.getByText(/Профиль готов по/)).toHaveCount(0);
+  await expect(page.getByText("Пройтись → Реакция → Память")).toBeVisible();
 });
 
 test("после пяти сессий feedback показывается один раз и отправляется без влияния на wake flow", async ({

@@ -14,7 +14,7 @@ describe("admin growth repository", () => {
       new Date("2026-09-08T00:00:00.000Z"),
     );
 
-    expect(execute).toHaveBeenCalledTimes(13);
+    expect(execute).toHaveBeenCalledTimes(14);
     expect(summary.billing).toEqual({ activeSubscriptions: 0, grossStars: 0 });
   });
 });

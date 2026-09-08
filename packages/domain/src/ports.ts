@@ -297,7 +297,18 @@ export interface AdminGrowthSummary {
     back: number;
     drowsy: number;
   };
-  retention: { d1Eligible: number; d1Retained: number; d7Eligible: number; d7Retained: number };
+  retention: {
+    d1Eligible: number;
+    d1Retained: number;
+    d7Eligible: number;
+    d7Retained: number;
+    secondSessionWithin7Days: {
+      cohort: number;
+      eligible: number;
+      returned: number;
+      pending: number;
+    };
+  };
   timeline: Array<{
     date: string;
     newUsers: number;

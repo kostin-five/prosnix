@@ -169,7 +169,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
       await deletion.deleteUser(user.id, "personalization-cleanup-after");
     });
 
-    it("чередует фактические протоколы после семи завершённых сессий", async () => {
+    it("исследует разные фактические протоколы после семи завершённых сессий", async () => {
       const database = connect();
       const telegramUserId = 910000000017n;
       let user = await database.unitOfWork.transaction(({ users }) =>
@@ -186,6 +186,32 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
 
       const commands = new PostgresSessionCommandRepository(database.db);
       const signatures: string[] = [];
+      const abandoned = (
+        await commands.execute({
+          userId: user.id,
+          operationId: "continuation-abandoned-create",
+          requestHash: "continuation-abandoned-create-hash",
+          observedAt: new Date("2026-09-07T06:55:00.000Z"),
+          command: {
+            type: "create",
+            timezone: "Europe/Moscow",
+            wakeContext: "night_sleep",
+            durationMinutes: 5,
+          },
+        })
+      ).session;
+      const abandonedSignature = abandoned.assignment.steps.map(({ taskId }) => taskId).join(",");
+      await commands.execute({
+        userId: user.id,
+        operationId: "continuation-abandoned-close",
+        requestHash: "continuation-abandoned-close-hash",
+        observedAt: new Date("2026-09-07T06:56:00.000Z"),
+        command: {
+          type: "abandon",
+          sessionId: abandoned.id,
+          expectedVersion: abandoned.version,
+        },
+      });
       for (let round = 0; round < 4; round += 1) {
         const minute = String(round * 5).padStart(2, "0");
         let session = (
@@ -202,6 +228,10 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
             },
           })
         ).session;
+        expect(session.assignment).toMatchObject({
+          strategyVersion: "adaptive-v2",
+          phase: "adaptive",
+        });
         signatures.push(session.assignment.steps.map(({ taskId }) => taskId).join(","));
         session = (
           await commands.execute({
@@ -252,6 +282,8 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
       }
 
       expect(signatures).toHaveLength(4);
+      expect(signatures[0]).not.toBe(abandonedSignature);
+      expect(new Set(signatures).size).toBe(4);
       expect(signatures.slice(1).every((signature, index) => signature !== signatures[index])).toBe(
         true,
       );

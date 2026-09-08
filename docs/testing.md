@@ -18,7 +18,7 @@
 
 | Уровень        | Где                                                | Что проверяет                                               |
 | -------------- | -------------------------------------------------- | ----------------------------------------------------------- |
-| Domain unit    | `packages/domain/tests`                            | state machine, эксперименты, analytics, timezone/schedule   |
+| Domain unit    | `packages/domain/tests`                            | state machine, adaptive selector, analytics, timezone       |
 | API contract   | `apps/api/tests/contract`                          | auth boundary, schemas, status codes, headers, rate limits  |
 | Adapter unit   | `apps/api/tests/coach`, `notifications`, `runtime` | DeepSeek/Telegram mapping, fallback, dispatch, shutdown     |
 | DB integration | `apps/api/tests/integration`                       | migrations, transactions, constraints, concurrency, cascade |
@@ -75,6 +75,9 @@ pnpm verify:release:full
 
 - Исправление бага сначала получает regression test на самом дешёвом надёжном уровне.
 - Новая доменная формула получает фиксированный fixture и ручной ожидаемый результат.
+- Adaptive selection проверяется на детерминизм, isolation контекста/бюджета, exploration,
+  повторную проверку лучшего и запрет непосредственного exact-repeat.
+- Пилотный возврат проверяется на границе ровно семи суток и отдельно учитывает pending-когорту.
 - Новая запись API проверяет отсутствие idempotency key, повтор запроса и конфликт версии.
 - Новая персональная выборка проверяет isolation двух пользователей и каскадное удаление.
 - Новая внешняя интеграция проверяет timeout, некорректный ответ, повтор и безопасный fallback.
@@ -109,10 +112,12 @@ Integration tests должны выполняться на disposable database. 
 3. baseline, все задания, post-rating и результат;
 4. follow-up из Telegram через 15 минут;
 5. расписание и snooze;
-6. история и реальная дневная динамика, отсутствие AI-вызова до кнопки, AI fallback/ответ и дневной лимит;
-7. удаление тестового профиля;
-8. `/admin` разрешённому и обычному пользователю;
-9. при billing rollout — checkout, renewal, cancel, support и refund в test environment.
+6. история, профиль после 7+ сессий, лучший порядок и progress factor pairs;
+7. отсутствие AI-вызова до кнопки, AI fallback/ответ и дневной лимит;
+8. отсутствие immediate repeat при доступной альтернативе и соответствие задания бюджету/анкете;
+9. удаление тестового профиля;
+10. `/admin` разрешённому и обычному пользователю, включая second-session rate и pending;
+11. при billing rollout — checkout, renewal, cancel, support и refund в test environment.
 
 Устройства: Telegram iOS, Android и Desktop. Сейчас Android остаётся ручным пробелом; mobile Chromium
 покрывает layout/flow, но не заменяет Telegram Android WebView.

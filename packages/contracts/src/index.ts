@@ -257,6 +257,13 @@ export interface AdminGrowthResponse {
   retention: {
     d1: { eligible: number; retained: number; rate: number };
     d7: { eligible: number; retained: number; rate: number };
+    secondSessionWithin7Days: {
+      cohort: number;
+      eligible: number;
+      returned: number;
+      pending: number;
+      rate: number;
+    };
   };
   timeline: Array<{
     date: string;

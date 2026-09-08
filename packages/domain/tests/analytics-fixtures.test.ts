@@ -65,13 +65,13 @@ const fixture: CompletedSessionEvidence[] = [
   },
 ];
 
-describe("регрессионный набор аналитики v1", () => {
+describe("регрессионный набор аналитики v2", () => {
   it("воспроизводит показатели и использованные источники", () => {
     const first = computeAnalyticsProfile(fixture);
     const second = computeAnalyticsProfile(structuredClone(fixture));
 
     expect(second).toEqual(first);
-    expect(first.methodVersion).toBe("analytics-v1");
+    expect(first.methodVersion).toBe("analytics-v2");
     expect(first.averageDelta).toMatchObject({
       value: 3.5,
       evidenceCount: 6,

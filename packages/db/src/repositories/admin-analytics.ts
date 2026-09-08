@@ -41,6 +41,7 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
       qualityRows,
       followUpRows,
       retentionRows,
+      secondSessionRows,
       timelineRows,
       contextRows,
       durationRows,
@@ -144,6 +145,47 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
               and date_trunc('day', s.protocol_completed_at at time zone 'UTC') = date_trunc('day', u.created_at at time zone 'UTC') + interval '7 days'
           ))::int as d7_retained
         from users u
+      `),
+      this.db.execute<{
+        cohort: number;
+        eligible: number;
+        returned: number;
+        pending: number;
+      }>(sql`
+        with ranked as (
+          select
+            user_id,
+            protocol_completed_at,
+            row_number() over (partition by user_id order by protocol_completed_at, id) as session_number
+          from wake_sessions
+          where protocol_completed_at is not null
+            and protocol_completed_at < ${nowIso}::timestamptz
+        ), first_two as (
+          select
+            user_id,
+            max(protocol_completed_at) filter (where session_number = 1) as first_completed_at,
+            max(protocol_completed_at) filter (where session_number = 2) as second_completed_at
+          from ranked
+          where session_number <= 2
+          group by user_id
+        ), cohort as (
+          select *,
+            second_completed_at is not null
+              and second_completed_at <= first_completed_at + interval '7 days' as returned_in_window
+          from first_two
+          where first_completed_at >= ${fromIso}::timestamptz
+            and first_completed_at < ${nowIso}::timestamptz
+        )
+        select
+          count(*)::int as cohort,
+          count(*) filter (
+            where returned_in_window or first_completed_at <= ${d7CutoffIso}::timestamptz
+          )::int as eligible,
+          count(*) filter (where returned_in_window)::int as returned,
+          count(*) filter (
+            where not returned_in_window and first_completed_at > ${d7CutoffIso}::timestamptz
+          )::int as pending
+        from cohort
       `),
       this.db.execute<{
         date: string;
@@ -312,6 +354,12 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
         d1Retained: number(retention?.d1_retained),
         d7Eligible: number(retention?.d7_eligible),
         d7Retained: number(retention?.d7_retained),
+        secondSessionWithin7Days: {
+          cohort: number(secondSessionRows[0]?.cohort),
+          eligible: number(secondSessionRows[0]?.eligible),
+          returned: number(secondSessionRows[0]?.returned),
+          pending: number(secondSessionRows[0]?.pending),
+        },
       },
       timeline: timelineRows.map((row) => ({
         date: row.date,

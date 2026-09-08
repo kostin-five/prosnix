@@ -76,36 +76,55 @@ const FALLBACK: PlannedAssignment = {
   ],
 };
 
-const CONTINUATION_ASSIGNMENTS: readonly PlannedAssignment[] = [
-  FALLBACK,
-  {
-    protocolKey: "cognitive-refresh",
-    protocolVersion: 1,
-    strategyVersion: "continuation-v1",
-    phase: "fallback",
-    hypothesis: "Меняем порядок коротких когнитивных заданий для следующего наблюдения",
-    steps: [
-      { index: 0, taskId: "reaction", category: "cognitive" },
-      { index: 1, taskId: "memory", category: "cognitive" },
-      { index: 2, taskId: "stroop", category: "cognitive" },
-      { index: 3, taskId: "math", category: "cognitive" },
-    ],
-  },
-  {
-    protocolKey: "activation-mix",
-    protocolVersion: 1,
-    strategyVersion: "continuation-v1",
-    phase: "fallback",
-    hypothesis: "Проверяем другую последовательность доступных действий",
-    steps: [
-      { index: 0, taskId: "shake", category: "movement" },
-      { index: 1, taskId: "stroop", category: "cognitive" },
-      { index: 2, taskId: "math", category: "cognitive" },
-      { index: 3, taskId: "water", category: "behavioral" },
-      { index: 4, taskId: "window", category: "environment" },
-    ],
-  },
-];
+const ADAPTIVE_ASSIGNMENTS: readonly PlannedAssignment[] = [
+  plan("adaptive-active-start", "Проверяем активное начало перед задачами", [
+    { index: 0, taskId: "steps", category: "movement" },
+    { index: 1, taskId: "reaction", category: "cognitive" },
+    { index: 2, taskId: "math", category: "cognitive" },
+    { index: 3, taskId: "memory", category: "cognitive" },
+    { index: 4, taskId: "water", category: "behavioral" },
+  ]),
+  plan("adaptive-fast-focus", "Проверяем быстрое когнитивное включение", [
+    { index: 0, taskId: "reaction", category: "cognitive" },
+    { index: 1, taskId: "stroop", category: "cognitive" },
+    { index: 2, taskId: "math", category: "cognitive" },
+    { index: 3, taskId: "memory", category: "cognitive" },
+    { index: 4, taskId: "shake", category: "movement" },
+  ]),
+  plan("adaptive-light-first", "Проверяем свет и воду перед когнитивной нагрузкой", [
+    { index: 0, taskId: "curtains", category: "environment" },
+    { index: 1, taskId: "water", category: "behavioral" },
+    { index: 2, taskId: "memory", category: "cognitive" },
+    { index: 3, taskId: "stroop", category: "cognitive" },
+    { index: 4, taskId: "reaction", category: "cognitive" },
+  ]),
+  plan("adaptive-movement-focus", "Проверяем более активное начало пробуждения", [
+    { index: 0, taskId: "squats", category: "movement" },
+    { index: 1, taskId: "steps", category: "movement" },
+    { index: 2, taskId: "reaction", category: "cognitive" },
+    { index: 3, taskId: "stroop", category: "cognitive" },
+    { index: 4, taskId: "water", category: "behavioral" },
+  ]),
+  plan("adaptive-memory-focus", "Проверяем последовательность с фокусом на память", [
+    { index: 0, taskId: "water", category: "behavioral" },
+    { index: 1, taskId: "memory", category: "cognitive" },
+    { index: 2, taskId: "math", category: "cognitive" },
+    { index: 3, taskId: "reaction", category: "cognitive" },
+    { index: 4, taskId: "window", category: "environment" },
+  ]),
+  plan("adaptive-mixed-reset", "Проверяем чередование среды, движения и внимания", [
+    { index: 0, taskId: "window", category: "environment" },
+    { index: 1, taskId: "shake", category: "movement" },
+    { index: 2, taskId: "stroop", category: "cognitive" },
+    { index: 3, taskId: "memory", category: "cognitive" },
+    { index: 4, taskId: "math", category: "cognitive" },
+  ]),
+].map((assignment) => ({
+  ...assignment,
+  protocolVersion: 2,
+  strategyVersion: "adaptive-v2",
+  phase: "adaptive" as const,
+}));
 
 function rotate<T>(values: readonly T[], start: number): readonly T[] {
   const index = start % values.length;
@@ -121,7 +140,7 @@ export function learningAssignmentCandidates(
   if (completedLearningSessions < LEARNING_ASSIGNMENTS.length) {
     return rotate(LEARNING_ASSIGNMENTS, completedLearningSessions);
   }
-  return rotate(CONTINUATION_ASSIGNMENTS, completedLearningSessions - LEARNING_ASSIGNMENTS.length);
+  return rotate(ADAPTIVE_ASSIGNMENTS, completedLearningSessions - LEARNING_ASSIGNMENTS.length);
 }
 
 export function selectLearningAssignment(

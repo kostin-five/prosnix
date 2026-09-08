@@ -1,10 +1,12 @@
 import type {
+  AdaptiveProtocolEvidence,
   ExperimentAssignment,
   ProtocolStep,
   TaskId,
   WakeCapabilityProfile,
   WakeDurationMinutes,
   WakePersonalizationSnapshot,
+  WakeContext,
 } from "./model.js";
 
 export const SAFE_WAKE_PROFILE: WakeCapabilityProfile = {
@@ -146,16 +148,88 @@ export function selectPersonalizedAssignment(
   profile: WakeCapabilityProfile,
   durationMinutes: WakeDurationMinutes,
   previousTaskIds: readonly TaskId[] = [],
+  adaptive?: {
+    evidence: readonly AdaptiveProtocolEvidence[];
+    wakeContext: WakeContext;
+    completedSessions: number;
+  },
 ): { assignment: ExperimentAssignment; snapshot: WakePersonalizationSnapshot } {
   if (candidates.length === 0) throw new Error("At least one assignment candidate is required");
-  const personalized = candidates.map((candidate) =>
-    personalizeAssignment(candidate, profile, durationMinutes),
-  );
+  const personalizedBySequence = new Map<
+    string,
+    { assignment: ExperimentAssignment; snapshot: WakePersonalizationSnapshot }
+  >();
+  for (const candidate of candidates) {
+    const value = personalizeAssignment(candidate, profile, durationMinutes);
+    const signature = value.assignment.steps.map(({ taskId }) => taskId).join(">");
+    if (!personalizedBySequence.has(signature)) personalizedBySequence.set(signature, value);
+  }
+  const personalized = [...personalizedBySequence.values()];
   const previousSignature = previousTaskIds.join(",");
-  return (
-    personalized.find(
-      ({ assignment }) =>
-        assignment.steps.map(({ taskId }) => taskId).join(",") !== previousSignature,
-    ) ?? personalized[0]!
+  const withoutImmediateRepeat = personalized.filter(
+    ({ assignment }) =>
+      assignment.steps.map(({ taskId }) => taskId).join(",") !== previousSignature,
   );
+  const available = withoutImmediateRepeat.length > 0 ? withoutImmediateRepeat : personalized;
+  if (!adaptive || !candidates.some(({ strategyVersion }) => strategyVersion === "adaptive-v2")) {
+    return available[0]!;
+  }
+
+  const comparable = adaptive.evidence.filter(
+    (item) => item.wakeContext === adaptive.wakeContext && item.durationMinutes === durationMinutes,
+  );
+  const summaries = available.map((value, order) => {
+    const sequenceKey = value.assignment.steps.map(({ taskId }) => taskId).join(">");
+    const observations = comparable.filter((item) => item.sequenceKey === sequenceKey);
+    const deltas = observations.map(({ baseline, postRating }) => postRating - baseline);
+    const followUps = observations.flatMap(({ followUp }) =>
+      followUp === null ? [] : [followUp === "up" ? 0.5 : followUp === "back" ? -0.5 : -0.15],
+    );
+    const averageDelta =
+      deltas.length === 0 ? null : deltas.reduce((sum, delta) => sum + delta, 0) / deltas.length;
+    const followUpScore =
+      followUps.length === 0
+        ? 0
+        : followUps.reduce((sum, score) => sum + score, 0) / followUps.length;
+    return {
+      ...value,
+      order,
+      sequenceKey,
+      evidenceCount: observations.length,
+      score: averageDelta === null ? Number.NEGATIVE_INFINITY : averageDelta + followUpScore,
+    };
+  });
+  const byLeastEvidence = (left: (typeof summaries)[number], right: (typeof summaries)[number]) =>
+    left.evidenceCount - right.evidenceCount || left.order - right.order;
+  const byBestScore = (left: (typeof summaries)[number], right: (typeof summaries)[number]) =>
+    right.score - left.score ||
+    right.evidenceCount - left.evidenceCount ||
+    left.order - right.order;
+  const unseen = summaries.filter(({ evidenceCount }) => evidenceCount === 0).sort(byLeastEvidence);
+  const underVerified = summaries
+    .filter(({ evidenceCount }) => evidenceCount > 0 && evidenceCount < 2)
+    .sort(byLeastEvidence);
+  const selectionMode =
+    unseen.length > 0 || underVerified.length > 0
+      ? "explore"
+      : adaptive.completedSessions % 3 === 0
+        ? "explore"
+        : "best";
+  const selected =
+    unseen[0] ??
+    underVerified[0] ??
+    (selectionMode === "explore"
+      ? [...summaries].sort(byLeastEvidence)[0]
+      : [...summaries].sort(byBestScore)[0]) ??
+    summaries[0]!;
+  const hypothesis =
+    selectionMode === "best"
+      ? `Повторно проверяем лучший наблюдаемый вариант (${selected.evidenceCount} наблюдения)`
+      : selected.evidenceCount === 0
+        ? "Проверяем новый допустимый вариант, чтобы найти более подходящий протокол"
+        : `Уточняем результат малоизученного варианта (${selected.evidenceCount} наблюдение)`;
+  return {
+    ...selected,
+    assignment: { ...selected.assignment, hypothesis, phase: "adaptive" },
+  };
 }

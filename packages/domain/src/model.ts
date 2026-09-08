@@ -121,6 +121,16 @@ export interface CompletedSessionEvidence {
   comparison?: ExperimentAssignment["comparison"];
 }
 
+export interface AdaptiveProtocolEvidence {
+  sequenceKey: string;
+  wakeContext: WakeContext;
+  durationMinutes: WakeDurationMinutes;
+  baseline: number;
+  postRating: number;
+  followUp: FollowUpOutcome | null;
+  completedAt?: string;
+}
+
 export interface Metric {
   key: string;
   value: number | null;
@@ -130,14 +140,26 @@ export interface Metric {
 }
 
 export interface AnalyticsProfile {
-  methodVersion: "analytics-v1";
+  methodVersion: "analytics-v1" | "analytics-v2";
   computedAt: string;
   averageDelta: Metric;
   riseSuccess: Metric;
   protocolEffects: readonly Metric[];
   factorEffects: readonly Metric[];
+  comparisonProgress?: readonly FactorComparisonProgress[];
   sequenceEffects: readonly Metric[];
   dailyTrend?: readonly DailyWakeTrendPoint[];
+}
+
+export interface FactorComparisonProgress {
+  key: string;
+  factorKey: string;
+  groupKey: string;
+  withCount: number;
+  withoutCount: number;
+  pairCount: number;
+  targetPairs: 3;
+  status: "collecting" | "ready";
 }
 
 export interface DailyWakeTrendPoint {

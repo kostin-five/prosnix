@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import App from "../src/app/App.js";
 import { WakeContextSheet } from "../src/features/personalization/wake-context-sheet.js";
+import { TaskIcon } from "../src/features/tasks/task-icon.js";
+import { TaskTimerVisual } from "../src/features/tasks/task-timer-visual.js";
 
 async function settle(): Promise<void> {
   await act(async () => {
@@ -52,5 +54,39 @@ describe("мобильные состояния доступности", () => {
     );
     expect(container.querySelectorAll("button[aria-pressed]")).toHaveLength(7);
     expect(container.textContent).toContain("сравнивать похожие ситуации");
+  });
+
+  it("показывает согласованные векторные иконки для всех заданий", () => {
+    const taskIds = [
+      "math",
+      "memory",
+      "stroop",
+      "reaction",
+      "steps",
+      "squats",
+      "shake",
+      "water",
+      "window",
+      "curtains",
+    ] as const;
+    act(() =>
+      root.render(
+        <div>
+          {taskIds.map((taskId) => (
+            <TaskIcon key={taskId} taskId={taskId} />
+          ))}
+        </div>,
+      ),
+    );
+    expect(container.querySelectorAll("svg")).toHaveLength(taskIds.length);
+    expect(container.textContent).not.toMatch(/[🧮🧠👁⚡🚶💪🤸💧☀🌅]/u);
+  });
+
+  it("озвучивает активный таймер и сохраняет числовой прогресс", () => {
+    act(() => root.render(<TaskTimerVisual taskId="window" remaining={18} total={30} />));
+    const timer = container.querySelector('[role="timer"]');
+    expect(timer?.getAttribute("aria-label")).toBe("Осталось 18 секунд");
+    expect(timer?.textContent).toContain("18");
+    expect(timer?.querySelector(".motion-reduce\\:transition-none")).not.toBeNull();
   });
 });

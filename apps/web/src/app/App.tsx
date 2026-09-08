@@ -58,9 +58,12 @@ import {
 } from "../features/tasks/task-engine.js";
 import { LazyBoundary } from "./lazy-boundary.js";
 import { ProsnixBrand } from "../features/brand/prosnix-brand.js";
+import { TaskIcon } from "../features/tasks/task-icon.js";
 
 const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
 const StatsResearchCards = lazy(() => import("../features/research/stats-research-cards.js"));
+const TaskTimerVisual = lazy(() => import("../features/tasks/task-timer-visual.js"));
+const WakeProfileSummary = lazy(() => import("../features/analytics/wake-profile-summary.js"));
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Screen =
@@ -147,34 +150,28 @@ function resumedServerSession(
 }
 
 // ─── Task Pool ────────────────────────────────────────────────────────────────
-const TASK_META: Record<
-  TaskId,
-  { category: TaskCategory; title: string; subtitle: string; emoji: string }
-> = {
-  math: { category: "cognitive", title: "Математика", subtitle: "Арифметика в уме", emoji: "🧮" },
+const TASK_META: Record<TaskId, { category: TaskCategory; title: string; subtitle: string }> = {
+  math: { category: "cognitive", title: "Математика", subtitle: "Арифметика в уме" },
   memory: {
     category: "cognitive",
     title: "Память",
     subtitle: "Запомни и воспроизведи",
-    emoji: "🧠",
   },
-  stroop: { category: "cognitive", title: "Внимание", subtitle: "Тест Струпа", emoji: "👁" },
-  reaction: { category: "cognitive", title: "Реакция", subtitle: "Поймай момент", emoji: "⚡" },
-  steps: { category: "movement", title: "Пройтись", subtitle: "20–30 секунд ходьбы", emoji: "🚶" },
-  squats: { category: "movement", title: "Приседания", subtitle: "5 приседаний", emoji: "💪" },
+  stroop: { category: "cognitive", title: "Внимание", subtitle: "Тест Струпа" },
+  reaction: { category: "cognitive", title: "Реакция", subtitle: "Поймай момент" },
+  steps: { category: "movement", title: "Пройтись", subtitle: "20–30 секунд ходьбы" },
+  squats: { category: "movement", title: "Приседания", subtitle: "5 приседаний" },
   shake: {
     category: "movement",
     title: "Разминка",
     subtitle: "Короткая разминка тела",
-    emoji: "🤸",
   },
-  water: { category: "behavioral", title: "Стакан воды", subtitle: "Выпить воду", emoji: "💧" },
-  window: { category: "environment", title: "К окну", subtitle: "Дневной свет", emoji: "☀️" },
+  water: { category: "behavioral", title: "Стакан воды", subtitle: "Выпить воду" },
+  window: { category: "environment", title: "К окну", subtitle: "Дневной свет" },
   curtains: {
     category: "environment",
     title: "Открыть шторы",
     subtitle: "Впустить утренний свет",
-    emoji: "🌅",
   },
 };
 
@@ -356,11 +353,6 @@ const CONF_LABEL: Record<Confidence, string> = {
   medium: "Средняя уверенность",
   high: "Высокая уверенность",
 };
-
-function factorLabel(key: string): string {
-  const factor = key.split(":")[1] as TaskCategory | undefined;
-  return factor && factor in CAT_META ? CAT_META[factor].label : "Фактор протокола";
-}
 
 function taskMeta(taskId: string) {
   return taskId in TASK_META ? TASK_META[taskId as TaskId] : null;
@@ -900,16 +892,20 @@ function ConfirmTask({ taskId, onDone }: { taskId: TaskId; onDone: (r: TaskResul
     );
   return (
     <div className="flex flex-col items-center gap-8">
-      <div className="w-20 h-20 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center text-4xl">
-        {meta.emoji}
+      <div className="w-20 h-20 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center text-primary">
+        <TaskIcon taskId={taskId} className="h-10 w-10" />
       </div>
       <p className="text-sm text-muted-foreground text-center leading-relaxed">{cfg.instruction}</p>
       {cfg.countdown > 0 && started && (
-        <div
-          className={`text-7xl font-black transition-colors ${cd === 0 ? "text-green-400" : "text-primary"}`}
+        <Suspense
+          fallback={
+            <div className="grid h-40 w-40 place-items-center text-4xl font-black text-primary">
+              {cd}
+            </div>
+          }
         >
-          {cd > 0 ? cd : "✓"}
-        </div>
+          <TaskTimerVisual taskId={taskId} remaining={cd} total={cfg.countdown} />
+        </Suspense>
       )}
       {!started ? (
         <button
@@ -985,8 +981,8 @@ function TasksContainer({
         </div>
       </div>
       <div className="flex items-center gap-3 mb-10">
-        <div className="w-12 h-12 rounded-2xl bg-primary/20 border border-primary/20 flex items-center justify-center text-2xl">
-          {meta.emoji}
+        <div className="w-12 h-12 rounded-2xl bg-primary/20 border border-primary/20 flex items-center justify-center text-primary">
+          <TaskIcon taskId={id} className="h-6 w-6" />
         </div>
         <div>
           <h2 className="text-lg font-bold">{meta.title}</h2>
@@ -1429,7 +1425,7 @@ function ResultsScreen({
                 <div
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border ${catMeta.bg} border-transparent`}
                 >
-                  <span className="text-sm">{meta.emoji}</span>
+                  <TaskIcon taskId={t.id} className={`h-4 w-4 ${catMeta.color}`} />
                   <span className={`text-xs font-semibold ${catMeta.color}`}>{meta.title}</span>
                 </div>
                 {i < session.tasks.length - 1 && (
@@ -1601,9 +1597,17 @@ function StatsScreen({
     ? successSessions.reduce((s, v) => s + (v.endAlertness - v.startAlertness), 0) /
       successSessions.length
     : 0;
-  const bestSequence = apiProfile?.sequenceEffects
-    .filter((metric) => metric.value !== null)
-    .sort((left, right) => (right.value ?? 0) - (left.value ?? 0))[0];
+  const sequenceCandidates =
+    apiProfile?.sequenceEffects.filter((metric) => metric.value !== null) ?? [];
+  const verifiedSequenceCandidates = sequenceCandidates.filter(
+    ({ evidenceCount: count }) => count >= 2,
+  );
+  const bestSequence = (
+    verifiedSequenceCandidates.length ? verifiedSequenceCandidates : sequenceCandidates
+  ).sort(
+    (left, right) =>
+      (right.value ?? 0) - (left.value ?? 0) || right.evidenceCount - left.evidenceCount,
+  )[0];
   const bestSequenceTasks = bestSequence
     ? bestSequence.key
         .replace(/^sequence:/, "")
@@ -1613,7 +1617,7 @@ function StatsScreen({
 
   // Next plan
   const nextPlan = computeNextPlan(sessions);
-  const nextTaskMeta = nextPlan.taskIds.map((id) => TASK_META[id]);
+  const nextTaskMeta = nextPlan.taskIds.map((id) => ({ id, ...TASK_META[id] }));
 
   return (
     <div className="flex flex-col flex-1 px-5 pt-14 pb-28 overflow-y-auto">
@@ -1775,32 +1779,10 @@ function StatsScreen({
           </p>
         ) : !demo && analytics.status === "error" ? (
           <p className="text-sm text-red-400">{analytics.message}</p>
-        ) : !demo && apiProfile?.factorEffects.length ? (
-          apiProfile.factorEffects.map((metric) => {
-            const value = metric.value ?? 0;
-            return (
-              <div
-                key={metric.key}
-                className="flex items-start justify-between py-3 border-b border-border last:border-0"
-              >
-                <div>
-                  <p className="text-sm font-semibold">{factorLabel(metric.key)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {CONF_LABEL[metric.confidence]} · {metric.evidenceCount} парных сравнения
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span
-                    className={`text-lg font-black ${value >= 0 ? "text-green-400" : "text-red-400"}`}
-                  >
-                    {value >= 0 ? "+" : ""}
-                    {value.toFixed(1)}
-                  </span>
-                  <p className="text-xs text-muted-foreground">эффект фактора</p>
-                </div>
-              </div>
-            );
-          })
+        ) : !demo && apiProfile && (evidenceCount >= 7 || apiProfile.factorEffects.length > 0) ? (
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Готовим профиль…</p>}>
+            <WakeProfileSummary profile={apiProfile} evidenceCount={evidenceCount} />
+          </Suspense>
         ) : sortedCats.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {evidenceCount >= 7
@@ -1867,7 +1849,8 @@ function StatsScreen({
                 {bestSequenceTasks.map((taskId, index) => (
                   <div key={`${taskId}-${index}`} className="flex items-center gap-1.5">
                     <span className="rounded-lg bg-secondary px-2 py-1 text-xs font-medium">
-                      {TASK_META[taskId].emoji} {TASK_META[taskId].title}
+                      <TaskIcon taskId={taskId} className="mr-1 inline h-3.5 w-3.5" />{" "}
+                      {TASK_META[taskId].title}
                     </span>
                     {index < bestSequenceTasks.length - 1 && (
                       <ArrowRight className="h-3 w-3 text-muted-foreground" />
@@ -1893,7 +1876,7 @@ function StatsScreen({
             <div className="flex items-center gap-2 flex-wrap mb-3">
               {bestSession.tasks.map((t, i) => (
                 <div key={i} className="flex items-center gap-1">
-                  <span className="text-lg">{TASK_META[t.id].emoji}</span>
+                  <TaskIcon taskId={t.id} className="h-5 w-5 text-primary" />
                   {i < bestSession.tasks.length - 1 && (
                     <ArrowRight className="w-3 h-3 text-muted-foreground" />
                   )}
@@ -1953,7 +1936,10 @@ function StatsScreen({
                     <div
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${CAT_META[meta.category].bg}`}
                     >
-                      <span className="text-sm">{meta.emoji}</span>
+                      <TaskIcon
+                        taskId={meta.id}
+                        className={`h-4 w-4 ${CAT_META[meta.category].color}`}
+                      />
                       <span className={`text-xs font-semibold ${CAT_META[meta.category].color}`}>
                         {meta.title}
                       </span>
@@ -2003,7 +1989,7 @@ function StatsScreen({
                     <div className="flex items-center gap-1.5 mt-0.5">
                       {s.tasks.map((t) => (
                         <span key={t.id} className="text-base">
-                          {TASK_META[t.id].emoji}
+                          <TaskIcon taskId={t.id} className="h-4 w-4 text-primary" />
                         </span>
                       ))}
                       {s.followUp === "back" && (
@@ -2094,7 +2080,11 @@ function StatsScreen({
                           className="flex items-center gap-2 text-xs"
                         >
                           <span className="flex h-5 w-5 items-center justify-center rounded-md bg-card">
-                            {meta?.emoji ?? "✓"}
+                            {meta ? (
+                              <TaskIcon taskId={task.taskId as TaskId} className="h-3.5 w-3.5" />
+                            ) : (
+                              "✓"
+                            )}
                           </span>
                           <span>
                             {taskIndex + 1}. {meta?.title ?? "Задание"}

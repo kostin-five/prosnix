@@ -28,10 +28,10 @@ describe("план первоначальных экспериментов", () 
   it("чередует безопасные последовательности после периода изучения", () => {
     const continuation = [7, 8, 9, 10].map((count) => selectLearningAssignment(count));
 
-    expect(continuation[0]).toMatchObject({ phase: "fallback" });
-    expect(continuation[1]).toMatchObject({ strategyVersion: "continuation-v1" });
-    expect(continuation[2]).toMatchObject({ strategyVersion: "continuation-v1" });
-    expect(continuation[3]?.protocolKey).toBe(continuation[0]?.protocolKey);
+    expect(continuation[0]).toMatchObject({ phase: "adaptive", strategyVersion: "adaptive-v2" });
+    expect(continuation[1]).toMatchObject({ strategyVersion: "adaptive-v2" });
+    expect(continuation[2]).toMatchObject({ strategyVersion: "adaptive-v2" });
+    expect(continuation[3]?.protocolKey).not.toBe(continuation[0]?.protocolKey);
     expect(
       continuation.slice(1).every((assignment, index) => {
         const previous = continuation[index]!;
@@ -44,11 +44,14 @@ describe("план первоначальных экспериментов", () 
   });
 
   it("предлагает альтернативы для проверки после персонализации", () => {
-    expect(learningAssignmentCandidates(8).map(({ protocolKey }) => protocolKey)).toEqual([
-      "cognitive-refresh",
-      "activation-mix",
-      "safe-fallback",
-    ]);
+    const candidates = learningAssignmentCandidates(8);
+    expect(candidates).toHaveLength(6);
+    expect(new Set(candidates.map(({ protocolKey }) => protocolKey)).size).toBe(6);
+    expect(
+      candidates.every(
+        ({ strategyVersion, phase }) => strategyVersion === "adaptive-v2" && phase === "adaptive",
+      ),
+    ).toBe(true);
   });
 
   it("за семь сессий накапливает три независимых сравнения одного фактора", () => {

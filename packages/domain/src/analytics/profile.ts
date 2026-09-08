@@ -98,6 +98,23 @@ export function computeAnalyticsProfile(
         ),
       ];
     });
+  const comparisonProgress = [...comparisonGroups.values()]
+    .sort((left, right) =>
+      `${left.factorKey}:${left.groupKey}`.localeCompare(`${right.factorKey}:${right.groupKey}`),
+    )
+    .map((group) => {
+      const pairCount = Math.min(group.with.length, group.without.length);
+      return {
+        key: `factor:${group.factorKey}:${group.groupKey}`,
+        factorKey: group.factorKey,
+        groupKey: group.groupKey,
+        withCount: group.with.length,
+        withoutCount: group.without.length,
+        pairCount,
+        targetPairs: 3 as const,
+        status: pairCount >= 3 ? ("ready" as const) : ("collecting" as const),
+      };
+    });
 
   const sequenceGroups = new Map<string, CompletedSessionEvidence[]>();
   for (const item of evidence) {
@@ -153,7 +170,7 @@ export function computeAnalyticsProfile(
     }));
 
   return {
-    methodVersion: "analytics-v1",
+    methodVersion: "analytics-v2",
     computedAt,
     averageDelta: metric("average-delta", mean(deltas), evidence),
     riseSuccess: metric(
@@ -163,6 +180,7 @@ export function computeAnalyticsProfile(
     ),
     protocolEffects,
     factorEffects,
+    comparisonProgress,
     sequenceEffects,
     dailyTrend,
   };
