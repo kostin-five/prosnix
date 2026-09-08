@@ -19,6 +19,8 @@
 - `pnpm verify:release`: успешно (format, strict types, 120 unit/contract tests, build, bundle и
   production boundaries).
 - пользовательские emoji заменены на единый набор Lucide и task SVG-иконок;
+- удалены только неиспользуемые остатки Figma Make и воспроизводимые локальные build/test artifacts;
+  `.env`, зависимости, брендовые исходники, миграции и проектная документация сохранены.
 
 ## Не проверено
 
