@@ -26,7 +26,15 @@ export function ProsnixBrand() {
             strokeLinejoin="round"
           />
           <path d="M20 21h12" stroke="url(#prosnix-mark)" strokeWidth="4.5" />
-          <path d="M20 17a7 7 0 0 1 12 0" fill="#facc15" fillOpacity=".28" />
+          <g data-brand-sun="true">
+            <circle cx="26.5" cy="16.5" r="3.2" fill="#facc15" />
+            <path
+              d="M26.5 10.5V8.5m5.2 3.2 1.5-1.5m-11.9 1.5-1.5-1.5m13.2 6.3h2m-17 0h2"
+              stroke="#facc15"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+          </g>
         </svg>
         <div className="flex min-w-0 items-center gap-2">
           <h1 className="truncate text-[1.35rem] font-black leading-none tracking-[0.08em]">

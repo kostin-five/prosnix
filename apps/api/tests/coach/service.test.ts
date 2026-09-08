@@ -29,7 +29,15 @@ function profile(evidenceCount: number): AnalyticsProfile {
     },
     protocolEffects: [],
     factorEffects: [],
-    sequenceEffects: [],
+    sequenceEffects: [
+      {
+        key: "sequence:steps>reaction>memory",
+        value: 2.5,
+        evidenceCount: 2,
+        evidenceIds: [],
+        confidence: "insufficient",
+      },
+    ],
     dailyTrend: Array.from({ length: Math.min(evidenceCount, 3) }, (_, index) => ({
       localDate: `2026-09-0${index + 1}`,
       averageDelta: index + 1,
@@ -128,8 +136,8 @@ describe("CoachService", () => {
     await expect(service.getInsight("user-1")).resolves.toMatchObject({
       status: "unavailable",
       insight: {
-        summary: expect.stringContaining("Через 15 минут"),
-        nextExperiment: expect.any(String),
+        summary: expect.stringMatching(/через 15 минут/i),
+        nextExperiment: expect.stringContaining("Пройтись → Реакция → Память"),
         caveat: expect.stringContaining("Базовый отчёт"),
       },
     });

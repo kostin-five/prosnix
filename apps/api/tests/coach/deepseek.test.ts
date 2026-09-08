@@ -48,7 +48,9 @@ describe("DeepSeek coach gateway", () => {
     expect(JSON.stringify(sent)).not.toMatch(/[0-9a-f]{8}-[0-9a-f-]{27}/i);
     expect(sent.messages[1]?.content).toContain("average-delta");
     expect(sent.messages[1]?.content).toContain("recentDirection");
-    expect(sent.messages[0]?.content).toContain("Не пересказывай средний прирост");
+    expect(sent.messages[0]?.content).toContain("не пересказывай видимые числа");
+    expect(sent.messages[0]?.content).toContain("самый сильный или самый слабый сигнал");
+    expect(sent.messages[0]?.content).toContain("не ограничивайся очевидной инструкцией");
   });
 
   it("rejects untrusted fields", async () => {

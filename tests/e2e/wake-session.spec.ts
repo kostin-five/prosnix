@@ -138,6 +138,30 @@ test("полный wake-up цикл подтверждается серверо�
       followUp: "up",
     }),
   );
+  await page.route("**/api/v1/analytics/profile", (route) =>
+    json(route, {
+      methodVersion: "analytics-v2",
+      computedAt: "2026-09-08T06:01:00.000Z",
+      averageDelta: {
+        key: "average-delta",
+        value: 1.4,
+        evidenceCount: 14,
+        evidenceIds: [],
+        confidence: "high",
+      },
+      riseSuccess: {
+        key: "rise-success",
+        value: 0.8,
+        evidenceCount: 10,
+        evidenceIds: [],
+        confidence: "medium",
+      },
+      protocolEffects: [],
+      factorEffects: [],
+      sequenceEffects: [],
+      dailyTrend: [],
+    }),
+  );
 
   await page.goto("/");
   await page.getByRole("button", { name: "Начать пробуждение" }).click();
@@ -157,6 +181,9 @@ test("полный wake-up цикл подтверждается серверо�
   await page.getByRole("button", { name: "7", exact: true }).click();
   await page.getByRole("button", { name: "Сохранить результат" }).click();
   await expect(page.getByRole("heading", { name: "Протокол завершён" })).toBeVisible();
+  await expect(page.getByText(/Профиль обновлён/)).toBeVisible();
+  await expect(page.getByText(/Учтено 14 завершённых сессий/)).toBeVisible();
+  await expect(page.getByText(/Ещё 6 пробуждений/)).toHaveCount(0);
   await page.getByRole("button", { name: "Ответить сейчас" }).click();
   await page.getByRole("button", { name: /Да, уже встал/ }).click();
   await expect(page.getByText("Встал и не лёг обратно")).toBeVisible();

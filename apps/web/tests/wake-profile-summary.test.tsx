@@ -35,9 +35,52 @@ const profile: AnalyticsProfileResponse = {
       targetPairs: 3,
       status: "collecting",
     },
+    {
+      key: "factor:movement:movement-b:night_sleep:5m",
+      factorKey: "movement",
+      groupKey: "movement-b:night_sleep:5m",
+      withCount: 1,
+      withoutCount: 1,
+      pairCount: 1,
+      targetPairs: 3,
+      status: "collecting",
+    },
   ],
-  sequenceEffects: [],
+  sequenceEffects: [
+    {
+      key: "sequence:steps>reaction>memory",
+      value: 2.5,
+      evidenceCount: 2,
+      evidenceIds: [],
+      confidence: "insufficient",
+    },
+  ],
 };
+
+const recentSessions = [
+  {
+    id: "session-2",
+    completedAt: "2026-09-08T06:00:00.000Z",
+    baseline: 5,
+    postRating: 4,
+    followUp: "drowsy" as const,
+    durationMs: 60_000,
+    tasks: [],
+    wakeContext: "night_sleep" as const,
+    durationMinutes: 5 as const,
+  },
+  {
+    id: "session-1",
+    completedAt: "2026-09-07T06:00:00.000Z",
+    baseline: 3,
+    postRating: 6,
+    followUp: "up" as const,
+    durationMs: 60_000,
+    tasks: [],
+    wakeContext: "night_sleep" as const,
+    durationMinutes: 5 as const,
+  },
+];
 
 describe("профиль пробуждения", () => {
   let root: Root;
@@ -56,14 +99,22 @@ describe("профиль пробуждения", () => {
   });
 
   it("показывает содержательный профиль при 13 сессиях без готового factor effect", () => {
-    act(() => root.render(<WakeProfileSummary profile={profile} evidenceCount={13} />));
+    act(() =>
+      root.render(
+        <WakeProfileSummary profile={profile} evidenceCount={13} recentSessions={recentSessions} />,
+      ),
+    );
 
-    expect(container.textContent).toContain("Типичный прирост");
-    expect(container.textContent).toContain("+1.2");
-    expect(container.textContent).toContain("Подъём сохранился");
-    expect(container.textContent).toContain("85%");
-    expect(container.textContent).toContain("13 завершённых сессий");
-    expect(container.textContent).toContain("Сопоставимых пар: 1/3");
-    expect(container.textContent).toContain("С движением 2, без — 1");
+    expect(container.textContent).toContain("Как проходит пробуждение");
+    expect(container.textContent).toContain("небольшой подъём бодрости");
+    expect(container.textContent).toContain("подъём сохраняется и через 15 минут");
+    expect(container.textContent).toContain("Пройтись → Реакция → Память");
+    expect(container.textContent).toMatch(/13\s+завершённых сессиях/);
+    expect(container.textContent).not.toContain("Высокая уверенность");
+    expect(container.querySelectorAll("details")).toHaveLength(1);
+    expect(container.textContent?.match(/помогает ли движение/g)).toHaveLength(1);
+    expect(container.querySelector('[aria-label="Эффект 2 последних пробуждений"]')).not.toBeNull();
+    expect(container.textContent).toContain("+3");
+    expect(container.textContent).toContain("-1");
   });
 });

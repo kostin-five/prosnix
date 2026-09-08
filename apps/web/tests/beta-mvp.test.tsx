@@ -27,6 +27,8 @@ describe("финальная Beta-полировка", () => {
     expect(container.querySelector("h1")?.textContent).toBe("PROSNIX");
     expect(container.textContent).toContain("Beta");
     expect(container.querySelector("svg")).not.toBeNull();
+    expect(container.querySelector('[data-brand-sun="true"] circle')).not.toBeNull();
+    expect(container.querySelector('[data-brand-sun="true"] path')).not.toBeNull();
   });
 
   it("показывает актуального оператора и отдельный контакт поддержки", () => {

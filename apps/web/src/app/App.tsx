@@ -1316,6 +1316,7 @@ function ResultsScreen({
   const [followUpAns, setFollowUpAns] = useState<FollowUp>(null);
   const [followUpSaving, setFollowUpSaving] = useState(false);
   const [followUpError, setFollowUpError] = useState<string | null>(null);
+  const analytics = useAnalyticsProfile(!demo, allSessions.length);
 
   async function answerFollowUp(answer: Exclude<FollowUp, null>) {
     setFollowUpSaving(true);
@@ -1340,7 +1341,12 @@ function ResultsScreen({
           ? "text-orange-400"
           : "text-red-400";
   const validSessions = allSessions.filter((s) => s.endAlertness > 0);
-  const remaining = Math.max(0, 7 - validSessions.length);
+  const evidenceCount = demo
+    ? validSessions.length
+    : analytics.status === "ready"
+      ? analytics.profile.averageDelta.evidenceCount
+      : null;
+  const remaining = evidenceCount === null ? null : Math.max(0, 7 - evidenceCount);
 
   // Build insight
   let insightTitle = "Сессия сохранена";
@@ -1348,7 +1354,12 @@ function ResultsScreen({
   let insightColor = "border-border bg-secondary/30";
   let insightIcon = "💾";
 
-  if (remaining > 3) {
+  if (remaining === null) {
+    insightBody =
+      analytics.status === "error"
+        ? "Сессия сохранена. Профиль обновится, когда аналитика снова будет доступна."
+        : "Сессия сохранена. Обновляем профиль по всем завершённым пробуждениям…";
+  } else if (remaining > 3) {
     insightBody = `Мы пока собираем данные. Ещё ${remaining} пробуждений помогут определить первые закономерности.`;
   } else if (remaining > 0) {
     insightTitle = "Почти готово";
@@ -1356,18 +1367,10 @@ function ResultsScreen({
     insightColor = "border-accent/20 bg-accent/8";
     insightIcon = "🧪";
   } else {
-    // Check for patterns in data
-    const eff = computeCategoryEffectiveness(validSessions);
-    const movEff = eff["movement"];
-    const cogEff = eff["cognitive"];
-    if (movEff.sessions >= 2 && movEff.avgDelta > cogEff.avgDelta + 1) {
-      insightTitle = "Первые наблюдения";
-      insightBody = `Движение пока показывает лучший результат: после таких протоколов твоя бодрость повышается на +${movEff.avgDelta.toFixed(1)} балла. Уверенность — ${CONF_LABEL[getConfidence(movEff.sessions)].toLowerCase()}.`;
-      insightColor = "border-primary/20 bg-primary/8";
-      insightIcon = "📊";
-    } else {
-      insightBody = "Собираем больше данных для персональных выводов. Продолжаем эксперименты.";
-    }
+    insightTitle = "Профиль обновлён";
+    insightBody = `Учтено ${evidenceCount} завершённых сессий. Рекомендации и лучший порядок заданий пересчитаны.`;
+    insightColor = "border-primary/20 bg-primary/8";
+    insightIcon = "📊";
   }
 
   return (
@@ -1707,19 +1710,18 @@ function StatsScreen({
             coach.insight.insight ? (
               <>
                 <p className="text-xs font-semibold uppercase tracking-wide text-accent">
-                  Что удалось заметить
+                  Главный вывод
                 </p>
                 <p className="mt-1 text-sm leading-relaxed">{coach.insight.insight.summary}</p>
                 <div className="mt-3 rounded-xl bg-secondary/60 p-3">
-                  <p className="text-xs font-semibold text-accent">Следующий эксперимент</p>
+                  <p className="text-xs font-semibold text-accent">Что проверить дальше</p>
                   <p className="mt-1 text-sm">{coach.insight.insight.nextExperiment}</p>
                 </div>
                 <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
                   {coach.insight.insight.caveat}
                 </p>
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                  {CONF_LABEL[coach.insight.insight.confidence]} · {coach.insight.evidenceCount}{" "}
-                  подтверждённых сессий ·{" "}
+                  {coach.insight.evidenceCount} подтверждённых сессий ·{" "}
                   {coach.insight.source === "provider"
                     ? "Новый персональный отчёт"
                     : coach.insight.source === "cache"
@@ -1782,7 +1784,11 @@ function StatsScreen({
           <p className="text-sm text-red-400">{analytics.message}</p>
         ) : !demo && apiProfile && (evidenceCount >= 7 || apiProfile.factorEffects.length > 0) ? (
           <Suspense fallback={<p className="text-sm text-muted-foreground">Готовим профиль…</p>}>
-            <WakeProfileSummary profile={apiProfile} evidenceCount={evidenceCount} />
+            <WakeProfileSummary
+              profile={apiProfile}
+              evidenceCount={evidenceCount}
+              recentSessions={history.status === "ready" ? history.items : []}
+            />
           </Suspense>
         ) : sortedCats.length === 0 ? (
           <p className="text-sm text-muted-foreground">

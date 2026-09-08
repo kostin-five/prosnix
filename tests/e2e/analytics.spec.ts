@@ -155,9 +155,9 @@ test("профиль показывает только воспроизводи�
   await expect(page.getByText("+3.5", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("60%", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("1м", { exact: true })).toBeVisible();
-  await expect(page.getByText("Движение", { exact: true })).toBeVisible();
-  await expect(page.getByText("Низкая уверенность · 3 парных сравнения")).toBeVisible();
-  await expect(page.getByText("Стакан воды → Память")).toBeVisible();
+  await expect(page.getByText("Как проходит пробуждение")).toBeVisible();
+  await expect(page.getByText(/заметно выше/)).toBeVisible();
+  await expect(page.getByText("Стакан воды → Память", { exact: true })).toBeVisible();
   await expect(page.getByText("Недостаточно данных · n=2")).toBeVisible();
   await expect(page.getByText("Средний прирост по датам")).toHaveCount(0);
   await page.getByLabel("Открыть эксперимент 1").click();
@@ -172,6 +172,9 @@ test("профиль показывает только воспроизводи�
   await expect(page.getByText(/один новый бесплатный отчёт в день/)).toBeVisible();
   expect(coachRequests).toBe(0);
   await page.getByRole("button", { name: "Создать персональный отчёт" }).click();
+  await expect(page.getByText("Главный вывод")).toBeVisible();
+  await expect(page.getByText("Что проверить дальше")).toBeVisible();
+  await expect(page.getByText("Высокая уверенность")).toHaveCount(0);
   await expect(page.getByText(/Движение даёт наиболее устойчивый/)).toBeVisible();
   expect(coachRequests).toBe(1);
 });
@@ -222,16 +225,45 @@ test("после 13 сессий общий профиль не зависит �
       dailyTrend: [],
     }),
   );
-  await page.route("**/api/v1/sessions/history?limit=10", (route) => json(route, { sessions: [] }));
+  await page.route("**/api/v1/sessions/history?limit=10", (route) =>
+    json(route, {
+      sessions: [
+        {
+          id: "history-2",
+          completedAt: "2026-09-08T06:00:00.000Z",
+          baseline: 5,
+          postRating: 4,
+          durationMs: 60_000,
+          followUp: "drowsy",
+          tasks: [],
+          wakeContext: "night_sleep",
+          durationMinutes: 5,
+        },
+        {
+          id: "history-1",
+          completedAt: "2026-09-07T06:00:00.000Z",
+          baseline: 3,
+          postRating: 6,
+          durationMs: 60_000,
+          followUp: "up",
+          tasks: [],
+          wakeContext: "night_sleep",
+          durationMinutes: 5,
+        },
+      ],
+    }),
+  );
 
   await page.goto("/");
   await page.getByRole("button", { name: "Статистика" }).click();
-  await expect(page.getByText("13 завершённых сессий")).toBeVisible();
-  await expect(page.getByText("Типичный прирост")).toBeVisible();
-  await expect(page.getByText("Подъём сохранился")).toBeVisible();
-  await expect(page.getByText(/Сопоставимых пар: 1\/3/)).toBeVisible();
+  await expect(page.getByText(/Основано на 13 завершённых сессиях/)).toBeVisible();
+  await expect(page.getByText("Как проходит пробуждение")).toBeVisible();
+  await expect(page.getByText("Что попробовать дальше")).toBeVisible();
+  await expect(page.getByText("Что Prosnix ещё проверяет")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Эффект 2 последних пробуждений" })).toBeVisible();
+  await expect(page.getByText("Высокая уверенность")).toHaveCount(0);
   await expect(page.getByText(/Профиль готов по/)).toHaveCount(0);
-  await expect(page.getByText("Пройтись → Реакция → Память")).toBeVisible();
+  await expect(page.getByText("Пройтись → Реакция → Память", { exact: true })).toBeVisible();
 });
 
 test("после пяти сессий feedback показывается один раз и отправляется без влияния на wake flow", async ({
@@ -411,7 +443,7 @@ test("ранний отчёт требует явного подтвержден
   expect(endpointRequests).toBe(1);
   expect(confirmedRequests).toBe(0);
   await page.getByRole("button", { name: "Создать всё равно" }).click();
-  await expect(page.getByText("Что удалось заметить")).toBeVisible();
+  await expect(page.getByText("Главный вывод")).toBeVisible();
   expect(endpointRequests).toBe(2);
   expect(confirmedRequests).toBe(1);
 });

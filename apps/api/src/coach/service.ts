@@ -57,6 +57,46 @@ function fingerprint(payload: CoachAggregatePayload): string {
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
+const TASK_LABELS: Record<string, string> = {
+  math: "Математика",
+  memory: "Память",
+  stroop: "Цвета",
+  reaction: "Реакция",
+  steps: "Пройтись",
+  squats: "Приседания",
+  shake: "Размяться",
+  water: "Стакан воды",
+  window: "Свет у окна",
+  curtains: "Открыть шторы",
+};
+
+function sequenceLabel(key: string): string {
+  return key
+    .replace(/^sequence:/, "")
+    .split(">")
+    .map((taskId) => TASK_LABELS[taskId] ?? taskId)
+    .join(" → ");
+}
+
+function nextSequenceExperiment(profile: AnalyticsProfile): string {
+  const best = profile.sequenceEffects
+    .filter(({ value }) => value !== null)
+    .sort(
+      (left, right) =>
+        Number(right.evidenceCount >= 2) - Number(left.evidenceCount >= 2) ||
+        (right.value ?? 0) - (left.value ?? 0) ||
+        right.evidenceCount - left.evidenceCount,
+    )[0];
+  if (!best) {
+    return "Пока ни один порядок заданий не повторился достаточно часто. Продолжай назначенные варианты и отвечай через 15 минут — так появится честное сравнение последовательностей.";
+  }
+  const label = sequenceLabel(best.key);
+  if (best.evidenceCount < 2) {
+    return `Порядок «${label}» пока дал самый заметный результат, но встречался только один раз. Нужен ещё один повтор в похожих условиях, прежде чем считать его перспективным.`;
+  }
+  return `Самым перспективным пока выглядит порядок «${label}» по ${best.evidenceCount} сессиям. Следующий полезный шаг — повторить его в похожих условиях и проверить, сохранится ли результат через 15 минут.`;
+}
+
 function safeTimezone(value: string): string {
   try {
     new Intl.DateTimeFormat("en-GB", { timeZone: value }).format(new Date());
@@ -123,7 +163,11 @@ function deterministicFallback(
   const stability =
     rise === null
       ? "Проверок через 15 минут пока недостаточно, чтобы оценить устойчивость подъёма."
-      : `Через 15 минут подъём сохранялся в ${Math.round(rise * 100)}% отвеченных проверок.`;
+      : rise >= 0.75
+        ? "После большинства ответов через 15 минут подъём не исчезал."
+        : rise >= 0.5
+          ? "Примерно в половине ответов подъём сохранялся и через 15 минут."
+          : "Через 15 минут подъём часто ослабевал.";
   const direction =
     signals.recentDirection === "improving"
       ? "Последние дневные результаты улучшаются."
@@ -147,8 +191,7 @@ function deterministicFallback(
     refreshAvailableAt,
     insight: {
       summary: `${stability} ${direction}${spread}`,
-      nextExperiment:
-        "В следующей сессии пройди назначенный протокол полностью и ответь на проверку через 15 минут. Так мы сравним не только мгновенную бодрость, но и устойчивость результата.",
+      nextExperiment: nextSequenceExperiment(profile),
       caveat: `Базовый отчёт основан на ${evidenceCount} ${evidenceCount === 1 ? "сессии" : "сессиях"}. Это предварительные наблюдения, а не доказанная причина или медицинский вывод.`,
       confidence: profile.averageDelta.confidence,
       generatedAt: now.toISOString(),
