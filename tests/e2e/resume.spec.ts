@@ -66,7 +66,7 @@ test("mobile user resumes from the next confirmed task", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Память" })).toBeVisible();
 });
 
-test("пользователь может серверно закрыть прерванную сессию и начать заново", async ({ page }) => {
+test("пользователь может серверно закрыть ненужную сохранённую сессию", async ({ page }) => {
   await page.route("https://telegram.org/js/telegram-web-app.js*", (route) =>
     route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
   );
@@ -76,6 +76,9 @@ test("пользователь может серверно закрыть пре
         initData: "signed-test-launch-data",
         ready: () => undefined,
         expand: () => undefined,
+        close: () => {
+          document.documentElement.dataset.telegramClosed = "true";
+        },
       },
     };
   });
@@ -125,6 +128,8 @@ test("пользователь может серверно закрыть пре
   });
 
   await page.goto("/");
-  await page.getByRole("button", { name: "Начать заново" }).click();
+  await expect(page.getByRole("button", { name: "Начать заново" })).toBeVisible();
+  await page.getByRole("button", { name: "Закрыть", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Prosnix" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-telegram-closed", "true");
 });

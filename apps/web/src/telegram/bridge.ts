@@ -3,7 +3,12 @@ interface TelegramWebApp {
   initDataUnsafe?: { start_param?: string };
   ready(): void;
   expand(): void;
+  close?(): void;
   openInvoice?(url: string, callback?: (status: string) => void): void;
+}
+
+export function closeTelegramMiniApp(): void {
+  window.Telegram?.WebApp?.close?.();
 }
 
 export async function openTelegramInvoice(url: string): Promise<string> {

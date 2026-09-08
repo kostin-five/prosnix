@@ -59,6 +59,7 @@ import {
 import { LazyBoundary } from "./lazy-boundary.js";
 import { ProsnixBrand } from "../features/brand/prosnix-brand.js";
 import { TaskIcon } from "../features/tasks/task-icon.js";
+import { closeTelegramMiniApp } from "../telegram/bridge.js";
 
 const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
 const StatsResearchCards = lazy(() => import("../features/research/stats-research-cards.js"));
@@ -2681,14 +2682,15 @@ export default function App() {
     !resumeDiscarded
   ) {
     const active = bootstrap.data.activeSession;
-    async function discardActiveSession() {
+    async function discardActiveSession(closeApp = false) {
       setDiscarding(true);
       setDiscardError(null);
       try {
         await abandonWakeSession(active.session.id, active.session.version);
         setResumeDiscarded(true);
+        if (closeApp) closeTelegramMiniApp();
       } catch (error) {
-        setDiscardError(error instanceof Error ? error.message : "Не удалось начать заново");
+        setDiscardError(error instanceof Error ? error.message : "Не удалось завершить сессию");
       } finally {
         setDiscarding(false);
       }
@@ -2717,6 +2719,13 @@ export default function App() {
             className="mt-2 w-full rounded-2xl bg-secondary py-3 font-semibold text-foreground"
           >
             {discarding ? "Закрываем старую сессию…" : "Начать заново"}
+          </button>
+          <button
+            disabled={discarding}
+            onClick={() => void discardActiveSession(true)}
+            className="mt-2 min-h-11 w-full rounded-xl text-sm font-semibold text-muted-foreground disabled:opacity-60"
+          >
+            Закрыть
           </button>
           {discardError && (
             <p role="alert" className="mt-3 text-sm text-red-400">
