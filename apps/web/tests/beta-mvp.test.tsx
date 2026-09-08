@@ -28,6 +28,8 @@ describe("финальная Beta-полировка", () => {
     const banner = container.querySelector<HTMLImageElement>("img");
     expect(banner?.src).toContain("prosnix-telegram-banner-600x320.png");
     expect(banner?.getAttribute("style")).toContain("radial-gradient");
+    expect(banner?.className).toContain("w-[160px]");
+    expect(banner?.className).toContain("min-[380px]:w-[192px]");
   });
 
   it("показывает актуального оператора и отдельный контакт поддержки", () => {

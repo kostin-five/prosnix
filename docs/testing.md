@@ -127,3 +127,7 @@ Integration tests должны выполняться на disposable database. 
 
 Последний подтверждённый прогон описан в validation-файле актуальной спецификации, на которую
 указывает `.specify/feature.json`.
+
+Полный ручной прогон режимов 2/5/10 минут, контекстов, семи контрольных сессий, удаления профиля,
+Telegram-сообщений и реального личного цикла описан в
+[`pre-pilot-manual-test-plan.md`](pre-pilot-manual-test-plan.md).

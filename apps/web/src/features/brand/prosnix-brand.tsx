@@ -19,7 +19,7 @@ export function ProsnixBrand() {
             src={bannerUrl}
             alt=""
             aria-hidden="true"
-            className="h-11 w-[154px] object-cover object-center"
+            className="h-12 w-[160px] object-cover object-center min-[380px]:h-14 min-[380px]:w-[192px]"
             style={{
               maskImage: "radial-gradient(ellipse 72% 65% at center,black 58%,transparent 100%)",
               WebkitMaskImage:
