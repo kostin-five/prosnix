@@ -39,6 +39,21 @@
 - [x] T017 Выполнить `pnpm verify:release`, mobile E2E и полный gate на disposable PostgreSQL; записать результат в `specs/016-task-integrity-duration/validation.md`
 - [x] T018 Создать датированный handoff и обновить `docs/handoffs/CURRENT.md`
 
+## Phase 8: Pilot feedback hardening
+
+- [x] T019 Добавить domain regressions семи уникальных шагов, ограниченного профиля и разминки перед
+      приседаниями в `packages/domain/tests/personalization.test.ts`
+- [x] T020 Выпустить protocol version 4 и новые strategy versions в
+      `packages/domain/src/experiments/learning.ts`
+- [x] T021 Дополнять 10-минутное назначение до семи уникальных разрешённых заданий и нормализовать
+      положение приседаний в `packages/domain/src/personalization.ts`
+- [x] T022 Добавить single-flight guard результата, проверку текущего task ID и восстановление после
+      canonical conflict в `apps/web/src/app/App.tsx`
+- [x] T023 Добавить web regression повторного callback и canonical recovery в
+      `apps/web/tests/task-submission.test.ts`
+- [x] T024 Обновить architecture, roadmap, ручной test plan, validation и handoff по фактическому
+      поведению; выполнить полный release gate на disposable PostgreSQL
+
 ## Зависимости
 
 - T001 блокирует T002, T009–T013.

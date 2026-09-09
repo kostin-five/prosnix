@@ -231,7 +231,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           })
         ).session;
         expect(session.assignment).toMatchObject({
-          strategyVersion: "adaptive-v3",
+          strategyVersion: "adaptive-v4",
           phase: "adaptive",
         });
         signatures.push(session.assignment.steps.map(({ taskId }) => taskId).join(","));

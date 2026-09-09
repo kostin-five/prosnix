@@ -189,6 +189,68 @@ describe("персонализация протокола", () => {
     expect(result.assignment.steps.map(({ taskId }) => taskId)).toContain("steps");
   });
 
+  it("дополняет десятиминутный протокол до семи уникальных разрешённых заданий", () => {
+    const fullProfile: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: ["water", "bright_light", "floor_space"],
+    };
+    for (let completedSessions = 0; completedSessions < 13; completedSessions += 1) {
+      const candidate: ExperimentAssignment = {
+        ...learningAssignmentCandidates(completedSessions)[0]!,
+        id: `long-${completedSessions}`,
+      };
+      const taskIds = personalizeAssignment(candidate, fullProfile, 10).assignment.steps.map(
+        ({ taskId }) => taskId,
+      );
+
+      expect(taskIds).toHaveLength(7);
+      expect(new Set(taskIds)).toHaveLength(7);
+      expect(taskIds.every((taskId) => eligibleWakeTasks(fullProfile).includes(taskId))).toBe(true);
+    }
+  });
+
+  it("ставит мягкое движение перед приседаниями", () => {
+    const fullProfile: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: ["water", "bright_light", "floor_space"],
+    };
+    const movementFirstCandidate: ExperimentAssignment = {
+      ...learningAssignmentCandidates(10)[0]!,
+      id: "movement-first-long",
+    };
+    const taskIds = personalizeAssignment(
+      movementFirstCandidate,
+      fullProfile,
+      10,
+    ).assignment.steps.map(({ taskId }) => taskId);
+    const warmupIndex = Math.min(
+      ...[taskIds.indexOf("steps"), taskIds.indexOf("shake")].filter((index) => index >= 0),
+    );
+
+    expect(taskIds).toHaveLength(7);
+    expect(warmupIndex).toBeLessThan(taskIds.indexOf("squats"));
+  });
+
+  it("не нарушает ограничения ради семи шагов", () => {
+    const restricted: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "none",
+      availableResources: [],
+      excludedTaskIds: ["reaction"],
+    };
+    const taskIds = personalizeAssignment(
+      { ...learningAssignmentCandidates(7)[0]!, id: "restricted-long" },
+      restricted,
+      10,
+    ).assignment.steps.map(({ taskId }) => taskId);
+
+    expect(taskIds).toEqual(expect.arrayContaining(["math", "memory", "stroop"]));
+    expect(taskIds).toHaveLength(3);
+    expect(new Set(taskIds)).toHaveLength(3);
+  });
+
   it("выбирает консервативный fallback без нарушения явных запретов", () => {
     const result = personalizeAssignment(
       { ...assignment, steps: [{ index: 0, taskId: "squats", category: "movement" }] },

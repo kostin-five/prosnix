@@ -17,8 +17,8 @@ function plan(
 ): PlannedAssignment {
   return {
     protocolKey,
-    protocolVersion: 3,
-    strategyVersion: "learning-v2",
+    protocolVersion: 4,
+    strategyVersion: "learning-v3",
     phase: "learning",
     hypothesis,
     steps,
@@ -65,8 +65,8 @@ const LEARNING_ASSIGNMENTS: readonly PlannedAssignment[] = [
 
 const FALLBACK: PlannedAssignment = {
   protocolKey: "safe-fallback",
-  protocolVersion: 3,
-  strategyVersion: "fallback-v2",
+  protocolVersion: 4,
+  strategyVersion: "fallback-v3",
   phase: "fallback",
   hypothesis: "Используем безопасный протокол, пока персональных данных недостаточно",
   steps: [
@@ -121,8 +121,8 @@ const ADAPTIVE_ASSIGNMENTS: readonly PlannedAssignment[] = [
   ]),
 ].map((assignment) => ({
   ...assignment,
-  protocolVersion: 3,
-  strategyVersion: "adaptive-v3",
+  protocolVersion: 4,
+  strategyVersion: "adaptive-v4",
   phase: "adaptive" as const,
 }));
 

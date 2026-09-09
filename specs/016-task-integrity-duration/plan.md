@@ -11,8 +11,8 @@
 - TypeScript strict, React/Vite web, Fastify API, существующий `packages/domain`.
 - Схема PostgreSQL и HTTP shape результата задания не меняются: используются `correct`, `total`,
   `durationMs`, версия протокола и сохранённый `durationMinutes` сессии.
-- Новые назначения получают protocol version 3 и новые strategy versions; старые активные сессии
-  сохраняют прежние правила для совместимого завершения.
+- Первые строгие назначения получили protocol version 3; новый состав получает version 4 и новые
+  strategy versions. Старые активные сессии сохраняют прежние правила для совместимого завершения.
 - Никаких новых dependencies, provider, datastore, worker или production config.
 
 ## Constitution check
@@ -40,7 +40,7 @@
 
 ### Обратная совместимость
 
-Правило минимального числа успехов применяется только к новым protocol version 3. Это позволяет
+Правило минимального числа успехов применяется начиная с protocol version 3. Это позволяет
 возобновить назначенную ранее сессию. Новые strategy versions отделяют результаты изменённой
 нагрузки в аналитике и admin breakdown.
 
@@ -56,11 +56,31 @@ actions получают увеличенный интервал через су
 объясняется рядом с выбором: одинаковое первое назначение допустимо, последующая рекомендация
 обучается отдельно для каждого контекста и бюджета.
 
+### Семь шагов и порядок активации
+
+Для режима 10 минут персонализатор дополняет исходного кандидата уникальными разрешёнными task IDs
+до семи. Затем применяется минимальное ограничение порядка: если есть приседания, ходьба или
+разминка должна находиться раньше. Остальной порядок кандидата сохраняется, чтобы не уничтожать
+экспериментальную вариативность. Если профиль допускает меньше семи вариантов, используются все
+доступные варианты без повторов и нарушения ограничений.
+
+Изменённые назначения получают protocol version 4 и новые strategy versions. Существующие sessions
+versions 1–3 читаются и завершаются по сохранённой версии.
+
+### Защита отправки шага
+
+Помимо блокировки внутри Reaction общий обработчик результата хранит синхронный in-flight guard и
+проверяет task ID текущего шага. Guard сбрасывается при переходе к следующему шагу или после ошибки.
+При conflict canonical session остаётся источником истины; если индекс не изменился, task component
+перемонтируется для честной повторной попытки.
+
 ## Точки изменения
 
 - `packages/domain/src/task-policy.ts`, `session/session.ts`, `experiments/learning.ts`,
   `personalization.ts` — policy, server validation, versioning и workload estimates.
 - `apps/web/src/app/App.tsx` — честные циклы реакции, внимания, памяти и нагрузка по бюджету.
+- `apps/web/src/app/App.tsx` — общий single-flight результата и восстановление task component после
+  conflict.
 - `apps/web/src/features/personalization/wake-context-sheet.tsx` — объяснение роли контекста.
 - `packages/domain/tests`, `apps/web/tests`, `apps/api/tests/contract`, `tests/e2e` — regressions.
 - Архитектура, API-карта, testing, roadmap, release checklist и handoff — фактическое поведение.

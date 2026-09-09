@@ -59,6 +59,7 @@ import { LazyBoundary } from "./lazy-boundary.js";
 import { ProsnixBrand } from "../features/brand/prosnix-brand.js";
 import { TaskIcon } from "../features/tasks/task-icon.js";
 import { closeTelegramMiniApp } from "../telegram/bridge.js";
+import { TaskSubmissionGate } from "../features/session/task-submission-gate.js";
 
 const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
 const StatsResearchCards = lazy(() => import("../features/research/stats-research-cards.js"));
@@ -2314,7 +2315,13 @@ function PrototypeApp({
   const [taskResults, setTaskResults] = useState<TaskResult[]>([]);
   const [startAlertness, setStartAlertness] = useState(resume?.baseline ?? 0);
   const sessionStartRef = useRef(Date.now());
+  const taskSubmissionGateRef = useRef(new TaskSubmissionGate());
+  const [taskRenderVersion, setTaskRenderVersion] = useState(0);
   const [completedSession, setCompletedSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    taskSubmissionGateRef.current.reset();
+  }, [serverSession?.id, taskIndex]);
 
   async function saveScheduleSetting(input: {
     localTime: string;
@@ -2377,6 +2384,8 @@ function PrototypeApp({
           .map(({ taskId }) => taskId)
           .filter((taskId): taskId is TaskId => taskId in TASK_META),
       );
+      setSyncError("Состояние сессии синхронизировано. Продолжи с текущего шага.");
+      return;
     }
     setSyncError(error instanceof Error ? error.message : "Действие пока не подтверждено сервером");
   }
@@ -2441,6 +2450,7 @@ function PrototypeApp({
   }
 
   async function handleTaskDone(result: TaskResult) {
+    if (!taskSubmissionGateRef.current.acquire(taskIds[taskIndex], result.id)) return;
     setSyncError(null);
     if (demo) {
       const next = [...taskResults, result];
@@ -2466,6 +2476,8 @@ function PrototypeApp({
       setTaskIndex(updated.currentStepIndex);
       if (updated.currentStepIndex >= taskIds.length) setScreen("endRating");
     } catch (error) {
+      taskSubmissionGateRef.current.reset();
+      setTaskRenderVersion((version) => version + 1);
       applyConflict(error);
     } finally {
       setSyncing(false);
@@ -2695,6 +2707,7 @@ function PrototypeApp({
         {screen === "startRating" && <StartRatingScreen onDone={handleStartRating} />}
         {screen === "tasks" && (
           <TasksContainer
+            key={`${serverSession?.id ?? "demo"}-${taskIndex}-${taskRenderVersion}`}
             taskIds={taskIds}
             taskIndex={taskIndex}
             durationMinutes={serverSession?.durationMinutes ?? activeDurationMinutes}

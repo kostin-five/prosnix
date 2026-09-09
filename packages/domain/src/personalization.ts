@@ -20,6 +20,18 @@ export const SAFE_WAKE_PROFILE: WakeCapabilityProfile = {
 };
 
 const FALLBACK_ORDER: readonly TaskId[] = ["reaction", "stroop", "memory", "math", "shake"];
+const TEN_MINUTE_EXPANSION_ORDER: readonly TaskId[] = [
+  "curtains",
+  "window",
+  "water",
+  "reaction",
+  "stroop",
+  "math",
+  "memory",
+  "shake",
+  "steps",
+  "squats",
+];
 const ACTIVE_TASK_IDS = new Set<TaskId>([
   "steps",
   "squats",
@@ -75,13 +87,51 @@ function fitBudget(
   return selected.map((step, index) => ({ ...step, index }));
 }
 
+function categoryForTask(taskId: TaskId): ProtocolStep["category"] {
+  if (taskId === "steps" || taskId === "squats" || taskId === "shake") return "movement";
+  if (taskId === "water") return "behavioral";
+  if (taskId === "window" || taskId === "curtains") return "environment";
+  return "cognitive";
+}
+
+function expandTenMinuteProtocol(
+  steps: readonly ProtocolStep[],
+  profile: WakeCapabilityProfile,
+): ProtocolStep[] {
+  const result = [...steps];
+  const used = new Set(result.map(({ taskId }) => taskId));
+  for (const taskId of TEN_MINUTE_EXPANSION_ORDER) {
+    if (result.length >= 7) break;
+    if (used.has(taskId) || !allowed(taskId, profile)) continue;
+    result.push({ index: result.length, taskId, category: categoryForTask(taskId) });
+    used.add(taskId);
+  }
+  return result;
+}
+
+function placeSquatsAfterWarmup(steps: readonly ProtocolStep[]): ProtocolStep[] {
+  const result = [...steps];
+  const squatsIndex = result.findIndex(({ taskId }) => taskId === "squats");
+  if (squatsIndex < 0) return result;
+  const warmupIndex = result.findIndex(({ taskId }) => taskId === "steps" || taskId === "shake");
+  if (warmupIndex < 0 || warmupIndex < squatsIndex) return result;
+  const [squats] = result.splice(squatsIndex, 1);
+  const movedWarmupIndex = result.findIndex(
+    ({ taskId }) => taskId === "steps" || taskId === "shake",
+  );
+  result.splice(movedWarmupIndex + 1, 0, squats!);
+  return result;
+}
+
 export function personalizeAssignment(
   assignment: ExperimentAssignment,
   profile: WakeCapabilityProfile,
   durationMinutes: WakeDurationMinutes,
 ): { assignment: ExperimentAssignment; snapshot: WakePersonalizationSnapshot } {
   const eligible = assignment.steps.filter((step) => allowed(step.taskId, profile));
-  let steps = fitBudget(eligible, durationMinutes);
+  const expanded =
+    durationMinutes === 10 ? expandTenMinuteProtocol(eligible, profile) : [...eligible];
+  let steps = fitBudget(placeSquatsAfterWarmup(expanded), durationMinutes);
   let fallbackReason: WakePersonalizationSnapshot["fallbackReason"] = profile.onboardingCompleted
     ? "none"
     : "profile_missing";

@@ -28,9 +28,9 @@ describe("план первоначальных экспериментов", () 
   it("чередует безопасные последовательности после периода изучения", () => {
     const continuation = [7, 8, 9, 10].map((count) => selectLearningAssignment(count));
 
-    expect(continuation[0]).toMatchObject({ phase: "adaptive", strategyVersion: "adaptive-v3" });
-    expect(continuation[1]).toMatchObject({ strategyVersion: "adaptive-v3" });
-    expect(continuation[2]).toMatchObject({ strategyVersion: "adaptive-v3" });
+    expect(continuation[0]).toMatchObject({ phase: "adaptive", strategyVersion: "adaptive-v4" });
+    expect(continuation[1]).toMatchObject({ strategyVersion: "adaptive-v4" });
+    expect(continuation[2]).toMatchObject({ strategyVersion: "adaptive-v4" });
     expect(continuation[3]?.protocolKey).not.toBe(continuation[0]?.protocolKey);
     expect(
       continuation.slice(1).every((assignment, index) => {
@@ -49,7 +49,7 @@ describe("план первоначальных экспериментов", () 
     expect(new Set(candidates.map(({ protocolKey }) => protocolKey)).size).toBe(6);
     expect(
       candidates.every(
-        ({ strategyVersion, phase }) => strategyVersion === "adaptive-v3" && phase === "adaptive",
+        ({ strategyVersion, phase }) => strategyVersion === "adaptive-v4" && phase === "adaptive",
       ),
     ).toBe(true);
   });
