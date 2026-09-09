@@ -58,8 +58,10 @@ import {
 import { LazyBoundary } from "./lazy-boundary.js";
 import { ProsnixBrand } from "../features/brand/prosnix-brand.js";
 import { TaskIcon } from "../features/tasks/task-icon.js";
-import { closeTelegramMiniApp } from "../telegram/bridge.js";
-import { TaskSubmissionGate } from "../features/session/task-submission-gate.js";
+import {
+  TaskSubmissionGate,
+  taskSubmissionConflictMessage,
+} from "../features/session/task-submission-gate.js";
 
 const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
 const StatsResearchCards = lazy(() => import("../features/research/stats-research-cards.js"));
@@ -2375,7 +2377,7 @@ function PrototypeApp({
     }
   }
 
-  function applyConflict(error: unknown): void {
+  function applyConflict(error: unknown, submittedStepIndex?: number): void {
     if (error instanceof SessionConflictError && error.canonicalSession) {
       setServerSession(error.canonicalSession);
       setTaskIndex(error.canonicalSession.currentStepIndex);
@@ -2384,7 +2386,13 @@ function PrototypeApp({
           .map(({ taskId }) => taskId)
           .filter((taskId): taskId is TaskId => taskId in TASK_META),
       );
-      setSyncError("Состояние сессии синхронизировано. Продолжи с текущего шага.");
+      setSyncError(
+        taskSubmissionConflictMessage(
+          error.code,
+          submittedStepIndex,
+          error.canonicalSession.currentStepIndex,
+        ),
+      );
       return;
     }
     setSyncError(error instanceof Error ? error.message : "Действие пока не подтверждено сервером");
@@ -2478,7 +2486,7 @@ function PrototypeApp({
     } catch (error) {
       taskSubmissionGateRef.current.reset();
       setTaskRenderVersion((version) => version + 1);
-      applyConflict(error);
+      applyConflict(error, taskIndex);
     } finally {
       setSyncing(false);
     }
@@ -2800,13 +2808,12 @@ export default function App() {
     !resumeDiscarded
   ) {
     const active = bootstrap.data.activeSession;
-    async function discardActiveSession(closeApp = false) {
+    async function discardActiveSession() {
       setDiscarding(true);
       setDiscardError(null);
       try {
         await abandonWakeSession(active.session.id, active.session.version);
         setResumeDiscarded(true);
-        if (closeApp) closeTelegramMiniApp();
       } catch (error) {
         setDiscardError(error instanceof Error ? error.message : "Не удалось завершить сессию");
       } finally {
@@ -2840,7 +2847,7 @@ export default function App() {
           </button>
           <button
             disabled={discarding}
-            onClick={() => void discardActiveSession(true)}
+            onClick={() => void discardActiveSession()}
             className="mt-2 min-h-11 w-full rounded-xl text-sm font-semibold text-muted-foreground disabled:opacity-60"
           >
             Закрыть

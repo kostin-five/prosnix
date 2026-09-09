@@ -292,5 +292,111 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
       );
       await deletion.deleteUser(user.id, "continuation-cleanup-after");
     });
+
+    it("последовательно принимает все семь шагов нового десятиминутного протокола", async () => {
+      const database = connect();
+      const telegramUserId = 910000000027n;
+      let user = await database.unitOfWork.transaction(({ users }) =>
+        users.createFromTelegram({ telegramUserId, locale: "ru" }),
+      );
+      const deletion = new PostgresUserDeletionRepository(database.db);
+      await deletion.deleteUser(user.id, "long-session-cleanup-before");
+      user = await database.unitOfWork.transaction(({ users }) =>
+        users.createFromTelegram({ telegramUserId, locale: "ru" }),
+      );
+
+      const personalization = new PostgresWakePersonalizationRepository(database.db);
+      await personalization.saveProfile({
+        userId: user.id,
+        expectedRevision: 0,
+        operationId: "long-session-profile-0001",
+        profile: {
+          movementLevel: "full",
+          availableResources: ["water", "bright_light", "floor_space"],
+          excludedTaskIds: [],
+          defaultDurationMinutes: 10,
+          onboardingCompleted: true,
+        },
+        now: new Date("2026-09-09T06:00:00.000Z"),
+      });
+
+      const commands = new PostgresSessionCommandRepository(database.db);
+      let session = (
+        await commands.execute({
+          userId: user.id,
+          operationId: "long-session-create-0001",
+          requestHash: "long-session-create-hash",
+          observedAt: new Date("2026-09-09T06:01:00.000Z"),
+          command: {
+            type: "create",
+            timezone: "Europe/Moscow",
+            wakeContext: "night_sleep",
+            durationMinutes: 10,
+          },
+        })
+      ).session;
+      expect(session.assignment.protocolVersion).toBe(4);
+      expect(session.assignment.steps).toHaveLength(7);
+
+      session = (
+        await commands.execute({
+          userId: user.id,
+          operationId: "long-session-baseline-0001",
+          requestHash: "long-session-baseline-hash",
+          observedAt: new Date("2026-09-09T06:01:10.000Z"),
+          command: {
+            type: "baseline",
+            sessionId: session.id,
+            expectedVersion: session.version,
+            value: 2,
+          },
+        })
+      ).session;
+
+      for (const step of session.assignment.steps) {
+        const target = taskSuccessTarget(step.taskId, 10);
+        session = (
+          await commands.execute({
+            userId: user.id,
+            operationId: `long-session-step-${step.index}`,
+            requestHash: `long-session-step-hash-${step.index}`,
+            observedAt: new Date(`2026-09-09T06:01:${20 + step.index}.000Z`),
+            command: {
+              type: "task",
+              sessionId: session.id,
+              expectedVersion: session.version,
+              stepIndex: step.index,
+              taskId: step.taskId,
+              correct: target,
+              total: target,
+              durationMs: 1_000,
+            },
+          })
+        ).session;
+      }
+
+      expect(session).toMatchObject({
+        status: "in_progress",
+        currentStepIndex: 7,
+        version: 9,
+      });
+      const completed = (
+        await commands.execute({
+          userId: user.id,
+          operationId: "long-session-post-0001",
+          requestHash: "long-session-post-hash",
+          observedAt: new Date("2026-09-09T06:03:00.000Z"),
+          command: {
+            type: "post_rating",
+            sessionId: session.id,
+            expectedVersion: session.version,
+            value: 6,
+          },
+        })
+      ).session;
+      expect(completed.status).toBe("protocol_completed");
+
+      await deletion.deleteUser(user.id, "long-session-cleanup-after");
+    });
   },
 );

@@ -14,6 +14,8 @@
 ## 2. Автоматические проверки
 
 - [ ] `pnpm install --frozen-lockfile` проходит.
+- [ ] Чистый `pnpm --filter @awc/web build` сначала собирает `@awc/domain` и не зависит от старого
+      локального `packages/domain/dist`.
 - [ ] `pnpm verify:release` проходит.
 - [ ] `pnpm test:integration` проходит на disposable PostgreSQL 17.
 - [ ] `pnpm audit --prod --audit-level high` не сообщает high/critical advisory.
@@ -59,6 +61,8 @@
 - [ ] Migration применяется до проверки нового API, но только после backup readiness.
 - [ ] Render API deploy завершён без startup/config errors.
 - [ ] Static Site deploy использует совместимый commit.
+- [ ] Production `index.html` ссылается на asset новой сборки и имеет время публикации текущего
+      релиза; API и Static Site подтверждены для одного SHA.
 - [ ] Rewrites `/api/*`, `/health`, `/ready` направлены на актуальный API.
 - [ ] cron-job.org и Telegram webhook не переключаются до готовности API.
 
@@ -70,7 +74,7 @@
 - [ ] На ширине 320 px wordmark Prosnix Beta и счётчик сессий не пересекаются.
 - [ ] Сессия создаётся, сохраняется, возобновляется и завершается.
 - [ ] Сохранённую незавершённую сессию можно закрыть без продолжения; после повторного входа она не
-      предлагается снова.
+      предлагается снова, а текущий Mini App остаётся открыт на главной.
 - [ ] Analytics/history отражают новую сессию без внутренних UUID в UI.
 - [ ] После 7+ завершённых сессий профиль объясняет эффект и устойчивость обычным языком, показывает
       `n`, лучший порядок, динамику отдельных сессий и свёрнутый progress проверок без причинных

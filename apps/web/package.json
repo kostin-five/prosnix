@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "prebuild": "pnpm --filter @awc/domain build",
     "build": "vite build",
     "dev": "vite",
     "typecheck": "tsc --noEmit",

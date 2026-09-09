@@ -261,6 +261,10 @@ https://wake-coach.onrender.com/health
    corepack enable && pnpm install --frozen-lockfile && pnpm --filter @awc/web build
    ```
 
+   Скрипт `@awc/web prebuild` сначала собирает runtime-зависимость `@awc/domain`. Не заменяйте
+   команду прямым `vite build`: на чистом checkout у domain ещё нет `dist`, и Static Site завершит
+   сборку с `Failed to resolve entry for package "@awc/domain"`.
+
 5. В `Publish Directory` укажите `apps/web/dist`.
 6. Секретные environment variables этому Static Site не добавляйте.
 7. После создания откройте `Redirects/Rewrites` и добавьте правила именно в таком порядке:

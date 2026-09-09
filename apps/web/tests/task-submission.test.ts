@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { TaskSubmissionGate } from "../src/features/session/task-submission-gate.js";
+import {
+  TaskSubmissionGate,
+  taskSubmissionConflictMessage,
+} from "../src/features/session/task-submission-gate.js";
 
 describe("single-flight результата задания", () => {
   it("принимает только первый callback текущего шага", () => {
@@ -24,5 +27,12 @@ describe("single-flight результата задания", () => {
     gate.reset();
 
     expect(gate.acquire("reaction", "reaction")).toBe(true);
+  });
+
+  it("отличает непринятый результат от синхронизации версии", () => {
+    expect(taskSubmissionConflictMessage("invalid_transition", 2, 2)).toContain(
+      "Задание перезапущено",
+    );
+    expect(taskSubmissionConflictMessage("stale_version", 2, 3)).toContain("синхронизировано");
   });
 });

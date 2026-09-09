@@ -13,3 +13,14 @@ export class TaskSubmissionGate {
     this.locked = false;
   }
 }
+
+export function taskSubmissionConflictMessage(
+  code: string,
+  submittedStepIndex: number | undefined,
+  canonicalStepIndex: number,
+): string {
+  if (code === "invalid_transition" && submittedStepIndex === canonicalStepIndex) {
+    return "Результат шага не принят. Задание перезапущено — выполни его полностью.";
+  }
+  return "Состояние сессии синхронизировано. Продолжи с текущего шага.";
+}
