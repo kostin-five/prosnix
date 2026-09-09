@@ -83,3 +83,16 @@
       roadmap, testing, release checklist, validation и handoff в `docs/` и `specs/016-task-integrity-duration/`
 - [x] T030 [US7] Выполнить `pnpm verify:release` и полный gate на disposable PostgreSQL; проверить
       старую сессию с `curtains` и новое семишаговое назначение
+
+## Phase 10: Регрессии пилотной калибровки
+
+- [x] T031 Добавить domain regression семи разных первых фактических последовательностей для
+      полного и двигательного профиля.
+- [x] T032 Заменить схлопывающиеся learning-кандидаты разными порядками и выпустить protocol version
+      6 со стратегиями `learning-v5`, `adaptive-v6` и `fallback-v5`.
+- [x] T033 Засчитывать только реакцию быстрее 500 мс, показывать медленную попытку и добавить
+      component regression граничных 500/499 мс.
+- [x] T034 Обновить эксплуатационную документацию, ручной тест-план и handoff для protocol version
+      6 и контентных рабочих чатов.
+- [ ] T035 Выполнить полный release gate на disposable PostgreSQL, получить зелёный CI и проверить
+      API/Static Site production deploy одного точного SHA.

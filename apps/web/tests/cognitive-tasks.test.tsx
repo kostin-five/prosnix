@@ -27,10 +27,12 @@ describe("честное завершение когнитивных задан�
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
   it("не принимает реакцию до сигнала и только один раз на один сигнал", () => {
+    vi.spyOn(Math, "random").mockReturnValue(1);
     const onDone = vi.fn();
     act(() => root.render(<ReactionTask durationMinutes={5} onDone={onDone} />));
     const waiting = container.querySelector<HTMLButtonElement>(
@@ -56,6 +58,31 @@ describe("честное завершение когнитивных задан�
       allowed?.click();
       allowed?.click();
     });
+    expect(container.textContent).toContain("Раунд 2 из 3");
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it("засчитывает только реакцию быстрее 500 мс", () => {
+    vi.spyOn(Math, "random").mockReturnValue(1);
+    const onDone = vi.fn();
+    act(() => root.render(<ReactionTask durationMinutes={5} onDone={onDone} />));
+    act(() => vi.advanceTimersByTime(4_000));
+    act(() => vi.advanceTimersByTime(500));
+    act(() =>
+      container.querySelector<HTMLButtonElement>('button[aria-label="Нажать по сигналу"]')?.click(),
+    );
+
+    expect(container.textContent).toContain("Нужно быстрее 500 мс");
+    expect(container.textContent).toContain("Раунд 1 из 3");
+    expect(onDone).not.toHaveBeenCalled();
+
+    act(() => vi.advanceTimersByTime(800));
+    act(() => vi.advanceTimersByTime(4_000));
+    act(() => vi.advanceTimersByTime(499));
+    act(() =>
+      container.querySelector<HTMLButtonElement>('button[aria-label="Нажать по сигналу"]')?.click(),
+    );
+
     expect(container.textContent).toContain("Раунд 2 из 3");
     expect(onDone).not.toHaveBeenCalled();
   });

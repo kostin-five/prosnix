@@ -6,23 +6,40 @@ import {
 } from "../src/experiments/learning.js";
 
 describe("план первоначальных экспериментов", () => {
-  it("фиксирует сопоставимую пару с движением до начала сессии", () => {
-    const withMovement = selectLearningAssignment(1);
-    const withoutMovement = selectLearningAssignment(2);
+  it("оставляет сопоставимую пару с движением для адаптивной проверки", () => {
+    const candidates = learningAssignmentCandidates(7);
+    const withMovement = candidates.find(({ protocolKey }) =>
+      protocolKey.includes("light-movement"),
+    );
+    const withoutMovement = candidates.find(
+      ({ protocolKey }) => protocolKey === "adaptive-light-first",
+    );
 
-    expect(withMovement.comparison).toEqual({
-      groupKey: "movement-a",
+    expect(withMovement?.comparison).toEqual({
+      groupKey: "movement-b",
       factorKey: "movement",
       level: "with",
     });
-    expect(withoutMovement.comparison).toEqual({
-      groupKey: "movement-a",
+    expect(withoutMovement?.comparison).toEqual({
+      groupKey: "movement-b",
       factorKey: "movement",
       level: "without",
     });
-    expect(withMovement.steps.filter(({ category }) => category !== "movement")).toEqual(
-      withoutMovement.steps,
+    expect(
+      withMovement?.steps
+        .filter(({ category }) => category !== "movement")
+        .map(({ taskId }) => taskId),
+    ).toEqual(withoutMovement?.steps.map(({ taskId }) => taskId));
+  });
+
+  it("первые семь назначений исследуют разные порядки", () => {
+    const signatures = Array.from({ length: 7 }, (_, index) =>
+      selectLearningAssignment(index)
+        .steps.map(({ taskId }) => taskId)
+        .join(">"),
     );
+
+    expect(new Set(signatures).size).toBe(7);
   });
 
   it("чередует безопасные последовательности после периода изучения", () => {
@@ -30,11 +47,11 @@ describe("план первоначальных экспериментов", () 
 
     expect(continuation[0]).toMatchObject({
       phase: "adaptive",
-      protocolVersion: 5,
-      strategyVersion: "adaptive-v5",
+      protocolVersion: 6,
+      strategyVersion: "adaptive-v6",
     });
-    expect(continuation[1]).toMatchObject({ strategyVersion: "adaptive-v5" });
-    expect(continuation[2]).toMatchObject({ strategyVersion: "adaptive-v5" });
+    expect(continuation[1]).toMatchObject({ strategyVersion: "adaptive-v6" });
+    expect(continuation[2]).toMatchObject({ strategyVersion: "adaptive-v6" });
     expect(continuation[3]?.protocolKey).not.toBe(continuation[0]?.protocolKey);
     expect(
       continuation.slice(1).every((assignment, index) => {
@@ -49,26 +66,15 @@ describe("план первоначальных экспериментов", () 
 
   it("предлагает альтернативы для проверки после персонализации", () => {
     const candidates = learningAssignmentCandidates(8);
-    expect(candidates).toHaveLength(6);
-    expect(new Set(candidates.map(({ protocolKey }) => protocolKey)).size).toBe(6);
+    expect(candidates).toHaveLength(7);
+    expect(new Set(candidates.map(({ protocolKey }) => protocolKey)).size).toBe(7);
     expect(
       candidates.every(
-        ({ strategyVersion, phase }) => strategyVersion === "adaptive-v5" && phase === "adaptive",
+        ({ strategyVersion, phase }) => strategyVersion === "adaptive-v6" && phase === "adaptive",
       ),
     ).toBe(true);
     expect(candidates.flatMap(({ steps }) => steps.map(({ taskId }) => taskId))).not.toContain(
       "curtains",
     );
-  });
-
-  it("за семь сессий накапливает три независимых сравнения одного фактора", () => {
-    const comparisons = Array.from(
-      { length: 7 },
-      (_, index) => selectLearningAssignment(index).comparison,
-    ).filter((comparison) => comparison !== undefined);
-
-    expect(comparisons.filter(({ level }) => level === "with")).toHaveLength(3);
-    expect(comparisons.filter(({ level }) => level === "without")).toHaveLength(3);
-    expect(new Set(comparisons.map(({ groupKey }) => groupKey))).toEqual(new Set(["movement-a"]));
   });
 });

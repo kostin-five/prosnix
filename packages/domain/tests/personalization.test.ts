@@ -36,6 +36,34 @@ const profile: WakeCapabilityProfile = {
 };
 
 describe("персонализация протокола", () => {
+  it("исследует семь разных последовательностей до повторной проверки", () => {
+    const fullProfile: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: ["water", "bright_light", "floor_space"],
+    };
+    const movementOnlyProfile: WakeCapabilityProfile = {
+      ...fullProfile,
+      availableResources: ["floor_space"],
+    };
+
+    for (const activeProfile of [fullProfile, movementOnlyProfile]) {
+      const signatures = Array.from({ length: 7 }, (_, completedSessions) => {
+        const candidates = learningAssignmentCandidates(completedSessions).map(
+          (candidate, index) => ({
+            ...candidate,
+            id: `calibration-${completedSessions}-${index}`,
+          }),
+        );
+        return selectPersonalizedAssignment(candidates, activeProfile, 5)
+          .assignment.steps.map(({ taskId }) => taskId)
+          .join(">");
+      });
+
+      expect(new Set(signatures).size).toBe(7);
+    }
+  });
+
   it("не повторяет фактическую последовательность после фильтрации профилем", () => {
     const candidates = learningAssignmentCandidates(8).map((candidate) => ({
       ...candidate,
@@ -229,8 +257,12 @@ describe("персонализация протокола", () => {
       movementLevel: "full",
       availableResources: ["water", "bright_light", "floor_space"],
     };
+    const candidateWithSquats = learningAssignmentCandidates(7).find(({ steps }) =>
+      steps.some(({ taskId }) => taskId === "squats"),
+    );
+    if (!candidateWithSquats) throw new Error("Candidate with squats not found");
     const movementFirstCandidate: ExperimentAssignment = {
-      ...learningAssignmentCandidates(10)[0]!,
+      ...candidateWithSquats,
       id: "movement-first-long",
     };
     const taskIds = personalizeAssignment(

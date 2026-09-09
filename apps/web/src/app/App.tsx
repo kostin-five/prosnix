@@ -888,7 +888,9 @@ export function ReactionTask({
   const [phase, setPhase] = useState<"wait" | "go" | "result">("wait");
   const [times, setTimes] = useState<number[]>([]);
   const [lastMs, setLastMs] = useState<number | null>(null);
+  const [lastWasFast, setLastWasFast] = useState<boolean | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
+  const transitionTimer = useRef<ReturnType<typeof setTimeout>>();
   const tapLocked = useRef(true);
   const goAt = useRef(0);
   const t0 = useRef(Date.now());
@@ -902,25 +904,36 @@ export function ReactionTask({
     }, delay);
     return () => clearTimeout(timer.current);
   }, [phase, round]);
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      clearTimeout(transitionTimer.current);
+    },
+    [],
+  );
   function handleTap() {
     if (phase === "go" && !tapLocked.current) {
       tapLocked.current = true;
       const rt = Date.now() - goAt.current;
+      const passed = rt < 500;
       setLastMs(rt);
+      setLastWasFast(passed);
       const next = [...times, rt];
       setTimes(next);
       setPhase("result");
-      if (round + 1 < target) {
+      if (!passed) {
+        transitionTimer.current = setTimeout(() => setPhase("wait"), 800);
+      } else if (round + 1 < target) {
         setRound((r) => r + 1);
-        setTimeout(() => setPhase("wait"), 800);
+        transitionTimer.current = setTimeout(() => setPhase("wait"), 800);
       } else {
-        setTimeout(
+        transitionTimer.current = setTimeout(
           () =>
             onDone({
               id: "reaction",
               category: "cognitive",
               correct: target,
-              total: target,
+              total: next.length,
               timeMs: Date.now() - t0.current,
             }),
           1200,
@@ -937,9 +950,11 @@ export function ReactionTask({
         </p>
         <p className="text-xs text-muted-foreground">
           {phase === "wait"
-            ? "Кнопка включится после сигнала"
+            ? "Кнопка включится после сигнала · цель быстрее 500 мс"
             : phase === "result"
-              ? `Среднее: ${avgMs} мс`
+              ? lastWasFast
+                ? `Засчитано · среднее: ${avgMs} мс`
+                : "Нужно быстрее 500 мс — попробуй ещё раз"
               : "Нажимай!"}
         </p>
       </div>
@@ -968,7 +983,7 @@ export function ReactionTask({
         )}
       </button>
       {times.length > 0 && (
-        <div className="flex gap-4">
+        <div className="flex flex-wrap justify-center gap-4">
           {times.map((t, i) => (
             <div key={i} className="text-center">
               <div
@@ -976,7 +991,7 @@ export function ReactionTask({
               >
                 {t}мс
               </div>
-              <div className="text-xs text-muted-foreground">R{i + 1}</div>
+              <div className="text-xs text-muted-foreground">П{i + 1}</div>
             </div>
           ))}
         </div>
@@ -1801,13 +1816,20 @@ function StatsScreen({
   const nextTaskMeta = nextPlan.taskIds.map((id) => ({ id, ...TASK_META[id] }));
   const coachExperiment =
     coach.status === "ready" && coach.insight.insight ? coach.insight.insight.nextExperiment : null;
+  const nextExperimentTasks = demo
+    ? nextTaskMeta.map(({ id }) => id)
+    : isLearning
+      ? []
+      : bestSequenceTasks;
   const nextExperimentText = demo
     ? nextPlan.rationale
-    : coachExperiment
-      ? coachExperiment
-      : bestSequence
-        ? `Ближайшая полезная проверка — повторить порядок «${bestSequenceTasks.map((taskId) => TASK_META[taskId].title).join(" → ")}» после похожего сна и с тем же запасом времени. Ответ через 15 минут покажет, повторяется ли результат.`
-        : "Пройди следующий назначенный протокол после похожего сна и обязательно ответь через 15 минут. Так появится первое честное сравнение последовательностей.";
+    : isLearning
+      ? `Следующая сессия проверит новый допустимый порядок заданий в том же контексте и режиме. До первого профиля осталось ${7 - evidenceCount}; повтор перспективного порядка начнётся после калибровки.`
+      : coachExperiment
+        ? coachExperiment
+        : bestSequence
+          ? `Ближайшая полезная проверка — повторить порядок «${bestSequenceTasks.map((taskId) => TASK_META[taskId].title).join(" → ")}» после похожего сна и с тем же запасом времени. Ответ через 15 минут покажет, повторяется ли результат.`
+          : "Пройди следующий назначенный протокол после похожего сна и обязательно ответь через 15 минут. Так появится первое честное сравнение последовательностей.";
 
   return (
     <div className="flex flex-col flex-1 px-5 pt-14 pb-28 overflow-y-auto">
@@ -1852,21 +1874,17 @@ function StatsScreen({
             Один следующий шаг
           </span>
         </div>
-        {(demo ? nextTaskMeta : bestSequenceTasks).length > 0 && (
+        {nextExperimentTasks.length > 0 && (
           <div className="mb-3 flex flex-wrap items-center gap-1.5">
-            {(demo ? nextTaskMeta.map(({ id }) => id) : bestSequenceTasks).map(
-              (taskId, index, all) => (
-                <div key={`${taskId}-${index}`} className="flex items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-2 py-1 text-xs font-medium">
-                    <TaskIcon taskId={taskId} className="h-3.5 w-3.5 text-primary" />
-                    {TASK_META[taskId].title}
-                  </span>
-                  {index < all.length - 1 && (
-                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                  )}
-                </div>
-              ),
-            )}
+            {nextExperimentTasks.map((taskId, index, all) => (
+              <div key={`${taskId}-${index}`} className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-2 py-1 text-xs font-medium">
+                  <TaskIcon taskId={taskId} className="h-3.5 w-3.5 text-primary" />
+                  {TASK_META[taskId].title}
+                </span>
+                {index < all.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
+              </div>
+            ))}
           </div>
         )}
         <p className="text-sm leading-relaxed">{nextExperimentText}</p>

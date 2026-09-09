@@ -158,7 +158,10 @@ test("профиль показывает только воспроизводи�
   await expect(page.getByText("Как проходит пробуждение")).toBeVisible();
   await expect(page.getByText(/заметно выше/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Следующий эксперимент" })).toBeVisible();
-  await expect(page.getByText(/Ближайшая полезная проверка.*Стакан воды → Память/)).toBeVisible();
+  await expect(page.getByText(/Следующая сессия проверит новый допустимый порядок/)).toBeVisible();
+  await expect(
+    page.getByText(/повтор перспективного порядка начнётся после калибровки/),
+  ).toBeVisible();
   await expect(page.getByText(/Это рабочая проверка, а не доказанный лучший способ/)).toBeVisible();
   await expect(page.getByText("Средний прирост по датам")).toHaveCount(0);
   await page.getByLabel("Открыть эксперимент 1").click();
