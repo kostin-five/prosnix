@@ -231,7 +231,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           })
         ).session;
         expect(session.assignment).toMatchObject({
-          strategyVersion: "adaptive-v4",
+          strategyVersion: "adaptive-v5",
           phase: "adaptive",
         });
         signatures.push(session.assignment.steps.map(({ taskId }) => taskId).join(","));
@@ -335,8 +335,9 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           },
         })
       ).session;
-      expect(session.assignment.protocolVersion).toBe(4);
+      expect(session.assignment.protocolVersion).toBe(5);
       expect(session.assignment.steps).toHaveLength(7);
+      expect(session.assignment.steps.map(({ taskId }) => taskId)).not.toContain("curtains");
 
       session = (
         await commands.execute({

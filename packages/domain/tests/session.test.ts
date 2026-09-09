@@ -110,6 +110,36 @@ describe("wake session transitions", () => {
     ).toBe(1);
   });
 
+  it("завершает сохранённый световой шаг curtains старого протокола", () => {
+    const session = acceptBaseline(
+      {
+        ...assignedSession(),
+        assignment: {
+          ...assignment,
+          protocolVersion: 4,
+          steps: [{ index: 0, taskId: "curtains", category: "environment" }],
+        },
+      },
+      {
+        expectedVersion: 1,
+        value: 3,
+        observedAt: "2026-09-09T04:00:00.000Z",
+      },
+    );
+
+    expect(
+      acceptTaskResult(session, {
+        expectedVersion: 2,
+        stepIndex: 0,
+        taskId: "curtains",
+        correct: 1,
+        total: 1,
+        durationMs: 20_000,
+        observedAt: "2026-09-09T04:00:20.000Z",
+      }).currentStepIndex,
+    ).toBe(1);
+  });
+
   it("moves through baseline, ordered tasks, post rating and follow-up", () => {
     const started = acceptBaseline(assignedSession(), {
       expectedVersion: 1,

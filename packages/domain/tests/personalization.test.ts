@@ -207,7 +207,20 @@ describe("персонализация протокола", () => {
       expect(taskIds).toHaveLength(7);
       expect(new Set(taskIds)).toHaveLength(7);
       expect(taskIds.every((taskId) => eligibleWakeTasks(fullProfile).includes(taskId))).toBe(true);
+      expect(taskIds).not.toContain("curtains");
+      expect(taskIds.filter((taskId) => taskId === "window")).toHaveLength(1);
     }
+  });
+
+  it("предлагает одно световое задание для новых протоколов", () => {
+    const fullProfile: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: ["water", "bright_light", "floor_space"],
+    };
+
+    expect(eligibleWakeTasks(fullProfile)).toContain("window");
+    expect(eligibleWakeTasks(fullProfile)).not.toContain("curtains");
   });
 
   it("ставит мягкое движение перед приседаниями", () => {

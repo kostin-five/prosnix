@@ -66,7 +66,7 @@ const TASK_LABELS: Record<string, string> = {
   squats: "Приседания",
   shake: "Размяться",
   water: "Стакан воды",
-  window: "Свет у окна",
+  window: "Яркий свет",
   curtains: "Открыть шторы",
 };
 

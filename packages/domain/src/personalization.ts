@@ -21,7 +21,6 @@ export const SAFE_WAKE_PROFILE: WakeCapabilityProfile = {
 
 const FALLBACK_ORDER: readonly TaskId[] = ["reaction", "stroop", "memory", "math", "shake"];
 const TEN_MINUTE_EXPANSION_ORDER: readonly TaskId[] = [
-  "curtains",
   "window",
   "water",
   "reaction",
@@ -66,7 +65,6 @@ export function eligibleWakeTasks(profile: WakeCapabilityProfile): TaskId[] {
       "shake",
       "water",
       "window",
-      "curtains",
     ] as TaskId[]
   ).filter((taskId) => allowed(taskId, profile));
 }

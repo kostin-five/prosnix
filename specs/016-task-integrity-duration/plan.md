@@ -64,8 +64,9 @@ actions получают увеличенный интервал через су
 экспериментальную вариативность. Если профиль допускает меньше семи вариантов, используются все
 доступные варианты без повторов и нарушения ограничений.
 
-Изменённые назначения получают protocol version 4 и новые strategy versions. Существующие sessions
-versions 1–3 читаются и завершаются по сохранённой версии.
+Изменения нагрузки получили protocol version 4. Объединённое световое задание выпускается как
+protocol version 5 с новыми strategy versions. Существующие sessions versions 1–4 читаются и
+завершаются по сохранённой версии.
 
 ### Защита отправки шага
 
@@ -73,6 +74,14 @@ versions 1–3 читаются и завершаются по сохранён�
 проверяет task ID текущего шага. Guard сбрасывается при переходе к следующему шагу или после ошибки.
 При conflict canonical session остаётся источником истины; если индекс не изменился, task component
 перемонтируется для честной повторной попытки.
+
+### Единое световое задание
+
+Новые candidates и расширение режима 10 минут используют только `window`, который показывается как
+«Яркий свет» и объединяет открытие штор, включение комнатного света и выдержку при свете. `curtains`
+исключается из нового selectable pool и анкеты, но остаётся в типах, renderer и completion policy
+для обратной совместимости активных и исторических сессий. Изменённые назначения получают protocol
+version 5 и новые strategy versions; schema и HTTP contract не меняются.
 
 ## Точки изменения
 
@@ -82,6 +91,8 @@ versions 1–3 читаются и завершаются по сохранён�
 - `apps/web/src/app/App.tsx` — общий single-flight результата и восстановление task component после
   conflict.
 - `apps/web/src/features/personalization/wake-context-sheet.tsx` — объяснение роли контекста.
+- `apps/web/src/features/personalization/capability-profile-card.tsx` и task metadata — единое
+  световое действие в анкете и протоколе при сохранении legacy renderer.
 - `packages/domain/tests`, `apps/web/tests`, `apps/api/tests/contract`, `tests/e2e` — regressions.
 - Архитектура, API-карта, testing, roadmap, release checklist и handoff — фактическое поведение.
 

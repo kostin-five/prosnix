@@ -176,7 +176,11 @@ const TASK_META: Record<TaskId, { category: TaskCategory; title: string; subtitl
     subtitle: "Короткая разминка тела",
   },
   water: { category: "behavioral", title: "Стакан воды", subtitle: "Выпить воду" },
-  window: { category: "environment", title: "К окну", subtitle: "Дневной свет" },
+  window: {
+    category: "environment",
+    title: "Яркий свет",
+    subtitle: "Открыть шторы или включить свет",
+  },
   curtains: {
     category: "environment",
     title: "Открыть шторы",
@@ -263,9 +267,9 @@ const CONFIRM_CONFIG: Partial<
   },
   window: {
     instruction:
-      "Подойдите к окну и побудьте при дневном свете 30 секунд. Не смотрите прямо на солнце. Если на улице темно, включите яркий свет в комнате.",
+      "Откройте шторы или включите яркий свет в комнате и побудьте при свете 30 секунд. Не смотрите прямо на солнце.",
     countdown: 30,
-    cta: "Подошёл",
+    cta: "Готово",
   },
   curtains: {
     instruction:
@@ -297,9 +301,9 @@ const TEN_MINUTE_CONFIRM_OVERRIDES: Partial<
   },
   window: {
     instruction:
-      "Подойдите к окну и побудьте при дневном свете одну минуту. Не смотрите прямо на солнце. Если на улице темно, включите яркий свет в комнате.",
+      "Откройте шторы или включите яркий свет в комнате и побудьте при свете одну минуту. Не смотрите прямо на солнце.",
     countdown: 60,
-    cta: "Подошёл",
+    cta: "Готово",
   },
   curtains: {
     instruction:

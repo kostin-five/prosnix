@@ -158,5 +158,7 @@ describe("персонализация пробуждения", () => {
     expect(container.querySelector('select[aria-label="Допустимое движение"]')).toBeNull();
     act(() => findButton(container, "Изменить").click());
     expect(container.querySelector('select[aria-label="Допустимое движение"]')).not.toBeNull();
+    expect(container.textContent).toContain("Яркий свет");
+    expect(container.textContent).not.toContain("Шторы");
   });
 });

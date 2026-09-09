@@ -119,8 +119,7 @@ export function CapabilityProfileCard({
                 ["squats", "Приседания"],
                 ["shake", "Разминка"],
                 ["water", "Вода"],
-                ["window", "К окну"],
-                ["curtains", "Шторы"],
+                ["window", "Яркий свет"],
               ] as const
             ).map(([id, label]) => (
               <button

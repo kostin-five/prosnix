@@ -66,3 +66,20 @@
 
 Сначала закрыть обход заданий как P1, затем увеличить нагрузку 10 минут, после этого уточнить UX
 контекста. На каждом шаге приложение остаётся запускаемым; migration и новые зависимости не нужны.
+
+## Phase 9: Единое световое задание (US7)
+
+- [x] T025 [P] [US7] Добавить domain regressions отсутствия `curtains`, единственного светового шага
+      и семи уникальных заданий в `packages/domain/tests/personalization.test.ts`
+- [x] T026 [P] [US7] Добавить web regression единого пункта анкеты при сохранении legacy icon в
+      `apps/web/tests/personalization.test.tsx` и `apps/web/tests/accessibility.test.tsx`
+- [x] T027 [US7] Исключить `curtains` из новых candidates и selectable pool, выпустить protocol
+      version 5 и новые strategy versions в `packages/domain/src/experiments/learning.ts` и
+      `packages/domain/src/personalization.ts`
+- [x] T028 [US7] Переименовать `window` в «Яркий свет», объединить безопасные инструкции и убрать
+      отдельное исключение «Шторы» в `apps/web/src/app/App.tsx` и
+      `apps/web/src/features/personalization/capability-profile-card.tsx`
+- [x] T029 [US7] Обновить ручной предпилотный тест-план до v3 и синхронизировать architecture,
+      roadmap, testing, release checklist, validation и handoff в `docs/` и `specs/016-task-integrity-duration/`
+- [x] T030 [US7] Выполнить `pnpm verify:release` и полный gate на disposable PostgreSQL; проверить
+      старую сессию с `curtains` и новое семишаговое назначение

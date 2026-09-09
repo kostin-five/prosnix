@@ -170,14 +170,14 @@ test("полный wake-up цикл подтверждается серверо�
   await page.getByRole("button", { name: "Начать пробуждение" }).click();
   await page.getByRole("button", { name: "3", exact: true }).click();
   await page.getByRole("button", { name: "Начать протокол →" }).click();
-  await expect(page.getByRole("heading", { name: "К окну" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Яркий свет" })).toBeVisible();
   await expect(page.locator('[data-task-icon="window"]').first()).toBeVisible();
   await page.getByRole("button", { name: "Начать", exact: true }).click();
   await expect(page.getByRole("timer", { name: "Осталось 30 секунд" })).toBeVisible();
   await expect(page.locator('[data-testid="task-timer-light"]')).toBeVisible();
   await page.clock.runFor(31_000);
   await expect(page.getByRole("timer", { name: "Таймер завершён" })).toBeVisible();
-  await page.getByRole("button", { name: "Подошёл" }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
   await page.getByRole("button", { name: "7", exact: true }).click();
   await page.getByRole("button", { name: "Сохранить результат" }).click();
   await expect(page.getByRole("heading", { name: "Протокол завершён" })).toBeVisible();
