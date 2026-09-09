@@ -121,6 +121,27 @@ describe("персонализация протокола", () => {
     expect(selected.assignment.hypothesis).toContain("новый допустимый вариант");
   });
 
+  it("допускает одинаковый стартовый протокол в разных контекстах без отдельных данных", () => {
+    const candidates = learningAssignmentCandidates(2).map((candidate) => ({
+      ...candidate,
+      id: `candidate-${candidate.protocolKey}`,
+    }));
+    const night = selectPersonalizedAssignment(candidates, profile, 5, [], {
+      completedSessions: 0,
+      wakeContext: "night_sleep",
+      evidence: [],
+    });
+    const shortNap = selectPersonalizedAssignment(candidates, profile, 5, [], {
+      completedSessions: 0,
+      wakeContext: "short_nap",
+      evidence: [],
+    });
+
+    expect(night.assignment.steps.map(({ taskId }) => taskId)).toEqual(
+      shortNap.assignment.steps.map(({ taskId }) => taskId),
+    );
+  });
+
   it("обнаруживает профиль без единого допустимого задания", () => {
     expect(
       eligibleWakeTasks({

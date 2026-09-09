@@ -132,7 +132,10 @@ export function cookieFrom(setCookie: string | string[] | undefined): string {
   return value.split(";", 1)[0] as string;
 }
 
-export function createMemorySessionCommands(userId: string): SessionCommandRepository {
+export function createMemorySessionCommands(
+  userId: string,
+  options: { protocolVersion?: number; strategyVersion?: string } = {},
+): SessionCommandRepository {
   let session: WakeSession | null = null;
   const results = new Map<
     string,
@@ -174,8 +177,8 @@ export function createMemorySessionCommands(userId: string): SessionCommandRepos
             assignment: {
               id: "00000000-0000-4000-8000-000000000101",
               protocolKey: "learning-cognitive",
-              protocolVersion: 1,
-              strategyVersion: "learning-v1",
+              protocolVersion: options.protocolVersion ?? 1,
+              strategyVersion: options.strategyVersion ?? "learning-v1",
               phase: "learning",
               hypothesis: "Проверяем когнитивный стартовый протокол",
               steps: [

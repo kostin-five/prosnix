@@ -8,6 +8,7 @@ import {
   PostgresWakePersonalizationRepository,
   sql,
 } from "@awc/db";
+import { taskSuccessTarget } from "@awc/domain";
 
 const databaseUrl = process.env.DATABASE_URL;
 const localDatabase = databaseUrl
@@ -117,6 +118,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
         })
       ).session;
       for (const step of session.assignment.steps) {
+        const target = taskSuccessTarget(step.taskId, session.durationMinutes);
         session = (
           await commands.execute({
             userId: user.id,
@@ -129,8 +131,8 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
               expectedVersion: session.version,
               stepIndex: step.index,
               taskId: step.taskId,
-              correct: 1,
-              total: 1,
+              correct: target,
+              total: target,
               durationMs: 500,
             },
           })
@@ -229,7 +231,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           })
         ).session;
         expect(session.assignment).toMatchObject({
-          strategyVersion: "adaptive-v2",
+          strategyVersion: "adaptive-v3",
           phase: "adaptive",
         });
         signatures.push(session.assignment.steps.map(({ taskId }) => taskId).join(","));
@@ -248,6 +250,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           })
         ).session;
         for (const step of session.assignment.steps) {
+          const target = taskSuccessTarget(step.taskId, session.durationMinutes);
           session = (
             await commands.execute({
               userId: user.id,
@@ -260,8 +263,8 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
                 expectedVersion: session.version,
                 stepIndex: step.index,
                 taskId: step.taskId,
-                correct: 1,
-                total: 1,
+                correct: target,
+                total: target,
                 durationMs: 1000,
               },
             })

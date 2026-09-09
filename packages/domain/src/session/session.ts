@@ -1,5 +1,6 @@
 import type { FollowUpOutcome, TaskId, WakeSession } from "../model.js";
 import { SessionCommandError } from "../model.js";
+import { STRICT_TASK_PROTOCOL_VERSION, taskSuccessTarget } from "../task-policy.js";
 
 interface VersionedCommand {
   expectedVersion: number;
@@ -105,6 +106,15 @@ export function acceptTaskResult(session: WakeSession, command: TaskResultComman
         command.difficultyLevel > 3))
   ) {
     throw new SessionCommandError("invalid_task_result", "Task result values are invalid");
+  }
+  if (session.assignment.protocolVersion >= STRICT_TASK_PROTOCOL_VERSION) {
+    const target = taskSuccessTarget(command.taskId, session.durationMinutes);
+    if (command.correct < target) {
+      throw new SessionCommandError(
+        "invalid_task_result",
+        `Task requires ${target} successful results before completion`,
+      );
+    }
   }
   return {
     ...session,

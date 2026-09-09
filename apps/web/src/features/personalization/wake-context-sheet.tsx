@@ -83,7 +83,9 @@ export function WakeContextSheet({
       </p>
       <h1 className="mt-2 text-2xl font-bold">Как ты просыпаешься сейчас?</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Это помогает сравнивать похожие ситуации, а не смешивать утро и дневной сон.
+        Это помогает сравнивать похожие ситуации, а не смешивать утро и дневной сон. Первые
+        протоколы могут совпадать: Prosnix начнёт подбирать их отдельно, когда накопит результаты
+        именно для выбранного контекста и времени.
       </p>
       {!profileComplete && (
         <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-4">

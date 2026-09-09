@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
+import { taskSuccessTarget } from "@awc/domain";
 import {
   Bell,
   Home,
@@ -270,6 +271,46 @@ const CONFIRM_CONFIG: Partial<
     cta: "Открыл",
   },
 };
+
+const TEN_MINUTE_CONFIRM_OVERRIDES: Partial<
+  Record<TaskId, { instruction: string; countdown: number; cta: string }>
+> = {
+  steps: {
+    instruction:
+      "Встаньте и ходите по комнате или коридору одну минуту. Шаги не измеряются датчиком — отметьте выполнение честно после таймера.",
+    countdown: 60,
+    cta: "Прошёл",
+  },
+  squats: {
+    instruction:
+      "Сделайте 10 приседаний медленно, глубоко дыша. Напрягите ноги и выпрямитесь полностью.",
+    countdown: 45,
+    cta: "Сделал",
+  },
+  shake: {
+    instruction: "Разминайте руки, плечи и шею в течение 30 секунд, не делая резких движений.",
+    countdown: 30,
+    cta: "Готово",
+  },
+  window: {
+    instruction:
+      "Подойдите к окну и побудьте при дневном свете одну минуту. Не смотрите прямо на солнце. Если на улице темно, включите яркий свет в комнате.",
+    countdown: 60,
+    cta: "Подошёл",
+  },
+  curtains: {
+    instruction:
+      "Откройте шторы и останьтесь при дневном или ярком комнатном свете 30 секунд. Не смотрите прямо на солнце.",
+    countdown: 30,
+    cta: "Открыл",
+  },
+};
+
+function confirmConfig(taskId: TaskId, durationMinutes: WakeDurationMinutes) {
+  return durationMinutes === 10 && TEN_MINUTE_CONFIRM_OVERRIDES[taskId]
+    ? TEN_MINUTE_CONFIRM_OVERRIDES[taskId]!
+    : CONFIRM_CONFIG[taskId]!;
+}
 
 // ─── Learning Period Sequences ────────────────────────────────────────────────
 const LEARNING_SEQ: TaskId[][] = [
@@ -552,7 +593,14 @@ function RatingGrid({
 }
 
 // ─── Math Task ────────────────────────────────────────────────────────────────
-function MathTask({ onDone }: { onDone: (r: TaskResult) => void }) {
+export function MathTask({
+  durationMinutes,
+  onDone,
+}: {
+  durationMinutes: WakeDurationMinutes;
+  onDone: (r: TaskResult) => void;
+}) {
+  const target = taskSuccessTarget("math", durationMinutes);
   const [level, setLevel] = useState<DifficultyLevel>(1);
   const [question, setQuestion] = useState(() => makeMathQuestion(1));
   const [sel, setSel] = useState<number | null>(null);
@@ -578,7 +626,7 @@ function MathTask({ onDone }: { onDone: (r: TaskResult) => void }) {
     setLevel(nextLevel);
     maxLevel.current = Math.max(maxLevel.current, nextLevel) as DifficultyLevel;
     setTimeout(() => {
-      if (nextCorrect < 3) {
+      if (nextCorrect < target) {
         setQuestion(makeMathQuestion(nextLevel));
         setSel(null);
       } else {
@@ -597,7 +645,7 @@ function MathTask({ onDone }: { onDone: (r: TaskResult) => void }) {
     <div className="flex flex-col gap-8">
       <div className="text-center">
         <p className="text-muted-foreground text-sm mb-3">
-          Правильных: {correct}/3 · уровень {level}
+          Правильных: {correct}/{target} · уровень {level}
         </p>
         <div className="text-5xl font-extrabold tracking-tight">{question.expr} = ?</div>
       </div>
@@ -621,14 +669,21 @@ function MathTask({ onDone }: { onDone: (r: TaskResult) => void }) {
 }
 
 // ─── Memory Task ──────────────────────────────────────────────────────────────
-function MemoryTask({ onDone }: { onDone: (r: TaskResult) => void }) {
+export function MemoryTask({
+  durationMinutes,
+  onDone,
+}: {
+  durationMinutes: WakeDurationMinutes;
+  onDone: (r: TaskResult) => void;
+}) {
+  const target = taskSuccessTarget("memory", durationMinutes);
   const [level, setLevel] = useState<DifficultyLevel>(1);
-  const [round, setRound] = useState(1);
   const [seq, setSeq] = useState(() => makeMemorySequence(1));
   const [phase, setPhase] = useState<"show" | "recall">("show");
   const [cd, setCd] = useState(4);
   const [entered, setEntered] = useState<number[]>([]);
   const [correctRounds, setCorrectRounds] = useState(0);
+  const [attempts, setAttempts] = useState(0);
   const maxLevel = useRef<DifficultyLevel>(1);
   const t0 = useRef(Date.now());
   useEffect(() => {
@@ -646,39 +701,41 @@ function MemoryTask({ onDone }: { onDone: (r: TaskResult) => void }) {
   function submit() {
     const ok = entered.length === seq.length && entered.every((d, i) => d === seq[i]);
     const nextCorrect = correctRounds + (ok ? 1 : 0);
-    if (round < 2) {
-      const nextLevel = ok
-        ? (Math.min(3, level + 1) as DifficultyLevel)
-        : (Math.max(1, level - 1) as DifficultyLevel);
-      maxLevel.current = Math.max(maxLevel.current, nextLevel) as DifficultyLevel;
-      setCorrectRounds(nextCorrect);
-      setRound(2);
-      setLevel(nextLevel);
-      setSeq(makeMemorySequence(nextLevel));
-      setEntered([]);
-      setCd(4);
-      setPhase("show");
+    const nextAttempts = attempts + 1;
+    const nextLevel = ok
+      ? (Math.min(3, level + 1) as DifficultyLevel)
+      : (Math.max(1, level - 1) as DifficultyLevel);
+    maxLevel.current = Math.max(maxLevel.current, nextLevel) as DifficultyLevel;
+    setAttempts(nextAttempts);
+    setCorrectRounds(nextCorrect);
+    if (nextCorrect >= target) {
+      onDone({
+        id: "memory",
+        category: "cognitive",
+        correct: nextCorrect,
+        total: nextAttempts,
+        timeMs: Date.now() - t0.current,
+        difficultyLevel: maxLevel.current,
+      });
       return;
     }
-    onDone({
-      id: "memory",
-      category: "cognitive",
-      correct: nextCorrect,
-      total: 2,
-      timeMs: Date.now() - t0.current,
-      difficultyLevel: maxLevel.current,
-    });
+    setLevel(nextLevel);
+    setSeq(makeMemorySequence(nextLevel));
+    setEntered([]);
+    setCd(4);
+    setPhase("show");
   }
   if (phase === "show")
     return (
       <div className="flex flex-col items-center gap-8">
         <p className="text-muted-foreground text-sm">
-          Раунд {round}/2 · запомни последовательность
+          Правильно {correctRounds}/{target} · запомни новую последовательность
         </p>
         <div className="flex w-full max-w-sm gap-2">
           {seq.map((n, i) => (
             <div
               key={i}
+              data-memory-digit={n}
               className="flex h-12 min-w-0 flex-1 items-center justify-center rounded-xl border border-accent/30 bg-accent/20 text-2xl font-extrabold text-accent sm:h-14 sm:max-w-14 sm:rounded-2xl sm:text-3xl"
             >
               {n}
@@ -692,7 +749,7 @@ function MemoryTask({ onDone }: { onDone: (r: TaskResult) => void }) {
   return (
     <div className="flex flex-col items-center gap-5">
       <p className="text-muted-foreground text-sm text-center">
-        Введи запомненную последовательность
+        Введи последовательность · правильно {correctRounds}/{target}
       </p>
       <div className="flex w-full max-w-sm gap-2">
         {Array.from({ length: seq.length }, (_, i) => (
@@ -729,6 +786,7 @@ function MemoryTask({ onDone }: { onDone: (r: TaskResult) => void }) {
         <button
           onClick={submit}
           disabled={entered.length < seq.length}
+          aria-label="Проверить последовательность"
           className={`h-12 rounded-xl text-xl font-semibold transition-all ${entered.length === seq.length ? "bg-primary text-white active:scale-95" : "bg-secondary/40 text-muted-foreground"}`}
         >
           <Check className="mx-auto h-5 w-5" />
@@ -739,38 +797,54 @@ function MemoryTask({ onDone }: { onDone: (r: TaskResult) => void }) {
 }
 
 // ─── Stroop Task ──────────────────────────────────────────────────────────────
-function StroopTask({ onDone }: { onDone: (r: TaskResult) => void }) {
-  const [qs] = useState(makeStroopQs);
-  const [qi, setQi] = useState(0);
+export function StroopTask({
+  durationMinutes,
+  onDone,
+}: {
+  durationMinutes: WakeDurationMinutes;
+  onDone: (r: TaskResult) => void;
+}) {
+  const target = taskSuccessTarget("stroop", durationMinutes);
+  const [question, setQuestion] = useState(() => makeStroopQs()[0]!);
   const [sel, setSel] = useState<string | null>(null);
-  const correct = useRef(0);
+  const [correct, setCorrect] = useState(0);
+  const [attempts, setAttempts] = useState(0);
   const t0 = useRef(Date.now());
   function pick(val: string) {
     if (sel !== null) return;
     setSel(val);
-    if (val === qs[qi].answer) correct.current++;
+    const nextCorrect = correct + (val === question.answer ? 1 : 0);
+    const nextAttempts = attempts + 1;
+    setCorrect(nextCorrect);
+    setAttempts(nextAttempts);
     setTimeout(() => {
-      if (qi + 1 < qs.length) {
-        setQi((q) => q + 1);
+      if (nextCorrect < target) {
+        setQuestion(makeStroopQs()[0]!);
         setSel(null);
-      } else
+      } else {
         onDone({
           id: "stroop",
           category: "cognitive",
-          correct: correct.current,
-          total: qs.length,
+          correct: nextCorrect,
+          total: nextAttempts,
           timeMs: Date.now() - t0.current,
         });
+      }
     }, 600);
   }
-  const q = qs[qi];
+  const q = question;
   return (
     <div className="flex flex-col gap-8">
       <div className="text-center">
         <p className="text-muted-foreground text-sm mb-6">
-          Вопрос {qi + 1} из {qs.length} — Какого цвета написано слово?
+          Правильных: {correct}/{target} · Какого цвета написано слово?
         </p>
-        <div className={`text-5xl font-black tracking-widest ${q.inkClass}`}>{q.word}</div>
+        <div
+          data-testid="stroop-word"
+          className={`text-5xl font-black tracking-widest ${q.inkClass}`}
+        >
+          {q.word}
+        </div>
         <p className="text-xs text-muted-foreground mt-3">не читай слово — смотри на ЦВЕТ букв</p>
       </div>
       <div className="grid grid-cols-3 gap-2">
@@ -795,12 +869,20 @@ function StroopTask({ onDone }: { onDone: (r: TaskResult) => void }) {
 }
 
 // ─── Reaction Task ────────────────────────────────────────────────────────────
-function ReactionTask({ onDone }: { onDone: (r: TaskResult) => void }) {
+export function ReactionTask({
+  durationMinutes,
+  onDone,
+}: {
+  durationMinutes: WakeDurationMinutes;
+  onDone: (r: TaskResult) => void;
+}) {
+  const target = taskSuccessTarget("reaction", durationMinutes);
   const [round, setRound] = useState(0);
-  const [phase, setPhase] = useState<"wait" | "go" | "early" | "result">("wait");
+  const [phase, setPhase] = useState<"wait" | "go" | "result">("wait");
   const [times, setTimes] = useState<number[]>([]);
   const [lastMs, setLastMs] = useState<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
+  const tapLocked = useRef(true);
   const goAt = useRef(0);
   const t0 = useRef(Date.now());
   useEffect(() => {
@@ -808,34 +890,30 @@ function ReactionTask({ onDone }: { onDone: (r: TaskResult) => void }) {
     const delay = 1500 + Math.random() * 2500;
     timer.current = setTimeout(() => {
       goAt.current = Date.now();
+      tapLocked.current = false;
       setPhase("go");
     }, delay);
     return () => clearTimeout(timer.current);
   }, [phase, round]);
   function handleTap() {
-    if (phase === "wait") {
-      clearTimeout(timer.current);
-      setPhase("early");
-      setTimeout(() => setPhase("wait"), 900);
-    } else if (phase === "go") {
+    if (phase === "go" && !tapLocked.current) {
+      tapLocked.current = true;
       const rt = Date.now() - goAt.current;
       setLastMs(rt);
       const next = [...times, rt];
       setTimes(next);
-      if (round + 1 < 3) {
+      setPhase("result");
+      if (round + 1 < target) {
         setRound((r) => r + 1);
         setTimeout(() => setPhase("wait"), 800);
       } else {
-        setPhase("result");
-        const avg = next.reduce((s, t) => s + t, 0) / next.length;
-        const score = avg < 300 ? 3 : avg < 500 ? 2 : 1;
         setTimeout(
           () =>
             onDone({
               id: "reaction",
               category: "cognitive",
-              correct: score,
-              total: 3,
+              correct: target,
+              total: target,
               timeMs: Date.now() - t0.current,
             }),
           1200,
@@ -847,27 +925,27 @@ function ReactionTask({ onDone }: { onDone: (r: TaskResult) => void }) {
   return (
     <div className="flex flex-col items-center gap-8">
       <div className="text-center">
-        <p className="text-muted-foreground text-sm mb-1">Раунд {Math.min(round + 1, 3)} из 3</p>
+        <p className="text-muted-foreground text-sm mb-1">
+          Раунд {Math.min(round + 1, target)} из {target}
+        </p>
         <p className="text-xs text-muted-foreground">
           {phase === "wait"
-            ? "Жди... не нажимай раньше времени"
-            : phase === "early"
-              ? "Слишком рано!"
-              : phase === "result"
-                ? `Среднее: ${avgMs} мс`
-                : "Нажимай!"}
+            ? "Кнопка включится после сигнала"
+            : phase === "result"
+              ? `Среднее: ${avgMs} мс`
+              : "Нажимай!"}
         </p>
       </div>
       <button
         onClick={handleTap}
+        disabled={phase !== "go"}
+        aria-label={phase === "go" ? "Нажать по сигналу" : "Ожидание сигнала"}
         className={`w-48 h-48 rounded-full text-3xl font-extrabold transition-all duration-150 border-4 ${
           phase === "go"
             ? "bg-green-500 border-green-400 text-white scale-105 shadow-[0_0_60px_rgba(34,197,94,0.5)]"
-            : phase === "early"
-              ? "bg-red-500/80 border-red-400 text-white"
-              : phase === "result"
-                ? "bg-primary/20 border-primary/30 text-primary"
-                : "bg-secondary border-border text-muted-foreground"
+            : phase === "result"
+              ? "bg-primary/20 border-primary/30 text-primary"
+              : "bg-secondary border-border text-muted-foreground"
         }`}
       >
         {phase === "go" ? (
@@ -878,8 +956,6 @@ function ReactionTask({ onDone }: { onDone: (r: TaskResult) => void }) {
           ) : (
             <Zap className="mx-auto h-8 w-8" />
           )
-        ) : phase === "early" ? (
-          "Рано!"
         ) : (
           <Loader2 className="mx-auto h-8 w-8 animate-spin" />
         )}
@@ -903,8 +979,16 @@ function ReactionTask({ onDone }: { onDone: (r: TaskResult) => void }) {
 }
 
 // ─── Confirm Task ─────────────────────────────────────────────────────────────
-function ConfirmTask({ taskId, onDone }: { taskId: TaskId; onDone: (r: TaskResult) => void }) {
-  const cfg = CONFIRM_CONFIG[taskId]!;
+function ConfirmTask({
+  taskId,
+  durationMinutes,
+  onDone,
+}: {
+  taskId: TaskId;
+  durationMinutes: WakeDurationMinutes;
+  onDone: (r: TaskResult) => void;
+}) {
+  const cfg = confirmConfig(taskId, durationMinutes);
   const meta = TASK_META[taskId];
   const [started, setStarted] = useState(false);
   const [cd, setCd] = useState(cfg.countdown);
@@ -993,11 +1077,13 @@ function ConfirmTask({ taskId, onDone }: { taskId: TaskId; onDone: (r: TaskResul
 function TasksContainer({
   taskIds,
   taskIndex,
+  durationMinutes,
   reason,
   onDone,
 }: {
   taskIds: TaskId[];
   taskIndex: number;
+  durationMinutes: WakeDurationMinutes;
   reason: string | null;
   onDone: (r: TaskResult) => void;
 }) {
@@ -1039,21 +1125,54 @@ function TasksContainer({
         </div>
         <div>
           <h2 className="text-lg font-bold">{meta.title}</h2>
-          <p className="text-sm text-muted-foreground">{meta.subtitle}</p>
+          <p className="text-sm text-muted-foreground">
+            {durationMinutes === 10 && id === "math"
+              ? "5 правильных примеров"
+              : durationMinutes === 10 && id === "memory"
+                ? "3 правильные последовательности"
+                : durationMinutes === 10 && (id === "stroop" || id === "reaction")
+                  ? "5 успешных раундов"
+                  : meta.subtitle}
+          </p>
         </div>
       </div>
       <div className="flex-1">
-        {id === "math" && <MathTask key={`${id}-${taskIndex}`} onDone={onDone} />}
-        {id === "memory" && <MemoryTask key={`${id}-${taskIndex}`} onDone={onDone} />}
-        {id === "stroop" && <StroopTask key={`${id}-${taskIndex}`} onDone={onDone} />}
-        {id === "reaction" && <ReactionTask key={`${id}-${taskIndex}`} onDone={onDone} />}
+        {id === "math" && (
+          <MathTask key={`${id}-${taskIndex}`} durationMinutes={durationMinutes} onDone={onDone} />
+        )}
+        {id === "memory" && (
+          <MemoryTask
+            key={`${id}-${taskIndex}`}
+            durationMinutes={durationMinutes}
+            onDone={onDone}
+          />
+        )}
+        {id === "stroop" && (
+          <StroopTask
+            key={`${id}-${taskIndex}`}
+            durationMinutes={durationMinutes}
+            onDone={onDone}
+          />
+        )}
+        {id === "reaction" && (
+          <ReactionTask
+            key={`${id}-${taskIndex}`}
+            durationMinutes={durationMinutes}
+            onDone={onDone}
+          />
+        )}
         {(id === "steps" ||
           id === "squats" ||
           id === "shake" ||
           id === "water" ||
           id === "window" ||
           id === "curtains") && (
-          <ConfirmTask key={`${id}-${taskIndex}`} taskId={id} onDone={onDone} />
+          <ConfirmTask
+            key={`${id}-${taskIndex}`}
+            taskId={id}
+            durationMinutes={durationMinutes}
+            onDone={onDone}
+          />
         )}
       </div>
     </div>
@@ -2189,6 +2308,9 @@ function PrototypeApp({
 
   const [taskIds, setTaskIds] = useState<TaskId[]>(resumedTaskIds);
   const [taskIndex, setTaskIndex] = useState(resume?.session.currentStepIndex ?? 0);
+  const [activeDurationMinutes, setActiveDurationMinutes] = useState<WakeDurationMinutes>(
+    resume?.session.durationMinutes ?? initialWakeProfile.defaultDurationMinutes,
+  );
   const [taskResults, setTaskResults] = useState<TaskResult[]>([]);
   const [startAlertness, setStartAlertness] = useState(resume?.baseline ?? 0);
   const sessionStartRef = useRef(Date.now());
@@ -2262,6 +2384,7 @@ function PrototypeApp({
   async function startSession(wakeContext: WakeContext, durationMinutes: WakeDurationMinutes) {
     setSyncError(null);
     setSnoozedUntil(null);
+    setActiveDurationMinutes(durationMinutes);
     sessionStartRef.current = Date.now();
     if (demo) {
       const ids = selectTasks(sessions.length, sessions);
@@ -2574,6 +2697,7 @@ function PrototypeApp({
           <TasksContainer
             taskIds={taskIds}
             taskIndex={taskIndex}
+            durationMinutes={serverSession?.durationMinutes ?? activeDurationMinutes}
             reason={
               demo
                 ? "Пробуем следующую комбинацию заданий"

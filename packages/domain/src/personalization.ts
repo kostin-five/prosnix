@@ -8,6 +8,7 @@ import type {
   WakePersonalizationSnapshot,
   WakeContext,
 } from "./model.js";
+import { estimatedTaskSeconds } from "./task-policy.js";
 
 export const SAFE_WAKE_PROFILE: WakeCapabilityProfile = {
   movementLevel: "none",
@@ -16,19 +17,6 @@ export const SAFE_WAKE_PROFILE: WakeCapabilityProfile = {
   defaultDurationMinutes: 5,
   onboardingCompleted: false,
   revision: 0,
-};
-
-const ESTIMATED_SECONDS: Record<TaskId, number> = {
-  math: 60,
-  memory: 60,
-  stroop: 45,
-  reaction: 30,
-  steps: 30,
-  squats: 30,
-  shake: 20,
-  water: 45,
-  window: 40,
-  curtains: 20,
 };
 
 const FALLBACK_ORDER: readonly TaskId[] = ["reaction", "stroop", "memory", "math", "shake"];
@@ -55,7 +43,20 @@ function allowed(taskId: TaskId, profile: WakeCapabilityProfile): boolean {
 }
 
 export function eligibleWakeTasks(profile: WakeCapabilityProfile): TaskId[] {
-  return (Object.keys(ESTIMATED_SECONDS) as TaskId[]).filter((taskId) => allowed(taskId, profile));
+  return (
+    [
+      "math",
+      "memory",
+      "stroop",
+      "reaction",
+      "steps",
+      "squats",
+      "shake",
+      "water",
+      "window",
+      "curtains",
+    ] as TaskId[]
+  ).filter((taskId) => allowed(taskId, profile));
 }
 
 function fitBudget(
@@ -66,7 +67,7 @@ function fitBudget(
   let elapsed = 0;
   const selected: ProtocolStep[] = [];
   for (const step of steps) {
-    const estimate = ESTIMATED_SECONDS[step.taskId];
+    const estimate = estimatedTaskSeconds(step.taskId, durationMinutes);
     if (elapsed + estimate > maximumSeconds) continue;
     selected.push(step);
     elapsed += estimate;
@@ -101,7 +102,7 @@ export function personalizeAssignment(
   }
 
   if (durationMinutes >= 5 && !steps.some((step) => ACTIVE_TASK_IDS.has(step.taskId))) {
-    const active = (Object.keys(ESTIMATED_SECONDS) as TaskId[])
+    const active = eligibleWakeTasks(profile)
       .filter((taskId) => ACTIVE_TASK_IDS.has(taskId) && allowed(taskId, profile))
       .find((taskId) => !steps.some((step) => step.taskId === taskId));
     if (active) {
@@ -171,7 +172,7 @@ export function selectPersonalizedAssignment(
       assignment.steps.map(({ taskId }) => taskId).join(",") !== previousSignature,
   );
   const available = withoutImmediateRepeat.length > 0 ? withoutImmediateRepeat : personalized;
-  if (!adaptive || !candidates.some(({ strategyVersion }) => strategyVersion === "adaptive-v2")) {
+  if (!adaptive || !candidates.some(({ phase }) => phase === "adaptive")) {
     return available[0]!;
   }
 

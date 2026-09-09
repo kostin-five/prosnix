@@ -28,6 +28,7 @@ test("пользователь настраивает возможности, к
 
   await page.getByRole("button", { name: "Главная" }).click();
   await page.getByRole("button", { name: "Попробовать пробуждение" }).click();
+  await expect(page.getByText("Первые протоколы могут совпадать")).toBeVisible();
   await page.getByRole("button", { name: "После короткого сна" }).click();
   await expect(page.getByRole("button", { name: "2 мин" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Начать пробуждение" }).click();

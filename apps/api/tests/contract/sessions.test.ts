@@ -142,4 +142,51 @@ describe("контракт команд wake-сессии", () => {
     expect(result.statusCode).toBe(400);
     await app.close();
   });
+
+  it("не принимает недостаточный результат нового десятиминутного протокола", async () => {
+    const dependencies = createMemoryDependencies();
+    const app = await createApp(testConfig, {
+      ...dependencies,
+      sessionCommands: createMemorySessionCommands(dependencies.user.id, {
+        protocolVersion: 3,
+        strategyVersion: "learning-v2",
+      }),
+      now: () => testNow,
+    });
+    const cookie = await authenticateTestUser(app);
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/sessions",
+      headers: { cookie, "idempotency-key": "create-strict-10" },
+      payload: { timezone: "Europe/Moscow", wakeContext: "night_sleep", durationMinutes: 10 },
+    });
+    await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${created.json().id}/baseline`,
+      headers: { cookie, "idempotency-key": "baseline-strict-10", "if-match": "1" },
+      payload: { value: 3 },
+    });
+
+    const rejected = await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${created.json().id}/steps/0`,
+      headers: { cookie, "idempotency-key": "task-strict-low", "if-match": "2" },
+      payload: { taskId: "math", correct: 3, total: 3, durationMs: 20_000 },
+    });
+    expect(rejected.statusCode).toBe(409);
+    expect(rejected.json()).toMatchObject({
+      code: "invalid_transition",
+      canonicalSession: { currentStepIndex: 0, version: 2 },
+    });
+
+    const accepted = await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${created.json().id}/steps/0`,
+      headers: { cookie, "idempotency-key": "task-strict-pass", "if-match": "2" },
+      payload: { taskId: "math", correct: 5, total: 7, durationMs: 35_000 },
+    });
+    expect(accepted.statusCode).toBe(200);
+    expect(accepted.json()).toMatchObject({ currentStepIndex: 1, version: 3 });
+    await app.close();
+  });
 });

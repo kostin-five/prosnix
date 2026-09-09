@@ -51,6 +51,65 @@ function assignedSession(): WakeSession {
 }
 
 describe("wake session transitions", () => {
+  it("не принимает недостаточный когнитивный результат нового протокола", () => {
+    const session = acceptBaseline(
+      {
+        ...assignedSession(),
+        durationMinutes: 10,
+        assignment: { ...assignment, protocolVersion: 3 },
+      },
+      {
+        expectedVersion: 1,
+        value: 3,
+        observedAt: "2026-09-08T04:00:00.000Z",
+      },
+    );
+
+    expect(() =>
+      acceptTaskResult(session, {
+        expectedVersion: 2,
+        stepIndex: 0,
+        taskId: "math",
+        correct: 3,
+        total: 3,
+        durationMs: 30_000,
+        observedAt: "2026-09-08T04:00:30.000Z",
+      }),
+    ).toThrowError(/5 successful/i);
+
+    expect(
+      acceptTaskResult(session, {
+        expectedVersion: 2,
+        stepIndex: 0,
+        taskId: "math",
+        correct: 5,
+        total: 7,
+        durationMs: 60_000,
+        observedAt: "2026-09-08T04:01:00.000Z",
+      }).currentStepIndex,
+    ).toBe(1);
+  });
+
+  it("сохраняет общую валидацию для старого активного протокола", () => {
+    const session = acceptBaseline(assignedSession(), {
+      expectedVersion: 1,
+      value: 3,
+      observedAt: "2026-09-08T04:00:00.000Z",
+    });
+
+    expect(
+      acceptTaskResult(session, {
+        expectedVersion: 2,
+        stepIndex: 0,
+        taskId: "math",
+        correct: 1,
+        total: 2,
+        durationMs: 10_000,
+        observedAt: "2026-09-08T04:00:10.000Z",
+      }).currentStepIndex,
+    ).toBe(1);
+  });
+
   it("moves through baseline, ordered tasks, post rating and follow-up", () => {
     const started = acceptBaseline(assignedSession(), {
       expectedVersion: 1,

@@ -11,6 +11,7 @@ import {
   PostgresWakeScheduleRepository,
   taskObservations,
 } from "@awc/db";
+import { taskSuccessTarget } from "@awc/domain";
 
 const databaseUrl = process.env.DATABASE_URL;
 const localDatabase = databaseUrl
@@ -81,6 +82,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL фундаме
       })
     ).session;
     const firstStep = current.assignment.steps[0]!;
+    const firstStepTarget = taskSuccessTarget(firstStep.taskId, current.durationMinutes);
     current = (
       await commands.execute({
         userId: user.id,
@@ -93,8 +95,8 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL фундаме
           expectedVersion: current.version,
           stepIndex: 0,
           taskId: firstStep.taskId,
-          correct: 1,
-          total: 1,
+          correct: firstStepTarget,
+          total: firstStepTarget,
           durationMs: 1000,
           difficultyLevel: 2,
         },
@@ -115,6 +117,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL фундаме
 
     const resumedCommands = new PostgresSessionCommandRepository(database.db);
     for (const step of current.assignment.steps.slice(1)) {
+      const target = taskSuccessTarget(step.taskId, current.durationMinutes);
       current = (
         await resumedCommands.execute({
           userId: user.id,
@@ -127,8 +130,8 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL фундаме
             expectedVersion: current.version,
             stepIndex: step.index,
             taskId: step.taskId,
-            correct: 1,
-            total: 1,
+            correct: target,
+            total: target,
             durationMs: 1000,
           },
         })
