@@ -78,7 +78,9 @@ describe("персонализация пробуждения", () => {
     expect(container.textContent).toContain("без упражнений");
     act(() => findButton(container, "После короткого сна").click());
     act(() => findButton(container, "2 мин").click());
-    act(() => findButton(container, "Начать пробуждение").click());
+    const startButton = findButton(container, "Начать пробуждение");
+    expect(startButton.parentElement?.className).toContain("shrink-0");
+    act(() => startButton.click());
     expect(onStart).toHaveBeenCalledWith("short_nap", 2);
   });
 
@@ -120,6 +122,9 @@ describe("персонализация пробуждения", () => {
     act(() => findButton(container, "Добавить пункт").click());
     const input = container.querySelector<HTMLInputElement>('input[aria-label="Пункт рутины 1"]');
     if (!input) throw new Error("Routine input not found");
+    expect(input.placeholder).toBe("Например, выпить воды");
+    expect(input.className).toContain("w-full");
+    expect(input.parentElement?.className).toContain("flex-col");
     act(() => {
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
       setter?.call(input, "Выпить воды");
@@ -157,7 +162,12 @@ describe("персонализация пробуждения", () => {
     expect(container.textContent).toContain("доступно ресурсов: 2");
     expect(container.querySelector('select[aria-label="Допустимое движение"]')).toBeNull();
     act(() => findButton(container, "Изменить").click());
-    expect(container.querySelector('select[aria-label="Допустимое движение"]')).not.toBeNull();
+    const movementSelect = container.querySelector<HTMLSelectElement>(
+      'select[aria-label="Допустимое движение"]',
+    );
+    expect(movementSelect).not.toBeNull();
+    expect(movementSelect?.className).toContain("min-h-14");
+    expect(movementSelect?.className).toContain("text-base");
     expect(container.textContent).toContain("Яркий свет");
     expect(container.textContent).not.toContain("Шторы");
   });

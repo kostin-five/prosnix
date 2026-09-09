@@ -79,7 +79,7 @@ export function CapabilityProfileCard({
                 movementLevel: event.target.value as WakeProfile["movementLevel"],
               })
             }
-            className="mt-1 min-h-12 w-full rounded-xl border border-border bg-secondary px-3 text-sm"
+            className="mt-2 min-h-14 w-full rounded-2xl border border-border bg-secondary px-4 text-base"
           >
             <option value="none">Без упражнений</option>
             <option value="light">Лёгкое движение</option>

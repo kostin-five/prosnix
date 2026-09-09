@@ -165,6 +165,14 @@ test("полный wake-up цикл подтверждается серверо�
 
   await page.goto("/");
   await page.getByRole("button", { name: "Начать пробуждение" }).click();
+  const contextStartButton = page.getByRole("button", { name: "Начать пробуждение" });
+  const contextLayout = await contextStartButton.evaluate((element) => ({
+    bottom: element.getBoundingClientRect().bottom,
+    height: window.innerHeight,
+    scrollY: window.scrollY,
+  }));
+  expect(contextLayout.scrollY).toBe(0);
+  expect(contextLayout.bottom).toBeLessThanOrEqual(contextLayout.height);
   await page.getByRole("button", { name: "После ночного сна" }).click();
   await page.getByRole("button", { name: "5 мин" }).click();
   await page.getByRole("button", { name: "Начать пробуждение" }).click();

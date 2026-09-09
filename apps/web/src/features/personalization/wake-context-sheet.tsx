@@ -59,92 +59,95 @@ export function WakeContextSheet({
   const [context, setContext] = React.useState<WakeContext>("night_sleep");
   const [duration, setDuration] = React.useState<WakeDurationMinutes>(defaultDuration);
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto px-5 pb-10 pt-10">
-      <button
-        onClick={onCancel}
-        className="mb-5 flex min-h-11 items-center gap-2 self-start rounded-xl px-2 text-sm text-muted-foreground"
-      >
-        <svg
-          aria-hidden="true"
-          className="h-4 w-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+    <div className="fixed inset-0 z-50 mx-auto flex h-[100dvh] min-h-0 w-full max-w-[390px] flex-col overflow-hidden bg-background">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-3 pt-4">
+        <button
+          onClick={onCancel}
+          className="mb-2 flex min-h-10 items-center gap-2 self-start rounded-xl px-2 text-sm text-muted-foreground"
         >
-          <path d="m15 18-6-6 6-6" />
-        </svg>
-        Назад
-      </button>
-      <p className="text-xs font-semibold uppercase tracking-wider text-accent">
-        Контекст пробуждения
-      </p>
-      <h1 className="mt-2 text-2xl font-bold">Как ты просыпаешься сейчас?</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Это помогает сравнивать похожие ситуации, а не смешивать утро и дневной сон. Первые
-        протоколы могут совпадать: Prosnix начнёт подбирать их отдельно, когда накопит результаты
-        именно для выбранного контекста и времени.
-      </p>
-      {!profileComplete && (
-        <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-4">
-          <p className="text-sm font-semibold">Сделать задания удобнее?</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Ответь на три коротких вопроса или продолжи с безопасным набором без упражнений.
-          </p>
-          <button
-            onClick={onOpenProfile}
-            className="mt-3 min-h-11 rounded-xl bg-accent px-4 text-sm font-semibold text-accent-foreground"
+          <svg
+            aria-hidden="true"
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            Настроить возможности
-          </button>
-        </div>
-      )}
-      <div className="mt-6 space-y-2">
-        {CONTEXTS.map((item) => {
-          const selected = context === item.value;
-          return (
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          Назад
+        </button>
+        <p className="text-xs font-semibold uppercase tracking-wider text-accent">
+          Контекст пробуждения
+        </p>
+        <h1 className="mt-1.5 text-2xl font-bold">Как ты просыпаешься сейчас?</h1>
+        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+          Контекст помогает сравнивать похожие ситуации пробуждения. Первые протоколы могут
+          совпадать; дальше Prosnix учится отдельно для выбранного контекста и времени.
+        </p>
+        {!profileComplete && (
+          <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-4">
+            <p className="text-sm font-semibold">Сделать задания удобнее?</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Ответь на три коротких вопроса или продолжи с безопасным набором без упражнений.
+            </p>
             <button
-              key={item.value}
-              onClick={() => setContext(item.value)}
-              aria-pressed={selected}
-              className={`flex min-h-16 w-full items-center gap-3 rounded-2xl border p-4 text-left ${selected ? "border-primary bg-primary/10" : "border-border bg-card"}`}
+              onClick={onOpenProfile}
+              className="mt-3 min-h-11 rounded-xl bg-accent px-4 text-sm font-semibold text-accent-foreground"
             >
-              <span
-                aria-hidden="true"
-                className={selected ? "w-5 text-primary" : "w-5 text-muted-foreground"}
-              >
-                <ContextIcon context={item.value} />
-              </span>
-              <span>
-                <span className="block text-sm font-semibold">{item.title}</span>
-                <span className="block text-xs text-muted-foreground">{item.hint}</span>
-              </span>
+              Настроить возможности
             </button>
-          );
-        })}
+          </div>
+        )}
+        <div className="mt-4 space-y-1.5">
+          {CONTEXTS.map((item) => {
+            const selected = context === item.value;
+            return (
+              <button
+                key={item.value}
+                onClick={() => setContext(item.value)}
+                aria-pressed={selected}
+                className={`flex min-h-14 w-full items-center gap-3 rounded-2xl border px-4 py-2.5 text-left ${selected ? "border-primary bg-primary/10" : "border-border bg-card"}`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={selected ? "w-5 text-primary" : "w-5 text-muted-foreground"}
+                >
+                  <ContextIcon context={item.value} />
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold">{item.title}</span>
+                  <span className="block text-xs text-muted-foreground">{item.hint}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-4 text-sm font-semibold">Сколько времени есть?</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {([2, 5, 10] as const).map((value) => (
+            <button
+              key={value}
+              onClick={() => setDuration(value)}
+              aria-pressed={duration === value}
+              className={`min-h-11 rounded-xl border text-sm font-semibold ${duration === value ? "border-accent bg-accent/15 text-accent" : "border-border bg-card"}`}
+            >
+              {value} мин
+            </button>
+          ))}
+        </div>
       </div>
-      <p className="mt-6 text-sm font-semibold">Сколько времени есть?</p>
-      <div className="mt-2 grid grid-cols-3 gap-2">
-        {([2, 5, 10] as const).map((value) => (
-          <button
-            key={value}
-            onClick={() => setDuration(value)}
-            aria-pressed={duration === value}
-            className={`min-h-12 rounded-xl border text-sm font-semibold ${duration === value ? "border-accent bg-accent/15 text-accent" : "border-border bg-card"}`}
-          >
-            {value} мин
-          </button>
-        ))}
+      <div className="shrink-0 bg-background px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+        <button
+          disabled={busy}
+          onClick={() => onStart(context, duration)}
+          className="min-h-14 w-full rounded-2xl bg-primary px-5 font-bold text-primary-foreground disabled:opacity-60"
+        >
+          {busy ? "Подбираем протокол…" : "Начать пробуждение"}
+        </button>
       </div>
-      <button
-        disabled={busy}
-        onClick={() => onStart(context, duration)}
-        className="mt-8 min-h-14 rounded-2xl bg-primary px-5 font-bold text-primary-foreground disabled:opacity-60"
-      >
-        {busy ? "Подбираем протокол…" : "Начать пробуждение"}
-      </button>
     </div>
   );
 }

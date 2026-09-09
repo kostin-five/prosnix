@@ -77,7 +77,10 @@ export function WakeRoutineCard({
           </label>
           <div className="mt-3 space-y-2">
             {items.map((item, index) => (
-              <div key={item.id} className="flex gap-2">
+              <div
+                key={item.id}
+                className="flex flex-col gap-2 rounded-xl border border-border p-2"
+              >
                 <input
                   aria-label={`Пункт рутины ${index + 1}`}
                   value={item.title}
@@ -92,34 +95,36 @@ export function WakeRoutineCard({
                     )
                   }
                   placeholder="Например, выпить воды"
-                  className="min-h-11 min-w-0 flex-1 rounded-xl border border-border bg-secondary px-3 text-sm"
+                  className="min-h-12 w-full rounded-xl border border-border bg-secondary px-4 text-sm text-foreground placeholder:text-muted-foreground"
                 />
-                <button
-                  type="button"
-                  aria-label={`Поднять пункт ${index + 1}`}
-                  disabled={index === 0}
-                  onClick={() => move(index, -1)}
-                  className="min-h-11 min-w-11 rounded-xl border border-border disabled:opacity-30"
-                >
-                  <span aria-hidden="true">↑</span>
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Опустить пункт ${index + 1}`}
-                  disabled={index === items.length - 1}
-                  onClick={() => move(index, 1)}
-                  className="min-h-11 min-w-11 rounded-xl border border-border disabled:opacity-30"
-                >
-                  <span aria-hidden="true">↓</span>
-                </button>
-                <button
-                  type="button"
-                  aria-label="Удалить пункт"
-                  onClick={() => setItems(items.filter((current) => current.id !== item.id))}
-                  className="min-h-11 min-w-11 rounded-xl border border-border"
-                >
-                  <span aria-hidden="true">×</span>
-                </button>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    aria-label={`Поднять пункт ${index + 1}`}
+                    disabled={index === 0}
+                    onClick={() => move(index, -1)}
+                    className="min-h-10 min-w-10 rounded-xl border border-border disabled:opacity-30"
+                  >
+                    <span aria-hidden="true">↑</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Опустить пункт ${index + 1}`}
+                    disabled={index === items.length - 1}
+                    onClick={() => move(index, 1)}
+                    className="min-h-10 min-w-10 rounded-xl border border-border disabled:opacity-30"
+                  >
+                    <span aria-hidden="true">↓</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Удалить пункт"
+                    onClick={() => setItems(items.filter((current) => current.id !== item.id))}
+                    className="min-h-10 min-w-10 rounded-xl border border-border"
+                  >
+                    <span aria-hidden="true">×</span>
+                  </button>
+                </div>
               </div>
             ))}
           </div>

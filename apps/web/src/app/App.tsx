@@ -2623,7 +2623,7 @@ function PrototypeApp({
               onClick={() => void answerDueFollowUp("up")}
               className="flex items-center gap-3 rounded-xl bg-secondary px-4 py-3 text-left"
             >
-              <FollowUpIcon answer="up" className="h-5 w-5 text-green-400" />
+              <FollowUpIcon answer="up" className="h-5 w-5 text-accent" />
               Да, уже встал
             </button>
             <button
