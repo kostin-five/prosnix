@@ -2,13 +2,6 @@ import type { ExperimentAssignment, ProtocolStep, TaskId } from "../model.js";
 
 export type PlannedAssignment = Omit<ExperimentAssignment, "id">;
 
-const CORE: readonly ProtocolStep[] = [
-  { index: 0, taskId: "math", category: "cognitive" },
-  { index: 1, taskId: "memory", category: "cognitive" },
-  { index: 2, taskId: "stroop", category: "cognitive" },
-  { index: 3, taskId: "reaction", category: "cognitive" },
-];
-
 function plan(
   protocolKey: string,
   hypothesis: string,
@@ -17,8 +10,8 @@ function plan(
 ): PlannedAssignment {
   return {
     protocolKey,
-    protocolVersion: 6,
-    strategyVersion: "learning-v5",
+    protocolVersion: 7,
+    strategyVersion: "learning-v6",
     phase: "learning",
     hypothesis,
     steps,
@@ -27,55 +20,61 @@ function plan(
 }
 
 const LEARNING_ASSIGNMENTS: readonly PlannedAssignment[] = [
-  plan("cognitive-baseline", "Измеряем стартовую реакцию на короткий когнитивный протокол", CORE),
-  plan("calibration-active-start", "Проверяем мягкое движение перед задачами", [
-    { index: 0, taskId: "steps", category: "movement" },
+  plan("calibration-cognitive-water", "Проверяем когнитивное включение со стаканом воды", [
+    { index: 0, taskId: "math", category: "cognitive" },
+    { index: 1, taskId: "memory", category: "cognitive" },
+    { index: 2, taskId: "stroop", category: "cognitive" },
+    { index: 3, taskId: "reaction", category: "cognitive" },
+    { index: 4, taskId: "water", category: "behavioral" },
+  ]),
+  plan("calibration-movement-light", "Проверяем мягкое и интенсивное движение после света", [
+    { index: 0, taskId: "window", category: "environment" },
+    { index: 1, taskId: "shake", category: "movement" },
+    { index: 2, taskId: "steps", category: "movement" },
+    { index: 3, taskId: "squats", category: "movement" },
+    { index: 4, taskId: "math", category: "cognitive" },
+  ]),
+  plan("calibration-environment-focus", "Проверяем задачи после воды и яркого света", [
+    { index: 0, taskId: "memory", category: "cognitive" },
+    { index: 1, taskId: "stroop", category: "cognitive" },
+    { index: 2, taskId: "reaction", category: "cognitive" },
+    { index: 3, taskId: "water", category: "behavioral" },
+    { index: 4, taskId: "window", category: "environment" },
+  ]),
+  plan("calibration-movement-memory", "Проверяем движение перед математикой и памятью", [
+    { index: 0, taskId: "shake", category: "movement" },
+    { index: 1, taskId: "steps", category: "movement" },
+    { index: 2, taskId: "squats", category: "movement" },
+    { index: 3, taskId: "math", category: "cognitive" },
+    { index: 4, taskId: "memory", category: "cognitive" },
+  ]),
+  plan("calibration-light-reset", "Проверяем внимание и реакцию со светом и разминкой", [
+    { index: 0, taskId: "stroop", category: "cognitive" },
     { index: 1, taskId: "reaction", category: "cognitive" },
+    { index: 2, taskId: "water", category: "behavioral" },
+    { index: 3, taskId: "window", category: "environment" },
+    { index: 4, taskId: "shake", category: "movement" },
+  ]),
+  plan("calibration-standing-focus", "Проверяем стоячее движение перед задачами", [
+    { index: 0, taskId: "steps", category: "movement" },
+    { index: 1, taskId: "squats", category: "movement" },
     { index: 2, taskId: "math", category: "cognitive" },
     { index: 3, taskId: "memory", category: "cognitive" },
     { index: 4, taskId: "stroop", category: "cognitive" },
   ]),
-  plan("calibration-environment-start", "Проверяем свет и воду перед задачами", [
-    { index: 0, taskId: "window", category: "environment" },
+  plan("calibration-active-light", "Проверяем реакцию после воды, света и движения", [
+    { index: 0, taskId: "reaction", category: "cognitive" },
     { index: 1, taskId: "water", category: "behavioral" },
-    { index: 2, taskId: "memory", category: "cognitive" },
-    { index: 3, taskId: "stroop", category: "cognitive" },
-    { index: 4, taskId: "reaction", category: "cognitive" },
-  ]),
-  plan("calibration-warmup-focus", "Проверяем разминку перед последовательностью задач", [
-    { index: 0, taskId: "shake", category: "movement" },
-    { index: 1, taskId: "stroop", category: "cognitive" },
-    { index: 2, taskId: "math", category: "cognitive" },
-    { index: 3, taskId: "memory", category: "cognitive" },
-    { index: 4, taskId: "reaction", category: "cognitive" },
-  ]),
-  plan("calibration-memory-focus", "Проверяем порядок с ранней задачей на память", [
-    { index: 0, taskId: "water", category: "behavioral" },
-    { index: 1, taskId: "memory", category: "cognitive" },
-    { index: 2, taskId: "math", category: "cognitive" },
-    { index: 3, taskId: "reaction", category: "cognitive" },
-    { index: 4, taskId: "window", category: "environment" },
-  ]),
-  plan("calibration-fast-focus", "Проверяем быстрое включение через движение и реакцию", [
-    { index: 0, taskId: "steps", category: "movement" },
-    { index: 1, taskId: "reaction", category: "cognitive" },
-    { index: 2, taskId: "stroop", category: "cognitive" },
-    { index: 3, taskId: "memory", category: "cognitive" },
-    { index: 4, taskId: "math", category: "cognitive" },
-  ]),
-  plan("calibration-mixed-reset", "Проверяем чередование света, движения и внимания", [
-    { index: 0, taskId: "window", category: "environment" },
-    { index: 1, taskId: "shake", category: "movement" },
-    { index: 2, taskId: "stroop", category: "cognitive" },
-    { index: 3, taskId: "memory", category: "cognitive" },
-    { index: 4, taskId: "math", category: "cognitive" },
+    { index: 2, taskId: "window", category: "environment" },
+    { index: 3, taskId: "shake", category: "movement" },
+    { index: 4, taskId: "steps", category: "movement" },
   ]),
 ];
 
 const FALLBACK: PlannedAssignment = {
   protocolKey: "safe-fallback",
-  protocolVersion: 6,
-  strategyVersion: "fallback-v5",
+  protocolVersion: 7,
+  strategyVersion: "fallback-v6",
   phase: "fallback",
   hypothesis: "Используем безопасный протокол, пока персональных данных недостаточно",
   steps: [
@@ -86,19 +85,19 @@ const FALLBACK: PlannedAssignment = {
 };
 
 const ADAPTIVE_ASSIGNMENTS: readonly PlannedAssignment[] = [
-  plan("adaptive-active-start", "Проверяем активное начало перед задачами", [
-    { index: 0, taskId: "steps", category: "movement" },
-    { index: 1, taskId: "reaction", category: "cognitive" },
-    { index: 2, taskId: "math", category: "cognitive" },
-    { index: 3, taskId: "memory", category: "cognitive" },
-    { index: 4, taskId: "water", category: "behavioral" },
+  plan("adaptive-cognitive-water", "Проверяем когнитивный вариант после воды", [
+    { index: 0, taskId: "water", category: "behavioral" },
+    { index: 1, taskId: "math", category: "cognitive" },
+    { index: 2, taskId: "reaction", category: "cognitive" },
+    { index: 3, taskId: "stroop", category: "cognitive" },
+    { index: 4, taskId: "memory", category: "cognitive" },
   ]),
-  plan("adaptive-fast-focus", "Проверяем быстрое когнитивное включение", [
-    { index: 0, taskId: "reaction", category: "cognitive" },
-    { index: 1, taskId: "stroop", category: "cognitive" },
-    { index: 2, taskId: "math", category: "cognitive" },
-    { index: 3, taskId: "memory", category: "cognitive" },
-    { index: 4, taskId: "shake", category: "movement" },
+  plan("adaptive-standing-light", "Проверяем свет и последовательное движение", [
+    { index: 0, taskId: "window", category: "environment" },
+    { index: 1, taskId: "shake", category: "movement" },
+    { index: 2, taskId: "steps", category: "movement" },
+    { index: 3, taskId: "squats", category: "movement" },
+    { index: 4, taskId: "math", category: "cognitive" },
   ]),
   plan(
     "adaptive-light-first",
@@ -125,31 +124,31 @@ const ADAPTIVE_ASSIGNMENTS: readonly PlannedAssignment[] = [
     ],
     { groupKey: "movement-b", factorKey: "movement", level: "with" },
   ),
-  plan("adaptive-movement-focus", "Проверяем более активное начало пробуждения", [
-    { index: 0, taskId: "squats", category: "movement" },
-    { index: 1, taskId: "steps", category: "movement" },
-    { index: 2, taskId: "reaction", category: "cognitive" },
-    { index: 3, taskId: "stroop", category: "cognitive" },
-    { index: 4, taskId: "water", category: "behavioral" },
+  plan("adaptive-mixed-reset", "Проверяем разминку между задачами и водой", [
+    { index: 0, taskId: "shake", category: "movement" },
+    { index: 1, taskId: "reaction", category: "cognitive" },
+    { index: 2, taskId: "water", category: "behavioral" },
+    { index: 3, taskId: "math", category: "cognitive" },
+    { index: 4, taskId: "stroop", category: "cognitive" },
   ]),
-  plan("adaptive-memory-focus", "Проверяем последовательность с фокусом на память", [
-    { index: 0, taskId: "water", category: "behavioral" },
-    { index: 1, taskId: "memory", category: "cognitive" },
-    { index: 2, taskId: "math", category: "cognitive" },
-    { index: 3, taskId: "reaction", category: "cognitive" },
+  plan("adaptive-standing-memory", "Проверяем движение перед памятью и математикой", [
+    { index: 0, taskId: "steps", category: "movement" },
+    { index: 1, taskId: "squats", category: "movement" },
+    { index: 2, taskId: "memory", category: "cognitive" },
+    { index: 3, taskId: "math", category: "cognitive" },
     { index: 4, taskId: "window", category: "environment" },
   ]),
-  plan("adaptive-mixed-reset", "Проверяем чередование среды, движения и внимания", [
+  plan("adaptive-active-light", "Проверяем сочетание света, движения и воды", [
     { index: 0, taskId: "window", category: "environment" },
     { index: 1, taskId: "shake", category: "movement" },
-    { index: 2, taskId: "stroop", category: "cognitive" },
-    { index: 3, taskId: "memory", category: "cognitive" },
-    { index: 4, taskId: "math", category: "cognitive" },
+    { index: 2, taskId: "steps", category: "movement" },
+    { index: 3, taskId: "squats", category: "movement" },
+    { index: 4, taskId: "water", category: "behavioral" },
   ]),
 ].map((assignment) => ({
   ...assignment,
-  protocolVersion: 6,
-  strategyVersion: "adaptive-v6",
+  protocolVersion: 7,
+  strategyVersion: "adaptive-v7",
   phase: "adaptive" as const,
 }));
 

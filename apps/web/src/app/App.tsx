@@ -262,7 +262,7 @@ const CONFIRM_CONFIG: Partial<
   },
   water: {
     instruction: "Налейте и выпейте стакан воды, если это подходит вам и не запрещено врачом.",
-    countdown: 0,
+    countdown: 10,
     cta: "Выпил",
   },
   window: {
@@ -1001,7 +1001,7 @@ export function ReactionTask({
 }
 
 // ─── Confirm Task ─────────────────────────────────────────────────────────────
-function ConfirmTask({
+export function ConfirmTask({
   taskId,
   durationMinutes,
   onDone,
@@ -1953,14 +1953,6 @@ function StatsScreen({
                 <p className="mt-1 text-sm leading-relaxed">{coach.insight.insight.summary}</p>
                 <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
                   {coach.insight.insight.caveat}
-                </p>
-                <p className="mt-2 text-[11px] text-muted-foreground">
-                  {coach.insight.evidenceCount} подтверждённых сессий ·{" "}
-                  {coach.insight.source === "provider"
-                    ? "Новый персональный отчёт"
-                    : coach.insight.source === "cache"
-                      ? "Сохранённый отчёт"
-                      : "Базовый расчёт по данным"}
                 </p>
                 {coach.insight.limitReached && (
                   <p className="mt-2 text-xs text-muted-foreground">

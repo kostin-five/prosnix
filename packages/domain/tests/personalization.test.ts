@@ -64,6 +64,42 @@ describe("персонализация протокола", () => {
     }
   });
 
+  it("балансирует состав первых семи протоколов полного профиля", () => {
+    const fullProfile: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: ["water", "bright_light", "floor_space"],
+    };
+    const sequences = Array.from({ length: 7 }, (_, completedSessions) => {
+      const candidates = learningAssignmentCandidates(completedSessions).map(
+        (candidate, index) => ({
+          ...candidate,
+          id: `balanced-${completedSessions}-${index}`,
+        }),
+      );
+      const selected = selectPersonalizedAssignment(candidates, fullProfile, 5).assignment;
+      expect(selected.protocolVersion).toBe(7);
+      expect(selected.strategyVersion).toBe("learning-v6");
+      return selected.steps.map(({ taskId }) => taskId);
+    });
+    const count = (taskId: (typeof sequences)[number][number]) =>
+      sequences.filter((taskIds) => taskIds.includes(taskId)).length;
+
+    expect(new Set(sequences.map((taskIds) => taskIds.join(">"))).size).toBe(7);
+    expect(count("math")).toBeLessThanOrEqual(4);
+    expect(count("memory")).toBeLessThanOrEqual(4);
+    expect(count("reaction")).toBeLessThanOrEqual(4);
+    expect(count("squats")).toBeGreaterThanOrEqual(2);
+    expect(count("squats")).toBeLessThanOrEqual(4);
+
+    for (const taskIds of sequences.filter((items) => items.includes("squats"))) {
+      const warmupIndex = Math.min(
+        ...[taskIds.indexOf("steps"), taskIds.indexOf("shake")].filter((index) => index >= 0),
+      );
+      expect(warmupIndex).toBeLessThan(taskIds.indexOf("squats"));
+    }
+  });
+
   it("не повторяет фактическую последовательность после фильтрации профилем", () => {
     const candidates = learningAssignmentCandidates(8).map((candidate) => ({
       ...candidate,

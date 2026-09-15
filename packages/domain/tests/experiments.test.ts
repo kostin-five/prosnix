@@ -47,11 +47,11 @@ describe("план первоначальных экспериментов", () 
 
     expect(continuation[0]).toMatchObject({
       phase: "adaptive",
-      protocolVersion: 6,
-      strategyVersion: "adaptive-v6",
+      protocolVersion: 7,
+      strategyVersion: "adaptive-v7",
     });
-    expect(continuation[1]).toMatchObject({ strategyVersion: "adaptive-v6" });
-    expect(continuation[2]).toMatchObject({ strategyVersion: "adaptive-v6" });
+    expect(continuation[1]).toMatchObject({ strategyVersion: "adaptive-v7" });
+    expect(continuation[2]).toMatchObject({ strategyVersion: "adaptive-v7" });
     expect(continuation[3]?.protocolKey).not.toBe(continuation[0]?.protocolKey);
     expect(
       continuation.slice(1).every((assignment, index) => {
@@ -70,7 +70,7 @@ describe("план первоначальных экспериментов", () 
     expect(new Set(candidates.map(({ protocolKey }) => protocolKey)).size).toBe(7);
     expect(
       candidates.every(
-        ({ strategyVersion, phase }) => strategyVersion === "adaptive-v6" && phase === "adaptive",
+        ({ strategyVersion, phase }) => strategyVersion === "adaptive-v7" && phase === "adaptive",
       ),
     ).toBe(true);
     expect(candidates.flatMap(({ steps }) => steps.map(({ taskId }) => taskId))).not.toContain(
