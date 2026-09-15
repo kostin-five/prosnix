@@ -252,7 +252,7 @@ const CONFIRM_CONFIG: Partial<
   squats: {
     instruction:
       "Сделайте 5 приседаний медленно, глубоко дыша. Напрягите ноги и выпрямитесь полностью.",
-    countdown: 25,
+    countdown: 20,
     cta: "Сделал",
   },
   shake: {

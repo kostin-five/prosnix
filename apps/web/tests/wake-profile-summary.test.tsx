@@ -117,4 +117,22 @@ describe("профиль пробуждения", () => {
     expect(container.textContent).toContain("+3");
     expect(container.textContent).toContain("-1");
   });
+
+  it("показывает фактическую долю устойчивого подъёма", () => {
+    act(() =>
+      root.render(
+        <WakeProfileSummary
+          profile={{
+            ...profile,
+            riseSuccess: { ...profile.riseSuccess, value: 5 / 7, evidenceCount: 7 },
+          }}
+          evidenceCount={7}
+          recentSessions={recentSessions}
+        />,
+      ),
+    );
+
+    expect(container.textContent).toContain("В 71% проверок подъём сохраняется");
+    expect(container.textContent).not.toContain("Примерно в половине");
+  });
 });

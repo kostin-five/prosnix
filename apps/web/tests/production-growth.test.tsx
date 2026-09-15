@@ -46,6 +46,9 @@ describe("production growth UI", () => {
         />,
       ),
     );
+    const legalLinks = Array.from(container.querySelectorAll<HTMLAnchorElement>('a[href^="/"]'));
+    expect(legalLinks.map((link) => link.getAttribute("href"))).toEqual(["/privacy", "/terms"]);
+    expect(legalLinks.every((link) => link.getAttribute("target") === null)).toBe(true);
     const button = container.querySelector<HTMLButtonElement>("button")!;
     expect(button.disabled).toBe(true);
     act(() => container.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());

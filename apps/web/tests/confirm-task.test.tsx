@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConfirmTask } from "../src/app/App.js";
 
-describe("подтверждаемое задание воды", () => {
+describe("подтверждаемые задания с таймером", () => {
   let root: Root;
   let container: HTMLDivElement;
 
@@ -51,5 +51,34 @@ describe("подтверждаемое задание воды", () => {
     act(() => confirm?.click());
     await act(async () => vi.advanceTimersByTimeAsync(500));
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("даёт двадцать секунд на пять приседаний", async () => {
+    const onDone = vi.fn();
+    act(() => root.render(<ConfirmTask taskId="squats" durationMinutes={5} onDone={onDone} />));
+    const start = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+      (item) => item.textContent?.trim() === "Начать",
+    );
+    act(() => start?.click());
+
+    expect(container.textContent).toContain("20");
+    let confirm = [...container.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
+      item.textContent?.includes("Сделал"),
+    );
+    expect(confirm?.disabled).toBe(true);
+
+    for (let second = 0; second < 19; second += 1) {
+      await act(async () => vi.advanceTimersByTimeAsync(1_000));
+    }
+    confirm = [...container.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
+      item.textContent?.includes("Сделал"),
+    );
+    expect(confirm?.disabled).toBe(true);
+
+    await act(async () => vi.advanceTimersByTimeAsync(1_000));
+    confirm = [...container.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
+      item.textContent?.includes("Сделал"),
+    );
+    expect(confirm?.disabled).toBe(false);
   });
 });

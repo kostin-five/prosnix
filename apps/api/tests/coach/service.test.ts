@@ -47,11 +47,11 @@ function profile(evidenceCount: number): AnalyticsProfile {
   };
 }
 
-function setup(evidenceCount: number) {
+function setup(evidenceCount: number, makeProfile: (count: number) => AnalyticsProfile = profile) {
   let currentEvidenceCount = evidenceCount;
   let saved: CoachInsightRecord | null = null;
   const analytics: AnalyticsRepository = {
-    recompute: vi.fn(async () => profile(currentEvidenceCount)),
+    recompute: vi.fn(async () => makeProfile(currentEvidenceCount)),
   };
   const cache: CoachInsightRepository = {
     findByUserId: vi.fn(async () => saved),
@@ -143,6 +143,27 @@ describe("CoachService", () => {
     });
     await service.getInsight("user-1", new Date("2026-09-05T10:00:00.000Z"));
     expect(gateway.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not describe one observed day as a stable result between days", async () => {
+    const { service, gateway } = setup(7, (count) => ({
+      ...profile(count),
+      riseSuccess: { ...profile(count).riseSuccess, value: 5 / 7 },
+      dailyTrend: [
+        {
+          localDate: "2026-09-15",
+          averageDelta: 2.1,
+          evidenceCount: count,
+          sessionIds: Array.from({ length: count }, (_, index) => `session-${index}`),
+        },
+      ],
+    }));
+    gateway.generate.mockRejectedValueOnce(new Error("timeout"));
+
+    const result = await service.getInsight("user-1");
+    expect(result.insight?.summary).toContain("В 71% ответов");
+    expect(result.insight?.summary).toContain("нужны результаты хотя бы за два дня");
+    expect(result.insight?.summary).not.toContain("между днями достаточно ровный");
   });
 
   it("removes evidence ids and derives stable trend signals", async () => {

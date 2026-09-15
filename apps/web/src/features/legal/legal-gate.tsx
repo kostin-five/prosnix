@@ -42,12 +42,8 @@ export function LegalGate({
           чтобы строить личную статистику. Prosnix не является медицинской услугой.
         </p>
         <div className="mt-5 flex gap-4 text-sm font-semibold text-primary">
-          <a href="/privacy" target="_blank" rel="noreferrer">
-            Политика
-          </a>
-          <a href="/terms" target="_blank" rel="noreferrer">
-            Соглашение
-          </a>
+          <a href="/privacy">Политика</a>
+          <a href="/terms">Соглашение</a>
         </div>
         <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl bg-secondary p-4 text-sm">
           <input
