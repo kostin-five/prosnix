@@ -1,7 +1,6 @@
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import { taskSuccessTarget } from "@awc/domain";
 import {
-  Bell,
   Home,
   BarChart2,
   Flame,
@@ -18,6 +17,8 @@ import {
   AlertCircle,
   Sparkles,
   Settings,
+  ListTree,
+  X,
 } from "lucide-react";
 import { useBootstrap } from "../features/bootstrap/use-bootstrap.js";
 import { useAnalyticsProfile } from "../features/analytics/use-analytics.js";
@@ -33,11 +34,7 @@ import {
   saveTaskResult,
 } from "../features/session/session-api.js";
 import type { BootstrapResponse, WakeSessionResponse } from "../shared/api/client.js";
-import {
-  saveWakeSchedule,
-  snoozeWakeSchedule,
-  type WakeSchedule,
-} from "../features/schedule/schedule-api.js";
+import { saveWakeSchedule, type WakeSchedule } from "../features/schedule/schedule-api.js";
 import { LegalGate } from "../features/legal/legal-gate.js";
 import {
   saveWakeProfile,
@@ -76,15 +73,7 @@ const WakeRoutineChecklist = lazy(async () => ({
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Screen =
-  | "home"
-  | "context"
-  | "alarm"
-  | "startRating"
-  | "tasks"
-  | "endRating"
-  | "results"
-  | "stats"
-  | "settings";
+  "home" | "context" | "startRating" | "tasks" | "endRating" | "results" | "stats" | "settings";
 type TaskId =
   | "math"
   | "memory"
@@ -156,6 +145,23 @@ function resumedServerSession(
     followUpDueAt: null,
     abandonedAt: null,
   };
+}
+
+function screenForSession(session: WakeSessionResponse, taskCount: number): Screen {
+  if (session.baseline === null) return "startRating";
+  if (session.currentStepIndex >= taskCount) return "endRating";
+  return "tasks";
+}
+
+export function initialProtocolScreen(
+  resume: NonNullable<BootstrapResponse["activeSession"]> | undefined,
+  launchSource: string | null,
+): Screen {
+  if (!resume) return launchSource === "wake" ? "startRating" : "home";
+  if (resume.baseline === null) return "startRating";
+  const taskCount = resume.protocol.steps.filter((step) => step.category !== undefined).length;
+  if (resume.session.currentStepIndex >= taskCount) return "endRating";
+  return "tasks";
 }
 
 // ─── Task Pool ────────────────────────────────────────────────────────────────
@@ -1096,35 +1102,41 @@ export function ConfirmTask({
 }
 
 // ─── Tasks Container ──────────────────────────────────────────────────────────
-function TasksContainer({
+export function TasksContainer({
   taskIds,
   taskIndex,
   durationMinutes,
-  reason,
   onDone,
 }: {
   taskIds: TaskId[];
   taskIndex: number;
   durationMinutes: WakeDurationMinutes;
-  reason: string | null;
   onDone: (r: TaskResult) => void;
 }) {
+  const [protocolOpen, setProtocolOpen] = useState(false);
   const id = taskIds[taskIndex];
+  const nextId = taskIds[taskIndex + 1];
   const meta = TASK_META[id];
   const catMeta = CAT_META[meta.category];
   const progress = (taskIndex / taskIds.length) * 100;
   return (
     <div className="flex flex-col flex-1 p-6">
       <div className="mb-8">
-        {reason && (
-          <p className="mb-3 rounded-xl bg-secondary px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-            Почему этот протокол: {reason} Оцениваем изменение бодрости до и после выполнения.
-          </p>
-        )}
-        <div className="flex items-center justify-between mb-2">
+        <div className="mb-3 flex items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">
             Шаг {taskIndex + 1} из {taskIds.length}
           </span>
+          <button
+            type="button"
+            aria-expanded={protocolOpen}
+            onClick={() => setProtocolOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground active:scale-[0.98]"
+          >
+            <ListTree className="h-4 w-4 text-primary" />
+            Протокол
+          </button>
+        </div>
+        <div className="mb-2 flex items-center justify-end">
           <span
             className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${catMeta.bg} border-transparent ${catMeta.color}`}
           >
@@ -1140,6 +1152,49 @@ function TasksContainer({
             style={{ width: `${progress}%` }}
           />
         </div>
+        {protocolOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-end bg-black/60 p-4"
+            onClick={() => setProtocolOpen(false)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Назначенный протокол"
+              className="mx-auto w-full max-w-[358px] rounded-3xl border border-border bg-card p-4 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-bold">Твой протокол</p>
+                  <p className="text-xs text-muted-foreground">
+                    Порядок сохранён для этого пробуждения
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Закрыть протокол"
+                  onClick={() => setProtocolOpen(false)}
+                  className="grid h-9 w-9 place-items-center rounded-xl bg-secondary text-muted-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <ol className="space-y-2">
+                {taskIds.map((taskId, index) => (
+                  <li
+                    key={`${taskId}-${index}`}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2 ${index === taskIndex ? "bg-primary/10 text-primary" : "bg-secondary/60"}`}
+                  >
+                    <span className="w-5 text-center text-xs font-bold">{index + 1}</span>
+                    <TaskIcon taskId={taskId} className="h-4 w-4" />
+                    <span className="text-sm font-medium">{TASK_META[taskId].title}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-3 mb-10">
         <div className="w-12 h-12 rounded-2xl bg-primary/20 border border-primary/20 flex items-center justify-center text-primary">
@@ -1158,6 +1213,18 @@ function TasksContainer({
           </p>
         </div>
       </div>
+      {nextId && (
+        <div className="mb-6 flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Дальше
+          </span>
+          <TaskIcon taskId={nextId} className="h-4 w-4 text-primary" />
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+            {TASK_META[nextId].title}
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </div>
+      )}
       <div className="flex-1">
         {id === "math" && (
           <MathTask key={`${id}-${taskIndex}`} durationMinutes={durationMinutes} onDone={onDone} />
@@ -1314,75 +1381,18 @@ function HomeScreen({
   );
 }
 
-// ─── Alarm Screen ─────────────────────────────────────────────────────────────
-function AlarmScreen({
-  alarmTime,
-  onBegin,
-  onSnooze,
-  snoozing,
-  snoozedUntil,
-}: {
-  alarmTime: string;
-  onBegin: () => void;
-  onSnooze: () => void;
-  snoozing: boolean;
-  snoozedUntil: string | null;
-}) {
-  const [pulse, setPulse] = useState(true);
-  useEffect(() => {
-    const t = setInterval(() => setPulse((p) => !p), 900);
-    return () => clearInterval(t);
-  }, []);
-  const dateStr = new Date().toLocaleDateString("ru", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-  return (
-    <div
-      className="flex flex-col flex-1 items-center justify-center p-6 text-center"
-      style={{
-        background:
-          "radial-gradient(ellipse at 50% 30%, rgba(249,115,22,0.12) 0%, transparent 65%)",
-      }}
-    >
-      <div
-        className={`w-24 h-24 rounded-full border-2 border-primary/40 flex items-center justify-center mb-8 transition-all duration-700 ${pulse ? "bg-primary/25 shadow-[0_0_40px_rgba(249,115,22,0.3)]" : "bg-primary/10"}`}
-      >
-        <Bell className="w-11 h-11 text-primary" />
-      </div>
-      <p className="text-muted-foreground text-base mb-2 font-medium">Пора вставать!</p>
-      <div className="text-7xl font-black tracking-tight mb-3">{alarmTime}</div>
-      <p className="text-muted-foreground text-sm mb-14 capitalize">{dateStr}</p>
-      <div className="w-full space-y-3">
-        <button
-          onClick={onBegin}
-          className="w-full py-5 rounded-2xl text-lg font-bold text-white flex items-center justify-center gap-3 active:scale-[0.98] transition-transform"
-          style={{
-            background: "linear-gradient(135deg,#F97316,#EA580C)",
-            boxShadow: "0 8px 32px rgba(249,115,22,.25)",
-          }}
-        >
-          Начать протокол <ArrowRight className="w-5 h-5" />
-        </button>
-        <button
-          onClick={onSnooze}
-          disabled={snoozing}
-          className="w-full py-3.5 text-muted-foreground text-sm rounded-2xl hover:text-foreground transition-colors disabled:opacity-60"
-        >
-          {snoozing
-            ? "Откладываем…"
-            : snoozedUntil
-              ? `Отложено до ${new Date(snoozedUntil).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`
-              : "Отложить на 5 минут"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ─── Start Rating ─────────────────────────────────────────────────────────────
-function StartRatingScreen({ onDone }: { onDone: (v: number) => void }) {
+export function StartRatingScreen({
+  onDone,
+  ready = true,
+  busy = false,
+  onRetry,
+}: {
+  onDone: (v: number) => void;
+  ready?: boolean;
+  busy?: boolean;
+  onRetry?: () => void;
+}) {
   const [sel, setSel] = useState<number | null>(null);
   return (
     <div className="flex flex-col flex-1 p-6 justify-center">
@@ -1398,10 +1408,10 @@ function StartRatingScreen({ onDone }: { onDone: (v: number) => void }) {
       </div>
       <button
         onClick={() => sel && onDone(sel)}
-        disabled={!sel}
-        className={`w-full py-4 rounded-2xl text-lg font-bold transition-all ${sel ? "text-white active:scale-[0.98]" : "bg-secondary text-muted-foreground"}`}
+        disabled={!sel || !ready || busy}
+        className={`w-full py-4 rounded-2xl text-lg font-bold transition-all ${sel && ready && !busy ? "text-white active:scale-[0.98]" : "bg-secondary text-muted-foreground"}`}
         style={
-          sel
+          sel && ready && !busy
             ? {
                 background: "linear-gradient(135deg,#F97316,#EA580C)",
                 boxShadow: "0 8px 32px rgba(249,115,22,.25)",
@@ -1409,8 +1419,17 @@ function StartRatingScreen({ onDone }: { onDone: (v: number) => void }) {
             : {}
         }
       >
-        Начать протокол →
+        {!ready ? "Подготавливаем протокол…" : busy ? "Сохраняем…" : "Начать протокол →"}
       </button>
+      {!ready && !busy && onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-3 w-full rounded-2xl border border-border py-3 text-sm font-semibold"
+        >
+          Повторить подключение
+        </button>
+      )}
     </div>
   );
 }
@@ -2066,10 +2085,7 @@ function StatsScreen({
 
       {!demo && (
         <Suspense fallback={null}>
-          <StatsResearchCards
-            refreshKey={sessions.length}
-            showAnalyticsHelp={Boolean(apiProfile)}
-          />
+          <StatsResearchCards refreshKey={sessions.length} />
         </Suspense>
       )}
 
@@ -2293,25 +2309,13 @@ function PrototypeApp({
   const resumedTaskIds = (resume?.protocol.steps ?? [])
     .map(({ taskId }) => taskId)
     .filter((taskId): taskId is TaskId => taskId in TASK_META);
-  const [screen, setScreen] = useState<Screen>(
-    resume
-      ? resume.baseline === null
-        ? "startRating"
-        : resume.session.currentStepIndex >= resumedTaskIds.length
-          ? "endRating"
-          : "tasks"
-      : launchSource === "wake"
-        ? "alarm"
-        : "home",
-  );
+  const [screen, setScreen] = useState<Screen>(() => initialProtocolScreen(resume, launchSource));
   const [navTab, setNavTab] = useState<"home" | "stats" | "settings">("home");
   const [alarmTime, setAlarmTime] = useState(initialWakeSchedule?.localTime ?? "07:00");
   const [wakeSchedule, setWakeSchedule] = useState<WakeSchedule | null>(
     initialWakeSchedule ?? null,
   );
   const [scheduleSaving, setScheduleSaving] = useState(false);
-  const [snoozing, setSnoozing] = useState(false);
-  const [snoozedUntil, setSnoozedUntil] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>(demo ? MOCK_SESSIONS : []);
   const [serverSession, setServerSession] = useState<WakeSessionResponse | null>(
     resume ? resumedServerSession(resume) : null,
@@ -2334,10 +2338,17 @@ function PrototypeApp({
   const taskSubmissionGateRef = useRef(new TaskSubmissionGate());
   const [taskRenderVersion, setTaskRenderVersion] = useState(0);
   const [completedSession, setCompletedSession] = useState<Session | null>(null);
+  const directWakeStartedRef = useRef(false);
 
   useEffect(() => {
     taskSubmissionGateRef.current.reset();
   }, [serverSession?.id, taskIndex]);
+
+  useEffect(() => {
+    if (launchSource !== "wake" || resume || directWakeStartedRef.current) return;
+    directWakeStartedRef.current = true;
+    void startSession("night_sleep", initialWakeProfile.defaultDurationMinutes);
+  }, [initialWakeProfile.defaultDurationMinutes, launchSource, resume]);
 
   async function saveScheduleSetting(input: {
     localTime: string;
@@ -2367,39 +2378,17 @@ function PrototypeApp({
     }
   }
 
-  async function handleSnooze(): Promise<void> {
-    setSnoozing(true);
-    setSyncError(null);
-    try {
-      const saved = demo
-        ? {
-            localTime: wakeSchedule?.localTime ?? alarmTime,
-            timezone:
-              wakeSchedule?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC",
-            enabled: true,
-            nextTriggerAt: new Date(Date.now() + 5 * 60_000).toISOString(),
-            botStatus: "available" as const,
-            revision: (wakeSchedule?.revision ?? 0) + 1,
-          }
-        : await snoozeWakeSchedule();
-      setWakeSchedule(saved);
-      setSnoozedUntil(saved.nextTriggerAt);
-    } catch (error) {
-      setSyncError(error instanceof Error ? error.message : "Не удалось отложить напоминание");
-    } finally {
-      setSnoozing(false);
-    }
-  }
-
   function applyConflict(error: unknown, submittedStepIndex?: number): void {
     if (error instanceof SessionConflictError && error.canonicalSession) {
-      setServerSession(error.canonicalSession);
-      setTaskIndex(error.canonicalSession.currentStepIndex);
-      setTaskIds(
-        error.canonicalSession.assignment.steps
-          .map(({ taskId }) => taskId)
-          .filter((taskId): taskId is TaskId => taskId in TASK_META),
-      );
+      const canonical = error.canonicalSession;
+      const canonicalTaskIds = canonical.assignment.steps
+        .map(({ taskId }) => taskId)
+        .filter((taskId): taskId is TaskId => taskId in TASK_META);
+      setServerSession(canonical);
+      setTaskIndex(canonical.currentStepIndex);
+      setTaskIds(canonicalTaskIds);
+      setStartAlertness(canonical.baseline ?? 0);
+      setScreen(screenForSession(canonical, canonicalTaskIds.length));
       setSyncError(
         taskSubmissionConflictMessage(
           error.code,
@@ -2414,7 +2403,6 @@ function PrototypeApp({
 
   async function startSession(wakeContext: WakeContext, durationMinutes: WakeDurationMinutes) {
     setSyncError(null);
-    setSnoozedUntil(null);
     setActiveDurationMinutes(durationMinutes);
     sessionStartRef.current = Date.now();
     if (demo) {
@@ -2717,27 +2705,24 @@ function PrototypeApp({
             </Suspense>
           </LazyBoundary>
         )}
-        {screen === "alarm" && (
-          <AlarmScreen
-            alarmTime={alarmTime}
-            onBegin={() => setScreen("startRating")}
-            onSnooze={() => void handleSnooze()}
-            snoozing={snoozing}
-            snoozedUntil={snoozedUntil}
+        {screen === "startRating" && (
+          <StartRatingScreen
+            onDone={handleStartRating}
+            ready={demo || Boolean(serverSession)}
+            busy={syncing}
+            onRetry={
+              launchSource === "wake" && !serverSession
+                ? () => void startSession("night_sleep", initialWakeProfile.defaultDurationMinutes)
+                : undefined
+            }
           />
         )}
-        {screen === "startRating" && <StartRatingScreen onDone={handleStartRating} />}
         {screen === "tasks" && (
           <TasksContainer
             key={`${serverSession?.id ?? "demo"}-${taskIndex}-${taskRenderVersion}`}
             taskIds={taskIds}
             taskIndex={taskIndex}
             durationMinutes={serverSession?.durationMinutes ?? activeDurationMinutes}
-            reason={
-              demo
-                ? "Пробуем следующую комбинацию заданий"
-                : (serverSession?.assignment.hypothesis ?? null)
-            }
             onDone={handleTaskDone}
           />
         )}
@@ -2763,7 +2748,8 @@ function PrototypeApp({
 
 export default function App() {
   const bootstrap = useBootstrap();
-  const [resumeAccepted, setResumeAccepted] = useState(false);
+  const launchSource = new URLSearchParams(window.location.search).get("source");
+  const [resumeAccepted, setResumeAccepted] = useState(launchSource === "wake");
   const [resumeDiscarded, setResumeDiscarded] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState<string | null>(null);
