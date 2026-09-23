@@ -144,8 +144,8 @@ test("полный wake-up цикл подтверждается серверо�
       computedAt: "2026-09-08T06:01:00.000Z",
       averageDelta: {
         key: "average-delta",
-        value: 1.4,
-        evidenceCount: 14,
+        value: 4,
+        evidenceCount: 1,
         evidenceIds: [],
         confidence: "high",
       },
@@ -189,9 +189,9 @@ test("полный wake-up цикл подтверждается серверо�
   await page.getByRole("button", { name: "7", exact: true }).click();
   await page.getByRole("button", { name: "Сохранить результат" }).click();
   await expect(page.getByRole("heading", { name: "Протокол завершён" })).toBeVisible();
-  await expect(page.getByText(/Профиль обновлён/)).toBeVisible();
-  await expect(page.getByText(/Учтено 14 завершённых сессий/)).toBeVisible();
-  await expect(page.getByText(/Ещё 6 пробуждений/)).toHaveCount(0);
+  await expect(page.getByText(/Ещё 6 пробуждений/)).toBeVisible();
+  await expect(page.getByText("Вечером проверь настройки")).toBeVisible();
+  await expect(page.getByText(/дополнительного утреннего уведомления не будет/)).toBeVisible();
   await page.getByRole("button", { name: "Ответить сейчас" }).click();
   await page.getByRole("button", { name: /Да, уже встал/ }).click();
   await expect(page.getByText("Встал и не лёг обратно")).toBeVisible();

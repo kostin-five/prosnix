@@ -5,6 +5,7 @@ import type { WakeSchedule } from "../schedule/schedule-api.js";
 import { WakeScheduleCard } from "../schedule/wake-schedule-card.js";
 import { ProCard } from "../billing/pro-card.js";
 import { CapabilityProfileCard } from "../personalization/capability-profile-card.js";
+import { MorningGoalCard } from "../personalization/morning-goal-card.js";
 import { WakeRoutineCard } from "../personalization/wake-routine-card.js";
 import type { WakeProfile, WakeRoutine } from "../../shared/api/client.js";
 
@@ -19,6 +20,8 @@ export default function SettingsScreen({
   personalizationSaving,
   onProfileSave,
   onRoutineSave,
+  localStorageScope,
+  goalCalibrationEnabled,
 }: {
   alarmTime: string;
   schedule: WakeSchedule | null;
@@ -34,6 +37,8 @@ export default function SettingsScreen({
   personalizationSaving: boolean;
   onProfileSave: (profile: Omit<WakeProfile, "revision">) => Promise<void>;
   onRoutineSave: (routine: Omit<WakeRoutine, "revision">) => Promise<void>;
+  localStorageScope: string;
+  goalCalibrationEnabled: boolean;
 }) {
   return (
     <div className="flex flex-1 flex-col overflow-y-auto px-5 pb-28 pt-14">
@@ -57,6 +62,7 @@ export default function SettingsScreen({
         saving={personalizationSaving}
         onSave={onProfileSave}
       />
+      {goalCalibrationEnabled && <MorningGoalCard storageScope={localStorageScope} />}
       <WakeRoutineCard
         routine={wakeRoutine}
         saving={personalizationSaving}
@@ -99,7 +105,7 @@ export default function SettingsScreen({
         </a>
       </section>
 
-      {!demo && <DeleteProfile />}
+      {!demo && <DeleteProfile localStorageScope={localStorageScope} />}
     </div>
   );
 }

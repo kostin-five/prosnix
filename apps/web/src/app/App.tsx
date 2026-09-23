@@ -58,6 +58,8 @@ import {
   taskSubmissionConflictMessage,
 } from "../features/session/task-submission-gate.js";
 
+const GOAL_CALIBRATION_ENABLED = import.meta.env.VITE_GOAL_CALIBRATION_ENABLED !== "false";
+
 const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
 const HomeScreenPrompt = lazy(async () => ({
   default: (await import("../features/onboarding/home-screen-prompt.js")).HomeScreenPrompt,
@@ -68,6 +70,9 @@ const CapabilityOnboardingScreen = lazy(
 const StatsResearchCards = lazy(() => import("../features/research/stats-research-cards.js"));
 const TaskTimerVisual = lazy(() => import("../features/tasks/task-timer-visual.js"));
 const ProtocolSheet = lazy(() => import("../features/tasks/protocol-sheet.js"));
+const MorningExperienceSlot = lazy(
+  () => import("../features/personalization/morning-experience-slot.js"),
+);
 const WakeProfileSummary = lazy(() => import("../features/analytics/wake-profile-summary.js"));
 const WakeContextSheet = lazy(async () => ({
   default: (await import("../features/personalization/wake-context-sheet.js")).WakeContextSheet,
@@ -1279,10 +1284,14 @@ function HomeScreen({
   onStart,
   sessions,
   demo,
+  localStorageScope,
+  onOpenSettings,
 }: {
   onStart: () => void;
   sessions: Session[];
   demo: boolean;
+  localStorageScope: string;
+  onOpenSettings: () => void;
 }) {
   const analytics = useAnalyticsProfile(!demo, sessions.length);
   const history = useSessionHistory(!demo, sessions.length);
@@ -1351,6 +1360,16 @@ function HomeScreen({
         </p>
       </div>
 
+      {GOAL_CALIBRATION_ENABLED && (
+        <Suspense fallback={null}>
+          <MorningExperienceSlot
+            mode="due"
+            storageScope={localStorageScope}
+            onOpenSettings={onOpenSettings}
+          />
+        </Suspense>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="bg-card border border-border rounded-2xl p-4">
@@ -1393,11 +1412,13 @@ export function StartRatingScreen({
   ready = true,
   busy = false,
   onRetry,
+  localStorageScope,
 }: {
   onDone: (v: number) => void;
   ready?: boolean;
   busy?: boolean;
   onRetry?: () => void;
+  localStorageScope?: string;
 }) {
   const [sel, setSel] = useState<number | null>(null);
   return (
@@ -1407,6 +1428,11 @@ export function StartRatingScreen({
         <h1 className="text-2xl font-bold mb-2">Перед протоколом</h1>
         <p className="text-muted-foreground">Насколько бодрым ты себя чувствуешь прямо сейчас?</p>
       </div>
+      {GOAL_CALIBRATION_ENABLED && localStorageScope && (
+        <Suspense fallback={null}>
+          <MorningExperienceSlot mode="goal" storageScope={localStorageScope} />
+        </Suspense>
+      )}
       <RatingGrid selected={sel} onSelect={setSel} />
       <div className="flex justify-between text-xs text-muted-foreground px-1 mb-8">
         <span>1 — еле проснулся</span>
@@ -1518,7 +1544,9 @@ function ResultsScreen({
   allSessions,
   onStats,
   onHome,
+  onSettings,
   onFollowUp,
+  localStorageScope,
   routine,
   demo,
 }: {
@@ -1526,7 +1554,9 @@ function ResultsScreen({
   allSessions: Session[];
   onStats: () => void;
   onHome: () => void;
+  onSettings: () => void;
   onFollowUp: (answer: Exclude<FollowUp, null>) => Promise<void>;
+  localStorageScope: string;
   routine: WakeRoutine;
   demo: boolean;
 }) {
@@ -1736,6 +1766,20 @@ function ResultsScreen({
       <Suspense fallback={null}>
         <HomeScreenPrompt firstCompletion={evidenceCount === 1} />
       </Suspense>
+
+      {GOAL_CALIBRATION_ENABLED &&
+        evidenceCount !== null &&
+        evidenceCount >= 1 &&
+        evidenceCount <= 3 && (
+          <Suspense fallback={null}>
+            <MorningExperienceSlot
+              mode="scheduled"
+              storageScope={localStorageScope}
+              sessionNumber={evidenceCount}
+              onOpenSettings={onSettings}
+            />
+          </Suspense>
+        )}
 
       <Suspense fallback={null}>
         <WakeRoutineChecklist sessionId={session.id} routine={routine} demo={demo} />
@@ -2302,6 +2346,7 @@ function BottomNav({
 // ─── App ──────────────────────────────────────────────────────────────────────
 function PrototypeApp({
   demo,
+  localStorageScope,
   resume,
   dueFollowUpSessionId,
   initialWakeSchedule,
@@ -2309,6 +2354,7 @@ function PrototypeApp({
   initialWakeRoutine,
 }: {
   demo: boolean;
+  localStorageScope: string;
   resume?: NonNullable<BootstrapResponse["activeSession"]>;
   dueFollowUpSessionId?: string | null;
   initialWakeSchedule?: WakeSchedule | null;
@@ -2619,6 +2665,11 @@ function PrototypeApp({
     setScreen("home");
   }
 
+  function openSettings(): void {
+    setNavTab("settings");
+    setScreen("settings");
+  }
+
   async function updateWakeRoutine(input: Omit<WakeRoutine, "revision">): Promise<void> {
     setPersonalizationSaving(true);
     try {
@@ -2687,7 +2738,13 @@ function PrototypeApp({
           </div>
         )}
         {screen === "home" && (
-          <HomeScreen onStart={() => setScreen("context")} sessions={sessions} demo={demo} />
+          <HomeScreen
+            onStart={() => setScreen("context")}
+            sessions={sessions}
+            demo={demo}
+            localStorageScope={localStorageScope}
+            onOpenSettings={openSettings}
+          />
         )}
         {screen === "onboarding" && (
           <Suspense
@@ -2743,6 +2800,8 @@ function PrototypeApp({
                 personalizationSaving={personalizationSaving}
                 onProfileSave={updateWakeProfile}
                 onRoutineSave={updateWakeRoutine}
+                localStorageScope={localStorageScope}
+                goalCalibrationEnabled={GOAL_CALIBRATION_ENABLED}
               />
             </Suspense>
           </LazyBoundary>
@@ -2752,6 +2811,7 @@ function PrototypeApp({
             onDone={handleStartRating}
             ready={demo || Boolean(serverSession)}
             busy={syncing}
+            localStorageScope={localStorageScope}
             onRetry={
               launchSource === "wake" && !serverSession
                 ? () => void startSession("night_sleep", wakeProfile.defaultDurationMinutes)
@@ -2777,7 +2837,9 @@ function PrototypeApp({
             allSessions={sessions}
             onStats={() => handleNavTab("stats")}
             onHome={() => handleNavTab("home")}
+            onSettings={() => handleNavTab("settings")}
             onFollowUp={handleFollowUp}
+            localStorageScope={localStorageScope}
             routine={wakeRoutine}
             demo={demo}
           />
@@ -2907,6 +2969,7 @@ export default function App() {
   return (
     <PrototypeApp
       demo={bootstrap.mode === "demo"}
+      localStorageScope={bootstrap.mode === "telegram" ? bootstrap.data.user.id : "demo"}
       {...(bootstrap.mode === "telegram" && bootstrap.data.activeSession && !resumeDiscarded
         ? { resume: bootstrap.data.activeSession }
         : {})}

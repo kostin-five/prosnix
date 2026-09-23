@@ -1,9 +1,10 @@
 import { useState } from "react";
 
 import { deleteProfile } from "../../shared/api/client.js";
+import { clearMorningPreferences } from "../personalization/morning-preferences.js";
 import { clearSessionDrafts } from "../session/draft-store.js";
 
-export function DeleteProfile() {
+export function DeleteProfile({ localStorageScope }: { localStorageScope: string }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -14,6 +15,7 @@ export function DeleteProfile() {
     try {
       await deleteProfile();
       await clearSessionDrafts();
+      clearMorningPreferences(localStorageScope);
       window.location.reload();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Не удалось удалить профиль");

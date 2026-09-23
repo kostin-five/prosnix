@@ -30,6 +30,14 @@ test("пользователь настраивает возможности, к
   await page.getByText("Показывать рутину").click();
   await page.getByRole("button", { name: "Сохранить рутину" }).click();
 
+  await page.getByRole("button", { name: "Добавить цель" }).click();
+  const goalInput = page.getByLabel("Моя причина встать утром");
+  await expect(goalInput).toHaveAttribute("enterkeyhint", "done");
+  await expect(goalInput).toHaveAttribute("maxlength", "120");
+  await goalInput.fill("Закончить важный проект");
+  await goalInput.press("Enter");
+  await expect(page.getByText("Закончить важный проект")).toBeVisible();
+
   await page.getByRole("button", { name: "Главная" }).click();
   await page.getByRole("button", { name: "Попробовать пробуждение" }).click();
   await expect(page.getByText("Первые протоколы могут совпадать")).toBeVisible();
@@ -37,6 +45,7 @@ test("пользователь настраивает возможности, к
   await expect(page.getByRole("button", { name: "2 мин" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Начать пробуждение" }).click();
   await expect(page.getByRole("heading", { name: "Перед протоколом" })).toBeVisible();
+  await expect(page.getByText("Закончить важный проект")).toBeVisible();
   await expect(page.getByText("Насколько бодрым ты себя чувствуешь прямо сейчас?")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,

@@ -73,6 +73,18 @@ test("пользователь подтверждает удаление и на
 
   await page.goto("/");
   await page.getByRole("button", { name: "Настройки" }).click();
+  await page.getByRole("button", { name: "Добавить цель" }).click();
+  await page.getByLabel("Моя причина встать утром").fill("Личная цель для удаления");
+  await page.getByRole("button", { name: "Сохранить", exact: true }).last().click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Object.keys(window.localStorage).some((key) =>
+          key.startsWith("prosnix.morning-preferences.v1:"),
+        ),
+      ),
+    )
+    .toBe(true);
   await page.getByRole("button", { name: "Удалить мой профиль" }).click();
   const deletion = page.waitForRequest(
     (request) => request.url().includes("/api/v1/me") && request.method() === "DELETE",
@@ -81,4 +93,13 @@ test("пользователь подтверждает удаление и на
   await deletion;
   await expect(page.getByRole("heading", { name: "Prosnix" })).toBeVisible();
   await expect(page.getByText(/0 из 7 экспериментов/)).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Object.keys(window.localStorage).some((key) =>
+          key.startsWith("prosnix.morning-preferences.v1:"),
+        ),
+      ),
+    )
+    .toBe(false);
 });
