@@ -7,6 +7,11 @@ interface TelegramWebApp {
   openInvoice?(url: string, callback?: (status: string) => void): void;
   checkHomeScreenStatus?(callback: (status: TelegramHomeScreenStatus) => void): void;
   addToHomeScreen?(): void;
+  HapticFeedback?: {
+    impactOccurred?(style: "light" | "medium" | "heavy" | "rigid" | "soft"): void;
+    notificationOccurred?(type: "error" | "success" | "warning"): void;
+    selectionChanged?(): void;
+  };
 }
 
 export type TelegramHomeScreenStatus = "unsupported" | "unknown" | "added" | "missed";
@@ -26,6 +31,23 @@ export function addTelegramToHomeScreen(): boolean {
 
 export function closeTelegramMiniApp(): void {
   window.Telegram?.WebApp?.close?.();
+}
+
+export function triggerTelegramHaptic(kind: "start" | "cue" | "success" | "error"): boolean {
+  const haptic = window.Telegram?.WebApp?.HapticFeedback;
+  if (!haptic) return false;
+  try {
+    if (kind === "success" || kind === "error") {
+      haptic.notificationOccurred?.(kind);
+    } else if (kind === "cue") {
+      haptic.selectionChanged?.();
+    } else {
+      haptic.impactOccurred?.("light");
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function openTelegramInvoice(url: string): Promise<string> {

@@ -57,8 +57,11 @@ import {
   TaskSubmissionGate,
   taskSubmissionConflictMessage,
 } from "../features/session/task-submission-gate.js";
+import type { WakeSoundMode } from "../features/tasks/task-experience-feedback.js";
 
 const GOAL_CALIBRATION_ENABLED = import.meta.env.VITE_GOAL_CALIBRATION_ENABLED !== "false";
+const GUIDED_TASK_EXPERIENCE_ENABLED =
+  import.meta.env.VITE_GUIDED_TASK_EXPERIENCE_ENABLED !== "false";
 
 const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
 const HomeScreenPrompt = lazy(async () => ({
@@ -69,11 +72,14 @@ const CapabilityOnboardingScreen = lazy(
 );
 const StatsResearchCards = lazy(() => import("../features/research/stats-research-cards.js"));
 const TaskTimerVisual = lazy(() => import("../features/tasks/task-timer-visual.js"));
+const TaskMotionVisual = lazy(() => import("../features/tasks/task-motion-visual.js"));
+const TaskSoundToggle = lazy(() => import("../features/tasks/task-sound-toggle.js"));
 const ProtocolSheet = lazy(() => import("../features/tasks/protocol-sheet.js"));
 const MorningExperienceSlot = lazy(
   () => import("../features/personalization/morning-experience-slot.js"),
 );
 const WakeProfileSummary = lazy(() => import("../features/analytics/wake-profile-summary.js"));
+const PixGuide = lazy(() => import("../features/brand/pix-guide.js"));
 const WakeContextSheet = lazy(async () => ({
   default: (await import("../features/personalization/wake-context-sheet.js")).WakeContextSheet,
 }));
@@ -107,6 +113,16 @@ type TaskId =
 type TaskCategory = "cognitive" | "movement" | "behavioral" | "environment";
 type FollowUp = "up" | "back" | "drowsy" | null;
 type Confidence = "insufficient" | "low" | "medium" | "high";
+
+function sendTaskFeedback(
+  kind: "start" | "cue" | "success" | "error",
+  soundMode: WakeSoundMode,
+): void {
+  if (!GUIDED_TASK_EXPERIENCE_ENABLED) return;
+  void import("../features/tasks/task-experience-feedback.js").then(({ signalTaskFeedback }) => {
+    signalTaskFeedback(kind, soundMode);
+  });
+}
 
 interface TaskResult {
   id: TaskId;
@@ -917,9 +933,11 @@ export function StroopTask({
 export function ReactionTask({
   durationMinutes,
   onDone,
+  soundMode = "off",
 }: {
   durationMinutes: WakeDurationMinutes;
   onDone: (r: TaskResult) => void;
+  soundMode?: WakeSoundMode;
 }) {
   const target = taskSuccessTarget("reaction", durationMinutes);
   const [round, setRound] = useState(0);
@@ -939,9 +957,10 @@ export function ReactionTask({
       goAt.current = Date.now();
       tapLocked.current = false;
       setPhase("go");
+      sendTaskFeedback("cue", soundMode);
     }, delay);
     return () => clearTimeout(timer.current);
-  }, [phase, round]);
+  }, [phase, round, soundMode]);
   useEffect(
     () => () => {
       clearTimeout(timer.current);
@@ -1043,10 +1062,12 @@ export function ConfirmTask({
   taskId,
   durationMinutes,
   onDone,
+  soundMode = "off",
 }: {
   taskId: TaskId;
   durationMinutes: WakeDurationMinutes;
   onDone: (r: TaskResult) => void;
+  soundMode?: WakeSoundMode;
 }) {
   const cfg = confirmConfig(taskId, durationMinutes);
   const meta = TASK_META[taskId];
@@ -1060,6 +1081,7 @@ export function ConfirmTask({
     return () => clearTimeout(t);
   }, [started, cd]);
   function confirm() {
+    if (done) return;
     setDone(true);
     setTimeout(
       () =>
@@ -1083,25 +1105,33 @@ export function ConfirmTask({
       </div>
     );
   return (
-    <div className="flex flex-col items-center gap-8">
-      <div className="w-20 h-20 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center text-primary">
-        <TaskIcon taskId={taskId} className="h-10 w-10" />
+    <div className="grid min-h-[320px] grid-rows-[64px_minmax(160px,1fr)_64px] gap-4">
+      <p className="self-center text-center text-sm leading-relaxed text-muted-foreground">
+        {cfg.instruction}
+      </p>
+      <div className="grid min-h-40 place-items-center">
+        {cfg.countdown > 0 && started ? (
+          <Suspense
+            fallback={
+              <div className="grid h-40 w-40 place-items-center text-4xl font-black text-primary">
+                {cd}
+              </div>
+            }
+          >
+            <TaskTimerVisual taskId={taskId} remaining={cd} total={cfg.countdown} />
+          </Suspense>
+        ) : (
+          <p className="max-w-[240px] text-center text-xs leading-relaxed text-muted-foreground">
+            Нажми «Начать», когда будешь готов выполнить действие.
+          </p>
+        )}
       </div>
-      <p className="text-sm text-muted-foreground text-center leading-relaxed">{cfg.instruction}</p>
-      {cfg.countdown > 0 && started && (
-        <Suspense
-          fallback={
-            <div className="grid h-40 w-40 place-items-center text-4xl font-black text-primary">
-              {cd}
-            </div>
-          }
-        >
-          <TaskTimerVisual taskId={taskId} remaining={cd} total={cfg.countdown} />
-        </Suspense>
-      )}
       {!started ? (
         <button
-          onClick={() => setStarted(true)}
+          onClick={() => {
+            setStarted(true);
+            sendTaskFeedback("start", soundMode);
+          }}
           className="w-full py-4 rounded-2xl text-lg font-bold text-white active:scale-[0.98] transition-transform"
           style={{
             background: "linear-gradient(135deg,#F97316,#EA580C)",
@@ -1139,11 +1169,19 @@ export function TasksContainer({
   taskIndex,
   durationMinutes,
   onDone,
+  soundMode = "off",
+  onSoundModeChange = () => undefined,
+  submitting = false,
+  guidedExperience = GUIDED_TASK_EXPERIENCE_ENABLED,
 }: {
   taskIds: TaskId[];
   taskIndex: number;
   durationMinutes: WakeDurationMinutes;
   onDone: (r: TaskResult) => void;
+  soundMode?: WakeSoundMode;
+  onSoundModeChange?: (mode: WakeSoundMode) => void;
+  submitting?: boolean;
+  guidedExperience?: boolean;
 }) {
   const [protocolOpen, setProtocolOpen] = useState(false);
   const id = taskIds[taskIndex];
@@ -1163,22 +1201,36 @@ export function TasksContainer({
     plannedRemaining < 60
       ? `≈ ${plannedRemaining} сек осталось`
       : `≈ ${Math.ceil(plannedRemaining / 60)} мин осталось`;
+  const completeTask = (result: TaskResult) => {
+    if (submitting) return;
+    onDone(result);
+  };
   return (
-    <div className="flex flex-col flex-1 p-6">
-      <div className="mb-8">
+    <div
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-6 pt-5"
+      aria-busy={submitting}
+    >
+      <div className="mb-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">
             Шаг {taskIndex + 1} из {taskIds.length} · {remainingLabel}
           </span>
-          <button
-            type="button"
-            aria-expanded={protocolOpen}
-            onClick={() => setProtocolOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground active:scale-[0.98]"
-          >
-            Протокол
-            <ChevronRight className="h-4 w-4 text-primary" />
-          </button>
+          <div className="flex items-start gap-2">
+            {guidedExperience && (
+              <Suspense fallback={<div className="h-10 w-24 rounded-xl bg-card" />}>
+                <TaskSoundToggle compact mode={soundMode} onChange={onSoundModeChange} />
+              </Suspense>
+            )}
+            <button
+              type="button"
+              aria-expanded={protocolOpen}
+              onClick={() => setProtocolOpen(true)}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground active:scale-[0.98]"
+            >
+              Протокол
+              <ChevronRight className="h-4 w-4 text-primary" />
+            </button>
+          </div>
         </div>
         <div className="mb-2 flex items-center justify-end">
           <span
@@ -1206,7 +1258,7 @@ export function TasksContainer({
           </Suspense>
         )}
       </div>
-      <div className="flex items-center gap-3 mb-10">
+      <div className="mb-4 flex min-h-[64px] items-center gap-3">
         <div className="w-12 h-12 rounded-2xl bg-primary/20 border border-primary/20 flex items-center justify-center text-primary">
           <TaskIcon taskId={id} className="h-6 w-6" />
         </div>
@@ -1223,57 +1275,84 @@ export function TasksContainer({
           </p>
         </div>
       </div>
-      {nextId && (
-        <div className="mb-6 flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Дальше
-          </span>
-          <TaskIcon taskId={nextId} className="h-4 w-4 text-primary" />
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-            {TASK_META[nextId].title}
-          </span>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      <div className="mb-4 min-h-[54px]">
+        {nextId && (
+          <div className="flex min-h-[54px] items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Дальше
+            </span>
+            <TaskIcon taskId={nextId} className="h-4 w-4 text-primary" />
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+              {TASK_META[nextId].title}
+            </span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+        )}
+      </div>
+      <div
+        className="flex min-h-[480px] flex-1 flex-col rounded-3xl border border-border/80 bg-card/35 p-4"
+        data-testid="task-experience-shell"
+      >
+        {guidedExperience && (
+          <div className="mb-4 h-28 shrink-0" data-testid="task-motion-region">
+            <Suspense fallback={<div className="h-28 rounded-3xl bg-secondary/40" />}>
+              <TaskMotionVisual taskId={id} />
+            </Suspense>
+          </div>
+        )}
+        <div className="min-h-[300px] flex-1" data-testid="task-interaction-region">
+          {id === "math" && (
+            <MathTask
+              key={`${id}-${taskIndex}`}
+              durationMinutes={durationMinutes}
+              onDone={completeTask}
+            />
+          )}
+          {id === "memory" && (
+            <MemoryTask
+              key={`${id}-${taskIndex}`}
+              durationMinutes={durationMinutes}
+              onDone={completeTask}
+            />
+          )}
+          {id === "stroop" && (
+            <StroopTask
+              key={`${id}-${taskIndex}`}
+              durationMinutes={durationMinutes}
+              onDone={completeTask}
+            />
+          )}
+          {id === "reaction" && (
+            <ReactionTask
+              key={`${id}-${taskIndex}`}
+              durationMinutes={durationMinutes}
+              soundMode={soundMode}
+              onDone={completeTask}
+            />
+          )}
+          {(id === "steps" ||
+            id === "squats" ||
+            id === "shake" ||
+            id === "water" ||
+            id === "window" ||
+            id === "curtains" ||
+            id === "sit_edge") && (
+            <ConfirmTask
+              key={`${id}-${taskIndex}`}
+              taskId={id}
+              durationMinutes={durationMinutes}
+              soundMode={soundMode}
+              onDone={completeTask}
+            />
+          )}
         </div>
-      )}
-      <div className="flex-1">
-        {id === "math" && (
-          <MathTask key={`${id}-${taskIndex}`} durationMinutes={durationMinutes} onDone={onDone} />
-        )}
-        {id === "memory" && (
-          <MemoryTask
-            key={`${id}-${taskIndex}`}
-            durationMinutes={durationMinutes}
-            onDone={onDone}
-          />
-        )}
-        {id === "stroop" && (
-          <StroopTask
-            key={`${id}-${taskIndex}`}
-            durationMinutes={durationMinutes}
-            onDone={onDone}
-          />
-        )}
-        {id === "reaction" && (
-          <ReactionTask
-            key={`${id}-${taskIndex}`}
-            durationMinutes={durationMinutes}
-            onDone={onDone}
-          />
-        )}
-        {(id === "steps" ||
-          id === "squats" ||
-          id === "shake" ||
-          id === "water" ||
-          id === "window" ||
-          id === "curtains" ||
-          id === "sit_edge") && (
-          <ConfirmTask
-            key={`${id}-${taskIndex}`}
-            taskId={id}
-            durationMinutes={durationMinutes}
-            onDone={onDone}
-          />
-        )}
+        <div
+          className="grid min-h-10 shrink-0 place-items-center pt-2 text-xs text-muted-foreground"
+          aria-live="polite"
+          data-testid="task-submit-region"
+        >
+          {submitting ? "Подтверждаем шаг на сервере…" : "Переход произойдёт после подтверждения"}
+        </div>
       </div>
     </div>
   );
@@ -1413,12 +1492,16 @@ export function StartRatingScreen({
   busy = false,
   onRetry,
   localStorageScope,
+  soundMode = "off",
+  onSoundModeChange = () => undefined,
 }: {
   onDone: (v: number) => void;
   ready?: boolean;
   busy?: boolean;
   onRetry?: () => void;
   localStorageScope?: string;
+  soundMode?: WakeSoundMode;
+  onSoundModeChange?: (mode: WakeSoundMode) => void;
 }) {
   const [sel, setSel] = useState<number | null>(null);
   return (
@@ -1431,6 +1514,11 @@ export function StartRatingScreen({
       {GOAL_CALIBRATION_ENABLED && localStorageScope && (
         <Suspense fallback={null}>
           <MorningExperienceSlot mode="goal" storageScope={localStorageScope} />
+        </Suspense>
+      )}
+      {GUIDED_TASK_EXPERIENCE_ENABLED && (
+        <Suspense fallback={<div className="mb-6 h-24 rounded-2xl bg-card" />}>
+          <TaskSoundToggle mode={soundMode} onChange={onSoundModeChange} />
         </Suspense>
       )}
       <RatingGrid selected={sel} onSelect={setSel} />
@@ -1633,6 +1721,14 @@ function ResultsScreen({
           {new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
         </p>
       </div>
+
+      {GUIDED_TASK_EXPERIENCE_ENABLED && (
+        <Suspense fallback={null}>
+          <div className="mb-5">
+            <PixGuide variant="reward" />
+          </div>
+        </Suspense>
+      )}
 
       {/* Before / After / Effect — main result */}
       <div className="bg-card border border-border rounded-3xl p-5 mb-5">
@@ -2392,6 +2488,7 @@ function PrototypeApp({
   );
   const [taskResults, setTaskResults] = useState<TaskResult[]>([]);
   const [startAlertness, setStartAlertness] = useState(resume?.baseline ?? 0);
+  const [soundMode, setSoundMode] = useState<WakeSoundMode>("off");
   const sessionStartRef = useRef(Date.now());
   const taskSubmissionGateRef = useRef(new TaskSubmissionGate());
   const [taskRenderVersion, setTaskRenderVersion] = useState(0);
@@ -2468,6 +2565,7 @@ function PrototypeApp({
 
   async function startSession(wakeContext: WakeContext, durationMinutes: WakeDurationMinutes) {
     setSyncError(null);
+    setSoundMode("off");
     setActiveDurationMinutes(durationMinutes);
     sessionStartRef.current = Date.now();
     if (demo) {
@@ -2530,6 +2628,7 @@ function PrototypeApp({
     if (demo) {
       const next = [...taskResults, result];
       setTaskResults(next);
+      sendTaskFeedback("success", soundMode);
       if (taskIndex + 1 < taskIds.length) setTaskIndex((i) => i + 1);
       else setScreen("endRating");
       return;
@@ -2549,10 +2648,12 @@ function PrototypeApp({
       setServerSession(updated);
       setTaskResults((current) => [...current, result]);
       setTaskIndex(updated.currentStepIndex);
+      sendTaskFeedback("success", soundMode);
       if (updated.currentStepIndex >= taskIds.length) setScreen("endRating");
     } catch (error) {
       taskSubmissionGateRef.current.reset();
       setTaskRenderVersion((version) => version + 1);
+      sendTaskFeedback("error", soundMode);
       applyConflict(error, taskIndex);
     } finally {
       setSyncing(false);
@@ -2757,6 +2858,7 @@ function PrototypeApp({
               saving={personalizationSaving}
               onSave={updateWakeProfile}
               onCompleted={finishOnboarding}
+              showPix={GUIDED_TASK_EXPERIENCE_ENABLED}
             />
           </Suspense>
         )}
@@ -2812,6 +2914,8 @@ function PrototypeApp({
             ready={demo || Boolean(serverSession)}
             busy={syncing}
             localStorageScope={localStorageScope}
+            soundMode={soundMode}
+            onSoundModeChange={setSoundMode}
             onRetry={
               launchSource === "wake" && !serverSession
                 ? () => void startSession("night_sleep", wakeProfile.defaultDurationMinutes)
@@ -2825,6 +2929,9 @@ function PrototypeApp({
             taskIds={taskIds}
             taskIndex={taskIndex}
             durationMinutes={serverSession?.durationMinutes ?? activeDurationMinutes}
+            soundMode={soundMode}
+            onSoundModeChange={setSoundMode}
+            submitting={syncing}
             onDone={handleTaskDone}
           />
         )}
@@ -2882,7 +2989,11 @@ export default function App() {
       >
         <div className="max-w-sm text-center">
           <AlertCircle className="w-10 h-10 text-primary mx-auto mb-4" />
-          <h1 className="text-xl font-bold">Не удалось безопасно войти</h1>
+          <h1 className="text-xl font-bold">
+            {bootstrap.reason === "timeout"
+              ? "Сервер ещё запускается"
+              : "Не удалось безопасно войти"}
+          </h1>
           <p className="text-sm text-muted-foreground mt-2">{bootstrap.message}</p>
           <a
             href="/privacy"

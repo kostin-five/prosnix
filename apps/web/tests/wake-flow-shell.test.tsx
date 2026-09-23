@@ -63,8 +63,12 @@ describe("утренний вход и компактный shell", () => {
   });
 
   it("скрывает полный протокол, показывает следующий шаг и открывает состав по кнопке", async () => {
-    await import("../src/features/tasks/protocol-sheet.js");
-    act(() => {
+    await Promise.all([
+      import("../src/features/tasks/protocol-sheet.js"),
+      import("../src/features/tasks/task-motion-visual.js"),
+      import("../src/features/tasks/task-sound-toggle.js"),
+    ]);
+    await act(async () => {
       root.render(
         <TasksContainer
           taskIds={["math", "water", "window"]}
@@ -73,6 +77,7 @@ describe("утренний вход и компактный shell", () => {
           onDone={() => undefined}
         />,
       );
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(container.textContent).not.toContain("Почему этот протокол");
@@ -80,6 +85,10 @@ describe("утренний вход и компактный shell", () => {
     expect(container.textContent).toContain("Стакан воды");
     expect(container.textContent).toContain("осталось");
     expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(container.querySelector('[data-testid="task-experience-shell"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="task-motion-region"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="task-interaction-region"]')).not.toBeNull();
+    expect(container.textContent).toContain("Переход произойдёт после подтверждения");
 
     const protocolButton = [...container.querySelectorAll("button")].find(
       (button) => button.textContent?.trim() === "Протокол",
@@ -92,6 +101,32 @@ describe("утренний вход и компактный shell", () => {
 
     expect(container.querySelector('[role="dialog"]')).not.toBeNull();
     expect(container.textContent).toContain("Твой протокол");
+  });
+
+  it("сохраняет стабильный shell и показывает ожидание ответа API", async () => {
+    await Promise.all([
+      import("../src/features/tasks/task-motion-visual.js"),
+      import("../src/features/tasks/task-sound-toggle.js"),
+    ]);
+    await act(async () => {
+      root.render(
+        <TasksContainer
+          taskIds={["water", "math"]}
+          taskIndex={0}
+          durationMinutes={5}
+          submitting
+          onDone={() => undefined}
+        />,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const shell = container.querySelector('[data-testid="task-experience-shell"]');
+    expect(shell).not.toBeNull();
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="task-submit-region"]')?.textContent).toContain(
+      "Подтверждаем шаг на сервере",
+    );
   });
 
   it("не показывает общую справку об аналитике", () => {

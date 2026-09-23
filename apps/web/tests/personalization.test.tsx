@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CapabilityProfileCard } from "../src/features/personalization/capability-profile-card.js";
+import { CapabilityOnboardingScreen } from "../src/features/personalization/capability-onboarding-screen.js";
 import { WakeContextSheet } from "../src/features/personalization/wake-context-sheet.js";
 import {
   WakeRoutineCard,
@@ -172,5 +173,42 @@ describe("персонализация пробуждения", () => {
     expect(container.textContent).not.toContain("Пять спокойных повторений");
     expect(container.textContent).toContain("Яркий свет");
     expect(container.textContent).not.toContain("Шторы");
+  });
+
+  it("показывает Пикса только как необязательного проводника первой настройки", () => {
+    const profile = {
+      movementLevel: "light" as const,
+      availableResources: ["water" as const],
+      excludedTaskIds: [],
+      defaultDurationMinutes: 5 as const,
+      onboardingCompleted: false,
+      revision: 0,
+    };
+
+    act(() =>
+      root.render(
+        <CapabilityOnboardingScreen
+          profile={profile}
+          saving={false}
+          onSave={async () => undefined}
+          onCompleted={() => undefined}
+          showPix
+        />,
+      ),
+    );
+    expect(container.querySelector('[data-testid="pix-avatar"]')).not.toBeNull();
+    expect(container.textContent).toContain("Поможет настроить безопасное пробуждение");
+
+    act(() =>
+      root.render(
+        <CapabilityOnboardingScreen
+          profile={profile}
+          saving={false}
+          onSave={async () => undefined}
+          onCompleted={() => undefined}
+        />,
+      ),
+    );
+    expect(container.querySelector('[data-testid="pix-avatar"]')).toBeNull();
   });
 });
