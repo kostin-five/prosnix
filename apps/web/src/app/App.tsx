@@ -164,6 +164,10 @@ function resumedServerSession(
     wakeContext: resume.session.wakeContext,
     durationMinutes: resume.session.durationMinutes,
     personalization: resume.session.personalization,
+    sessionKind: resume.session.sessionKind,
+    parentSessionId: resume.session.parentSessionId,
+    recoveryBaseline: resume.session.recoveryBaseline,
+    experience: resume.session.experience,
     assignment: {
       id: resume.session.id,
       protocolKey: resume.protocol.key,
@@ -179,6 +183,14 @@ function resumedServerSession(
           category: step.category as TaskCategory,
         })),
     },
+    effectiveSteps: (resume.protocol.effectiveSteps ?? resume.protocol.steps)
+      .filter((step) => step.category !== undefined)
+      .map((step) => ({
+        index: step.index,
+        taskId: step.taskId,
+        category: step.category as TaskCategory,
+      })),
+    substitutions: resume.substitutions,
     baseline: resume.baseline,
     tasks: [],
     postRating: resume.postRating,
@@ -2270,7 +2282,7 @@ function PrototypeApp({
     if (!serverSession) return;
     setSyncing(true);
     try {
-      const updated = await saveBaseline(serverSession.id, serverSession.version, v);
+      const updated = await saveBaseline(serverSession.id, serverSession.version, v, soundMode);
       setServerSession(updated);
       setStartAlertness(v);
       setScreen("tasks");

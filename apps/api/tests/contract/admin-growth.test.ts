@@ -7,12 +7,22 @@ import { authenticateTestUser, createMemoryDependencies, testConfig, testNow } f
 const summary: AdminGrowthSummary = {
   users: { total: 10, new: 3, active: 5 },
   sessions: { started: 8, completed: 6, abandoned: 1 },
-  funnel: { assigned: 10, started: 8, completed: 6, followedUp: 4 },
+  funnel: {
+    assigned: 10,
+    started: 8,
+    baselineRecorded: 8,
+    completed: 6,
+    followedUp: 4,
+    droppedBeforeBaseline: 2,
+    droppedAfterBaseline: 2,
+  },
   wakeQuality: { pairedSessions: 6, averageDelta: 2.5, improvedSessions: 5 },
   followUp: { eligible: 6, answered: 4, up: 3, back: 1, drowsy: 0 },
   retention: {
     d1Eligible: 8,
     d1Retained: 3,
+    d3Eligible: 6,
+    d3Retained: 2,
     d7Eligible: 4,
     d7Retained: 1,
     secondSessionWithin7Days: { cohort: 7, eligible: 5, returned: 3, pending: 2 },
@@ -65,11 +75,20 @@ describe("admin growth contract", () => {
     expect(response.json()).toMatchObject({
       users: summary.users,
       sessions: { completed: 6, completionRate: 0.75 },
-      funnel: { assigned: 10, startRate: 0.8, completionRate: 0.75, followUpRate: 0.6667 },
+      funnel: {
+        assigned: 10,
+        baselineRecorded: 8,
+        droppedBeforeBaseline: 2,
+        droppedAfterBaseline: 2,
+        baselineRate: 0.8,
+        completionRate: 0.75,
+        followUpRate: 0.6667,
+      },
       wakeQuality: { pairedSessions: 6, averageDelta: 2.5, improvedRate: 0.8333 },
       followUp: { eligible: 6, answered: 4, responseRate: 0.6667, stayedUpRate: 0.75 },
       retention: {
         d1: { eligible: 8, retained: 3, rate: 0.375 },
+        d3: { eligible: 6, retained: 2, rate: 0.3333 },
         secondSessionWithin7Days: {
           cohort: 7,
           eligible: 5,

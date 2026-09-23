@@ -50,6 +50,13 @@ Conflict `409` возвращает code и canonical session, чтобы кли
 состояние. Повтор идентичной операции возвращает сохранённый результат; повтор key с другим payload
 отклоняется.
 
+Baseline body обратно совместимо принимает необязательный `experience: { soundMode: "on" | "off" }`.
+Сервер сохраняет только этот явный выбор, не считывает системную громкость и возвращает его в session
+response. Ответ session/bootstrap может дополнительно содержать `effectiveSteps`, `substitutions`,
+`sessionKind`, `parentSessionId` и `recovery`; старые клиенты могут игнорировать эти поля. Пока
+`WAKE_TASK_SUBSTITUTION_ENABLED=false` и `WAKE_LOW_EFFECT_RECOVERY_ENABLED=false`, публичных команд
+замены и recovery нет, а `effectiveSteps` совпадает с назначенными steps.
+
 Начиная с protocol version 3 сервер принимает результат когнитивного шага только после минимального числа
 успехов: math/stroop/reaction — 3 для 2/5 минут и 5 для 10 минут, memory — соответственно 2 и 3.
 Поле `total` включает ошибочные попытки и не может быть меньше `correct`. Недостаточный результат
@@ -174,9 +181,10 @@ PostgreSQL enum не превращает весь endpoint в `500`. Когда
 Query-параметр `days` принимает только `7`, `30` или `90`; без него используется `7`. Ответ включает:
 
 - all-time, новых и активных пользователей;
-- когортную воронку assigned, started, completed и followed-up;
+- когортную воронку assigned, started, baseline recorded, completed и followed-up, включая
+  агрегированные drop-off до и после baseline;
 - среднее изменение бодрости только по парным baseline/post-rating и размер этой выборки;
-- follow-up outcomes, D1/D7 retention и 24-часовую UTC-динамику;
+- follow-up outcomes, D1/D3/D7 retention и 24-часовую UTC-динамику;
 - отдельный `secondSessionWithin7Days`: cohort по первой завершённой сессии, `eligible`, `returned`,
   `pending` и rate; незрелая pending-когорта не ухудшает долю;
 - разбивки по контексту и бюджету времени;

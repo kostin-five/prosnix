@@ -44,12 +44,17 @@ export interface BootstrapResponse {
         excludedTaskIds: string[];
         fallbackReason: "none" | "profile_missing" | "limited_eligible_tasks";
       };
+      sessionKind?: "primary" | "recovery";
+      parentSessionId?: string | null;
+      recoveryBaseline?: { sessionId: string; ratingKind: "post_protocol" } | null;
+      experience?: { soundMode: "unknown" | "off" | "on" };
     };
     protocol: {
       key: string;
       version: number;
       title: string;
       steps: Array<{ index: number; taskId: string; category?: string }>;
+      effectiveSteps?: Array<{ index: number; taskId: string; category?: string }>;
     };
     assignment: {
       strategyVersion: string;
@@ -58,6 +63,7 @@ export interface BootstrapResponse {
     };
     baseline: number | null;
     postRating: number | null;
+    substitutions?: SessionTaskSubstitutionResponse[];
   };
   dueFollowUpSessionId: string | null;
   wakeSchedule: null | {
@@ -87,6 +93,10 @@ export interface WakeSessionResponse {
     excludedTaskIds: string[];
     fallbackReason: "none" | "profile_missing" | "limited_eligible_tasks";
   };
+  sessionKind?: "primary" | "recovery";
+  parentSessionId?: string | null;
+  recoveryBaseline?: { sessionId: string; ratingKind: "post_protocol" } | null;
+  experience?: { soundMode: "unknown" | "off" | "on" };
   assignment: {
     id: string;
     protocolKey: string;
@@ -100,6 +110,8 @@ export interface WakeSessionResponse {
       category: "cognitive" | "movement" | "behavioral" | "environment";
     }>;
   };
+  effectiveSteps?: WakeSessionResponse["assignment"]["steps"];
+  substitutions?: SessionTaskSubstitutionResponse[];
   baseline: number | null;
   tasks: Array<{
     stepIndex: number;
@@ -117,6 +129,16 @@ export interface WakeSessionResponse {
   protocolCompletedAt: string | null;
   followUpDueAt: string | null;
   abandonedAt: string | null;
+}
+
+export interface SessionTaskSubstitutionResponse {
+  id: string;
+  stepIndex: number;
+  originalTaskId: string;
+  replacementTaskId: string;
+  reason: "unwilling_now" | "not_helpful" | "cannot_do";
+  operationId: string;
+  createdAt: string;
 }
 
 export interface MetricResponse {

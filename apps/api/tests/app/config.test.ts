@@ -41,6 +41,9 @@ describe("application config", () => {
       deepseekModel: "deepseek-v4-flash",
       deepseekTimeoutMs: 12_000,
       wakeTaskCatalogV9Enabled: false,
+      wakeTaskSubstitutionEnabled: false,
+      wakeLowEffectRecoveryEnabled: false,
+      wakeCombinationAnalyticsEnabled: false,
     });
     expect(() =>
       loadConfig({ ...production, DEEPSEEK_BASE_URL: "http://api.deepseek.com" }),
@@ -57,6 +60,21 @@ describe("application config", () => {
     expect(
       loadConfig({ ...production, WAKE_TASK_CATALOG_V9_ENABLED: "false" }).wakeTaskCatalogV9Enabled,
     ).toBe(false);
+  });
+
+  it("keeps substitution, recovery and combination analytics disabled by default", () => {
+    expect(
+      loadConfig({
+        ...production,
+        WAKE_TASK_SUBSTITUTION_ENABLED: "true",
+        WAKE_LOW_EFFECT_RECOVERY_ENABLED: "true",
+        WAKE_COMBINATION_ANALYTICS_ENABLED: "true",
+      }),
+    ).toMatchObject({
+      wakeTaskSubstitutionEnabled: true,
+      wakeLowEffectRecoveryEnabled: true,
+      wakeCombinationAnalyticsEnabled: true,
+    });
   });
 
   it("provides bounded readiness, shutdown and sensitive-route limits", () => {

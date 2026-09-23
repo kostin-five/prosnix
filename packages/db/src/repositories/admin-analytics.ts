@@ -33,6 +33,7 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
     const fromIso = from.toISOString();
     const nowIso = now.toISOString();
     const d1CutoffIso = new Date(now.getTime() - 86_400_000).toISOString();
+    const d3CutoffIso = new Date(now.getTime() - 3 * 86_400_000).toISOString();
     const d7CutoffIso = new Date(now.getTime() - 7 * 86_400_000).toISOString();
 
     const [
@@ -65,6 +66,7 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
         active_users: number;
         assigned: number;
         started: number;
+        baseline_recorded: number;
         completed: number;
         followed_up: number;
         abandoned: number;
@@ -73,6 +75,12 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
           count(distinct user_id)::int as active_users,
           count(*)::int as assigned,
           count(*) filter (where started_at is not null and started_at < ${nowIso}::timestamptz)::int as started,
+          count(*) filter (where exists (
+            select 1 from rating_observations r
+            where r.session_id = wake_sessions.id
+              and r.kind = 'baseline'
+              and r.observed_at < ${nowIso}::timestamptz
+          ))::int as baseline_recorded,
           count(*) filter (where protocol_completed_at is not null and protocol_completed_at < ${nowIso}::timestamptz)::int as completed,
           count(*) filter (where exists (
             select 1 from follow_up_observations f
@@ -128,6 +136,8 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
       this.db.execute<{
         d1_eligible: number;
         d1_retained: number;
+        d3_eligible: number;
+        d3_retained: number;
         d7_eligible: number;
         d7_retained: number;
       }>(sql`
@@ -138,6 +148,12 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
               and s.protocol_completed_at < ${nowIso}::timestamptz
               and date_trunc('day', s.protocol_completed_at at time zone 'UTC') = date_trunc('day', u.created_at at time zone 'UTC') + interval '1 day'
           ))::int as d1_retained,
+          count(*) filter (where u.created_at >= ${fromIso}::timestamptz and u.created_at < ${d3CutoffIso}::timestamptz)::int as d3_eligible,
+          count(*) filter (where u.created_at >= ${fromIso}::timestamptz and u.created_at < ${d3CutoffIso}::timestamptz and exists (
+            select 1 from wake_sessions s where s.user_id = u.id
+              and s.protocol_completed_at < ${nowIso}::timestamptz
+              and date_trunc('day', s.protocol_completed_at at time zone 'UTC') = date_trunc('day', u.created_at at time zone 'UTC') + interval '3 days'
+          ))::int as d3_retained,
           count(*) filter (where u.created_at >= ${fromIso}::timestamptz and u.created_at < ${d7CutoffIso}::timestamptz)::int as d7_eligible,
           count(*) filter (where u.created_at >= ${fromIso}::timestamptz and u.created_at < ${d7CutoffIso}::timestamptz and exists (
             select 1 from wake_sessions s where s.user_id = u.id
@@ -334,8 +350,17 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
       funnel: {
         assigned: number(sessionCounts?.assigned),
         started: number(sessionCounts?.started),
+        baselineRecorded: number(sessionCounts?.baseline_recorded),
         completed: number(sessionCounts?.completed),
         followedUp: number(sessionCounts?.followed_up),
+        droppedBeforeBaseline: Math.max(
+          0,
+          number(sessionCounts?.assigned) - number(sessionCounts?.baseline_recorded),
+        ),
+        droppedAfterBaseline: Math.max(
+          0,
+          number(sessionCounts?.baseline_recorded) - number(sessionCounts?.completed),
+        ),
       },
       wakeQuality: {
         pairedSessions: number(quality?.paired_sessions),
@@ -352,6 +377,8 @@ export class PostgresAdminGrowthRepository implements AdminGrowthRepository {
       retention: {
         d1Eligible: number(retention?.d1_eligible),
         d1Retained: number(retention?.d1_retained),
+        d3Eligible: number(retention?.d3_eligible),
+        d3Retained: number(retention?.d3_retained),
         d7Eligible: number(retention?.d7_eligible),
         d7Retained: number(retention?.d7_retained),
         secondSessionWithin7Days: {

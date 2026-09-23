@@ -14,9 +14,13 @@ export interface AdminGrowthData {
   funnel: {
     assigned: number;
     started: number;
+    baselineRecorded: number;
     completed: number;
     followedUp: number;
+    droppedBeforeBaseline: number;
+    droppedAfterBaseline: number;
     startRate: number;
+    baselineRate: number;
     completionRate: number;
     followUpRate: number;
   };
@@ -37,6 +41,7 @@ export interface AdminGrowthData {
   };
   retention: {
     d1: { eligible: number; retained: number; rate: number };
+    d3: { eligible: number; retained: number; rate: number };
     d7: { eligible: number; retained: number; rate: number };
     secondSessionWithin7Days?: {
       cohort: number;
@@ -383,15 +388,15 @@ export function AdminScreen() {
               </p>
               <div className="mt-5 space-y-5">
                 <ProgressRow
-                  label="Начали протокол"
-                  value={data.funnel.started}
+                  label="Сохранили исходную оценку"
+                  value={data.funnel.baselineRecorded}
                   total={data.funnel.assigned}
-                  rate={data.funnel.startRate}
+                  rate={data.funnel.baselineRate}
                 />
                 <ProgressRow
                   label="Завершили протокол"
                   value={data.funnel.completed}
-                  total={data.funnel.started}
+                  total={data.funnel.baselineRecorded}
                   rate={data.funnel.completionRate}
                 />
                 <ProgressRow
@@ -402,7 +407,8 @@ export function AdminScreen() {
                 />
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
-                Назначено {count(data.funnel.assigned)} · брошено {count(data.sessions.abandoned)}
+                До исходной оценки не дошли {count(data.funnel.droppedBeforeBaseline)} · после неё
+                не завершили {count(data.funnel.droppedAfterBaseline)}
               </p>
             </section>
 
@@ -538,6 +544,11 @@ export function AdminScreen() {
                   title="D1 retention"
                   value={percent(data.retention.d1.rate)}
                   detail={`${count(data.retention.d1.retained)} из ${count(data.retention.d1.eligible)} подходящих пользователей`}
+                />
+                <MetricCard
+                  title="D3 retention"
+                  value={percent(data.retention.d3.rate)}
+                  detail={`${count(data.retention.d3.retained)} из ${count(data.retention.d3.eligible)} подходящих пользователей`}
                 />
                 <MetricCard
                   title="D7 retention"

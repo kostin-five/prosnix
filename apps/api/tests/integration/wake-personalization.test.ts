@@ -231,7 +231,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           })
         ).session;
         expect(session.assignment).toMatchObject({
-          strategyVersion: "adaptive-v6",
+          strategyVersion: "adaptive-v7",
           phase: "adaptive",
         });
         signatures.push(session.assignment.steps.map(({ taskId }) => taskId).join(","));
@@ -293,7 +293,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
       await deletion.deleteUser(user.id, "continuation-cleanup-after");
     });
 
-    it("последовательно принимает все семь шагов нового десятиминутного протокола", async () => {
+    it("последовательно принимает все десять шагов нового десятиминутного протокола", async () => {
       const database = connect();
       const telegramUserId = 910000000027n;
       let user = await database.unitOfWork.transaction(({ users }) =>
@@ -336,7 +336,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
         })
       ).session;
       expect(session.assignment.protocolVersion).toBe(8);
-      expect(session.assignment.steps).toHaveLength(7);
+      expect(session.assignment.steps).toHaveLength(10);
       expect(session.assignment.steps.map(({ taskId }) => taskId)).not.toContain("curtains");
 
       session = (
@@ -378,8 +378,8 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
 
       expect(session).toMatchObject({
         status: "in_progress",
-        currentStepIndex: 7,
-        version: 9,
+        currentStepIndex: session.assignment.steps.length,
+        version: 2 + session.assignment.steps.length,
       });
       const completed = (
         await commands.execute({

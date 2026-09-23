@@ -122,6 +122,7 @@ export async function registerSessionRoutes(
           ...(request.body.clientObservedAt
             ? { clientObservedAt: request.body.clientObservedAt }
             : {}),
+          ...(request.body.experience ? { experience: request.body.experience } : {}),
         },
       );
     },

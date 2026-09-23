@@ -12,9 +12,13 @@ const summary: AdminGrowthData = {
   funnel: {
     assigned: 12,
     started: 10,
+    baselineRecorded: 10,
     completed: 8,
     followedUp: 6,
+    droppedBeforeBaseline: 2,
+    droppedAfterBaseline: 2,
     startRate: 0.8333,
+    baselineRate: 0.8333,
     completionRate: 0.8,
     followUpRate: 0.75,
   },
@@ -30,6 +34,7 @@ const summary: AdminGrowthData = {
   },
   retention: {
     d1: { eligible: 10, retained: 4, rate: 0.4 },
+    d3: { eligible: 8, retained: 3, rate: 0.375 },
     d7: { eligible: 6, retained: 2, rate: 0.3333 },
     secondSessionWithin7Days: {
       cohort: 9,
@@ -168,9 +173,13 @@ describe("admin dashboard", () => {
       funnel: {
         assigned: 0,
         started: 0,
+        baselineRecorded: 0,
         completed: 0,
         followedUp: 0,
+        droppedBeforeBaseline: 0,
+        droppedAfterBaseline: 0,
         startRate: 0,
+        baselineRate: 0,
         completionRate: 0,
         followUpRate: 0,
       },

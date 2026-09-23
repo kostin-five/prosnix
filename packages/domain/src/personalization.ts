@@ -119,7 +119,7 @@ export function eligibleWakeTasks(
   ).filter((taskId) => allowed(taskId, profile, options));
 }
 
-function categoryForTask(taskId: TaskId): ProtocolStep["category"] {
+export function categoryForTask(taskId: TaskId): ProtocolStep["category"] {
   if (
     taskId === "steps" ||
     taskId === "squats" ||

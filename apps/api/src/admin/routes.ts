@@ -45,7 +45,8 @@ export async function registerAdminRoutes(
         funnel: {
           ...summary.funnel,
           startRate: rate(summary.funnel.started, summary.funnel.assigned),
-          completionRate: rate(summary.funnel.completed, summary.funnel.started),
+          baselineRate: rate(summary.funnel.baselineRecorded, summary.funnel.assigned),
+          completionRate: rate(summary.funnel.completed, summary.funnel.baselineRecorded),
           followUpRate: rate(summary.funnel.followedUp, summary.funnel.completed),
         },
         wakeQuality: {
@@ -65,6 +66,11 @@ export async function registerAdminRoutes(
             eligible: summary.retention.d1Eligible,
             retained: summary.retention.d1Retained,
             rate: rate(summary.retention.d1Retained, summary.retention.d1Eligible),
+          },
+          d3: {
+            eligible: summary.retention.d3Eligible,
+            retained: summary.retention.d3Retained,
+            rate: rate(summary.retention.d3Retained, summary.retention.d3Eligible),
           },
           d7: {
             eligible: summary.retention.d7Eligible,

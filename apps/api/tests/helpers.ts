@@ -49,6 +49,9 @@ export const testConfig: AppConfig = {
   telegramWebhookSecret: "test-telegram-webhook-secret-32-chars",
   billingRateLimitMax: 10,
   wakeTaskCatalogV9Enabled: false,
+  wakeTaskSubstitutionEnabled: false,
+  wakeLowEffectRecoveryEnabled: false,
+  wakeCombinationAnalyticsEnabled: false,
 };
 
 export function signedInitData(userId = 42): string {

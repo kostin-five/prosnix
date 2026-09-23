@@ -16,6 +16,7 @@ import type { Database } from "./types.js";
 
 export { PostgresBootstrapRepository } from "./bootstrap.js";
 export { PostgresSessionCommandRepository } from "./sessions.js";
+export { PostgresSessionTaskSubstitutionRepository } from "./session-task-substitutions.js";
 export { PostgresAnalyticsRepository } from "./analytics.js";
 export { PostgresUserDeletionRepository } from "./delete-user.js";
 export { PostgresFollowUpNotificationRepository } from "./follow-up-notifications.js";
@@ -54,6 +55,13 @@ function mapSession(row: typeof schema.wakeSessions.$inferSelect): SessionRecord
     wakeContext: row.wakeContext,
     durationMinutes: row.durationBudgetMinutes as 2 | 5 | 10,
     personalization: row.personalizationSnapshot as SessionRecord["personalization"],
+    sessionKind: row.sessionKind,
+    parentSessionId: row.parentSessionId,
+    recoveryBaseline:
+      row.baselineSourceSessionId && row.baselineSourceRatingKind === "post_protocol"
+        ? { sessionId: row.baselineSourceSessionId, ratingKind: "post_protocol" }
+        : null,
+    experience: row.experienceSnapshot as import("@awc/domain").WakeExperienceSnapshot,
     startedAt: row.startedAt,
     protocolCompletedAt: row.protocolCompletedAt,
     followUpDueAt: row.followUpDueAt,

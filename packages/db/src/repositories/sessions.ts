@@ -9,6 +9,7 @@ import {
   acceptPostRating,
   acceptTaskResult,
   learningAssignmentCandidates,
+  categoryForTask,
   SAFE_WAKE_PROFILE,
   selectPersonalizedAssignment,
   type ExperimentAssignment,
@@ -23,6 +24,7 @@ import {
   type WakeSession,
   type WakeCapabilityProfile,
   type WakePersonalizationSnapshot,
+  type WakeExperienceSnapshot,
 } from "@awc/domain";
 import {
   experimentAssignments,
@@ -31,6 +33,7 @@ import {
   protocolDefinitions,
   ratingObservations,
   taskObservations,
+  sessionTaskSubstitutions,
   users,
   wakeSessions,
   wakeCapabilityProfiles,
@@ -117,6 +120,14 @@ function parseSnapshot(value: unknown): WakePersonalizationSnapshot {
   };
 }
 
+function parseExperienceSnapshot(value: unknown): WakeExperienceSnapshot {
+  if (typeof value !== "object" || value === null) return { soundMode: "unknown" };
+  const soundMode = (value as { soundMode?: unknown }).soundMode;
+  return {
+    soundMode: soundMode === "on" || soundMode === "off" ? soundMode : "unknown",
+  };
+}
+
 function mapProfile(
   row: typeof wakeCapabilityProfiles.$inferSelect | undefined,
 ): WakeCapabilityProfile {
@@ -166,7 +177,7 @@ async function loadSession(
     .limit(1);
   if (!aggregate) return null;
 
-  const [ratings, tasks, followUps] = await Promise.all([
+  const [ratings, tasks, followUps, substitutionRows] = await Promise.all([
     db.select().from(ratingObservations).where(eq(ratingObservations.sessionId, sessionId)),
     db
       .select()
@@ -178,6 +189,11 @@ async function loadSession(
       .from(followUpObservations)
       .where(eq(followUpObservations.sessionId, sessionId))
       .limit(1),
+    db
+      .select()
+      .from(sessionTaskSubstitutions)
+      .where(eq(sessionTaskSubstitutions.sessionId, sessionId))
+      .orderBy(asc(sessionTaskSubstitutions.createdAt), asc(sessionTaskSubstitutions.id)),
   ]);
   const comparison: ExperimentAssignment["comparison"] =
     aggregate.assignment.comparisonGroupKey &&
@@ -191,6 +207,18 @@ async function loadSession(
         }
       : undefined;
 
+  const assignedSteps = parseSteps(aggregate.protocol.steps);
+  const effectiveSteps = assignedSteps.map((step) => ({ ...step }));
+  for (const substitution of substitutionRows) {
+    const current = effectiveSteps[substitution.stepIndex];
+    if (!current) continue;
+    effectiveSteps[substitution.stepIndex] = {
+      index: substitution.stepIndex,
+      taskId: substitution.replacementTaskId as TaskId,
+      category: categoryForTask(substitution.replacementTaskId as TaskId),
+    };
+  }
+
   return {
     id: aggregate.session.id,
     userId: aggregate.session.userId,
@@ -201,9 +229,30 @@ async function loadSession(
       strategyVersion: aggregate.assignment.strategyVersion,
       phase: aggregate.assignment.phase,
       hypothesis: aggregate.assignment.hypothesis,
-      steps: parseSteps(aggregate.protocol.steps),
+      steps: assignedSteps,
       ...(comparison ? { comparison } : {}),
     },
+    effectiveSteps,
+    substitutions: substitutionRows.map((substitution) => ({
+      id: substitution.id,
+      stepIndex: substitution.stepIndex,
+      originalTaskId: substitution.originalTaskId as TaskId,
+      replacementTaskId: substitution.replacementTaskId as TaskId,
+      reason: substitution.reason,
+      operationId: substitution.operationId,
+      createdAt: substitution.createdAt.toISOString(),
+    })),
+    sessionKind: aggregate.session.sessionKind,
+    parentSessionId: aggregate.session.parentSessionId,
+    recoveryBaseline:
+      aggregate.session.baselineSourceSessionId &&
+      aggregate.session.baselineSourceRatingKind === "post_protocol"
+        ? {
+            sessionId: aggregate.session.baselineSourceSessionId,
+            ratingKind: "post_protocol",
+          }
+        : null,
+    experience: parseExperienceSnapshot(aggregate.session.experienceSnapshot),
     wakeContext: aggregate.session.wakeContext,
     durationMinutes: aggregate.session.durationBudgetMinutes as 2 | 5 | 10,
     personalization: parseSnapshot(aggregate.session.personalizationSnapshot),
@@ -471,6 +520,7 @@ async function updateSnapshot(
       protocolCompletedAt: next.protocolCompletedAt ? new Date(next.protocolCompletedAt) : null,
       followUpDueAt: next.followUpDueAt ? new Date(next.followUpDueAt) : null,
       abandonedAt: next.abandonedAt ? new Date(next.abandonedAt) : null,
+      experienceSnapshot: next.experience ?? previous.experience ?? { soundMode: "unknown" },
       updatedAt: observedAt,
     })
     .where(
@@ -503,11 +553,14 @@ async function mutateSession(
   try {
     let next: WakeSession;
     if (command.type === "baseline") {
-      next = acceptBaseline(current, {
-        expectedVersion: command.expectedVersion,
-        value: command.value,
-        observedAt,
-      });
+      next = {
+        ...acceptBaseline(current, {
+          expectedVersion: command.expectedVersion,
+          value: command.value,
+          observedAt,
+        }),
+        experience: command.experience ?? current.experience ?? { soundMode: "unknown" },
+      };
       await updateSnapshot(db, current, next, envelope.observedAt);
       await db.insert(ratingObservations).values({
         userId: envelope.userId,

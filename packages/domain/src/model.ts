@@ -16,6 +16,9 @@ export type TaskId =
 export type TaskCategory = "cognitive" | "movement" | "behavioral" | "environment";
 export type FollowUpOutcome = "up" | "back" | "drowsy";
 export type SessionStatus = "assigned" | "in_progress" | "protocol_completed" | "abandoned";
+export type SessionKind = "primary" | "recovery";
+export type TaskSubstitutionReason = "unwilling_now" | "not_helpful" | "cannot_do";
+export type WakeSoundMode = "unknown" | "off" | "on";
 export type ExperimentPhase = "learning" | "adaptive" | "fallback";
 export type Confidence = "insufficient" | "low" | "medium" | "high";
 export type WakeContext = "unspecified" | "night_sleep" | "short_nap" | "long_nap" | "energy_reset";
@@ -66,6 +69,25 @@ export interface ProtocolStep {
   category: TaskCategory;
 }
 
+export interface SessionTaskSubstitution {
+  id: string;
+  stepIndex: number;
+  originalTaskId: TaskId;
+  replacementTaskId: TaskId;
+  reason: TaskSubstitutionReason;
+  operationId: string;
+  createdAt: string;
+}
+
+export interface WakeExperienceSnapshot {
+  soundMode: WakeSoundMode;
+}
+
+export interface RecoveryBaselineProvenance {
+  sessionId: string;
+  ratingKind: "post_protocol";
+}
+
 export interface ExperimentAssignment {
   id: string;
   protocolKey: string;
@@ -96,6 +118,13 @@ export interface WakeSession {
   id: string;
   userId: string;
   assignment: ExperimentAssignment;
+  /** Отдельный effective-порядок позволяет читать старые ответы, где поля ещё не было. */
+  effectiveSteps?: readonly ProtocolStep[];
+  substitutions?: readonly SessionTaskSubstitution[];
+  sessionKind?: SessionKind;
+  parentSessionId?: string | null;
+  recoveryBaseline?: RecoveryBaselineProvenance | null;
+  experience?: WakeExperienceSnapshot;
   wakeContext: WakeContext;
   durationMinutes: WakeDurationMinutes;
   personalization: WakePersonalizationSnapshot;

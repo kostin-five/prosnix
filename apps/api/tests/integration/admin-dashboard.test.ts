@@ -141,7 +141,15 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL admin dashboar
     );
 
     expect(summary.users).toMatchObject({ new: 2, active: 2 });
-    expect(summary.funnel).toEqual({ assigned: 3, started: 2, completed: 1, followedUp: 1 });
+    expect(summary.funnel).toEqual({
+      assigned: 3,
+      started: 2,
+      baselineRecorded: 2,
+      completed: 1,
+      followedUp: 1,
+      droppedBeforeBaseline: 1,
+      droppedAfterBaseline: 1,
+    });
     expect(summary.wakeQuality).toEqual({
       pairedSessions: 1,
       averageDelta: 4,

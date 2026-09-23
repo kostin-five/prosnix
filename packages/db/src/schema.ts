@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -63,6 +64,12 @@ export const wakeContext = pgEnum("wake_context", [
   "energy_reset",
 ]);
 export const movementLevel = pgEnum("movement_level", ["none", "light", "full"]);
+export const sessionKind = pgEnum("session_kind", ["primary", "recovery"]);
+export const taskSubstitutionReason = pgEnum("task_substitution_reason", [
+  "unwilling_now",
+  "not_helpful",
+  "cannot_do",
+]);
 
 export const users = pgTable(
   "users",
@@ -194,6 +201,11 @@ export const wakeSessions = pgTable(
     wakeContext: wakeContext("wake_context").notNull().default("unspecified"),
     durationBudgetMinutes: integer("duration_budget_minutes").notNull().default(5),
     personalizationSnapshot: jsonb("personalization_snapshot").notNull().default({}),
+    experienceSnapshot: jsonb("experience_snapshot").notNull().default({ soundMode: "unknown" }),
+    sessionKind: sessionKind("session_kind").notNull().default("primary"),
+    parentSessionId: uuid("parent_session_id"),
+    baselineSourceSessionId: uuid("baseline_source_session_id"),
+    baselineSourceRatingKind: ratingKind("baseline_source_rating_kind"),
     startedAt: timestamp("started_at", { withTimezone: true }),
     protocolCompletedAt: timestamp("protocol_completed_at", { withTimezone: true }),
     followUpDueAt: timestamp("follow_up_due_at", { withTimezone: true }),
@@ -203,12 +215,73 @@ export const wakeSessions = pgTable(
   },
   (table) => [
     unique("wake_sessions_assignment_unique").on(table.assignmentId),
+    unique("wake_sessions_id_user_unique").on(table.id, table.userId),
+    foreignKey({
+      columns: [table.parentSessionId, table.userId],
+      foreignColumns: [table.id, table.userId],
+      name: "wake_sessions_parent_owner_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.baselineSourceSessionId, table.userId],
+      foreignColumns: [table.id, table.userId],
+      name: "wake_sessions_baseline_source_owner_fk",
+    }).onDelete("cascade"),
     check("wake_sessions_step_nonnegative", sql`${table.currentStepIndex} >= 0`),
     check("wake_sessions_version_positive", sql`${table.version} > 0`),
     check("wake_sessions_duration_budget_valid", sql`${table.durationBudgetMinutes} in (2, 5, 10)`),
+    check(
+      "wake_sessions_recovery_shape_valid",
+      sql`(
+        ${table.sessionKind} = 'primary'
+        and ${table.parentSessionId} is null
+        and ${table.baselineSourceSessionId} is null
+        and ${table.baselineSourceRatingKind} is null
+      ) or (
+        ${table.sessionKind} = 'recovery'
+        and ${table.parentSessionId} is not null
+        and ${table.baselineSourceSessionId} = ${table.parentSessionId}
+        and ${table.baselineSourceRatingKind} = 'post_protocol'
+      )`,
+    ),
+    check(
+      "wake_sessions_parent_not_self",
+      sql`${table.parentSessionId} is null or ${table.parentSessionId} <> ${table.id}`,
+    ),
+    uniqueIndex("wake_sessions_one_recovery_per_parent")
+      .on(table.parentSessionId)
+      .where(sql`${table.sessionKind} = 'recovery'`),
     uniqueIndex("wake_sessions_one_active_per_user")
       .on(table.userId)
       .where(sql`${table.status} in ('assigned', 'in_progress')`),
+  ],
+);
+
+export const sessionTaskSubstitutions = pgTable(
+  "session_task_substitutions",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    sessionId: uuid("session_id").notNull(),
+    stepIndex: integer("step_index").notNull(),
+    originalTaskId: text("original_task_id").notNull(),
+    replacementTaskId: text("replacement_task_id").notNull(),
+    reason: taskSubstitutionReason().notNull(),
+    operationId: text("operation_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.sessionId, table.userId],
+      foreignColumns: [wakeSessions.id, wakeSessions.userId],
+      name: "session_task_substitutions_session_owner_fk",
+    }).onDelete("cascade"),
+    unique("session_task_substitutions_user_operation_unique").on(table.userId, table.operationId),
+    index("session_task_substitutions_session_created_idx").on(table.sessionId, table.createdAt),
+    check("session_task_substitutions_step_nonnegative", sql`${table.stepIndex} >= 0`),
+    check(
+      "session_task_substitutions_changes_task",
+      sql`${table.originalTaskId} <> ${table.replacementTaskId}`,
+    ),
   ],
 );
 

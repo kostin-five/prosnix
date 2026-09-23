@@ -28,7 +28,7 @@
 - [x] 4.1 Выделить стабильный shell с фиксированными областями инструкции, анимации, таймера и CTA; проверить отсутствие двойной отправки и переход только после ответа API
 - [x] 4.2 Реализовать lazy-loaded `TaskMotionVisual` и статичный fallback `prefers-reduced-motion` для каждого task ID
 - [x] 4.3 Добавить session-level «Со звуком / Без звука», Web Audio только после жеста и безопасный haptic adapter; проверить отсутствие autoplay и продолжение при ошибке AudioContext
-- [ ] 4.4 Зафиксировать sound mode в privacy-safe `experience_snapshot` без системной громкости
+- [x] 4.4 Зафиксировать sound mode в privacy-safe `experience_snapshot` без системной громкости
 - [ ] 4.5 Сравнить текущий системный стек с self-hosted Onest Variable на реальных Telegram iOS/Android; менять шрифт только при отсутствии ухудшения читаемости, кириллицы и bundle
 - [x] 4.6 Проверить уместное появление Пикса как проводника onboarding/награды, не как отвлекающий постоянный персонаж
 
@@ -42,17 +42,17 @@
 
 ## 6. Data foundation для замены и recovery
 
-- [ ] 6.1 Добавить выключенные по умолчанию flags последующих этапов и privacy-safe агрегаты baseline completion/drop-off/follow-up/D1/D3/D7
-- [ ] 6.2 Создать forward-only migration для `session_task_substitutions`, `experience_snapshot`, `session_kind`, `parent_session_id` и provenance recovery-baseline; применить всю цепочку на disposable PostgreSQL 17
-- [ ] 6.3 Добавить Drizzle schema/repositories, ownership, constraints, idempotency и каскадное удаление
-- [ ] 6.4 Расширить contracts обратно совместимыми `effectiveSteps`, substitutions и recovery link
+- [x] 6.1 Добавить выключенные по умолчанию flags последующих этапов и privacy-safe агрегаты baseline completion/drop-off/follow-up/D1/D3/D7
+- [x] 6.2 Создать forward-only migration для `session_task_substitutions`, `experience_snapshot`, `session_kind`, `parent_session_id` и provenance recovery-baseline; применить всю цепочку на disposable PostgreSQL 17
+- [x] 6.3 Добавить Drizzle schema/repositories, ownership, constraints, idempotency и каскадное удаление
+- [x] 6.4 Расширить contracts обратно совместимыми `effectiveSteps`, substitutions и recovery link
 
 ## 7. Замена текущего или следующего задания
 
 - [ ] 7.1 Реализовать детерминированный селектор альтернатив с учётом профиля, бюджета, выполненных/отклонённых task IDs и предпочтением того же фактора
 - [ ] 7.2 Добавить versioned-команду и API route замены произвольного невыполненного индекса с `Idempotency-Key` и `If-Match`
 - [ ] 7.3 Перевести bootstrap, resume и результат шага на серверные `effectiveSteps`
-- [ ] 7.4 Добавить «Заменить» для текущего и preview следующего шага, sheet причин `not_now`/`not_helpful`/`cannot_do` и отдельное подтверждение изменения профиля
+- [ ] 7.4 Добавить «Заменить» для текущего и preview следующего шага, sheet причин `unwilling_now`/`not_helpful`/`cannot_do` и отдельное подтверждение изменения профиля
 - [ ] 7.5 Обновить аналитику фактической последовательности и исключение нарушенного factor comparison; проверить reconnect после обеих видов замены
 
 ## 8. Recovery при слабом результате

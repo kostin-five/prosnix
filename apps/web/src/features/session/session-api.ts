@@ -91,11 +91,16 @@ export function saveBaseline(
   sessionId: string,
   expectedVersion: number,
   value: number,
+  soundMode: "off" | "on" = "off",
 ): Promise<WakeSessionResponse> {
   return sendCommand(
     "PUT",
     `/api/v1/sessions/${sessionId}/baseline`,
-    { value, clientObservedAt: new Date().toISOString() },
+    {
+      value,
+      clientObservedAt: new Date().toISOString(),
+      experience: { soundMode },
+    },
     expectedVersion,
   );
 }

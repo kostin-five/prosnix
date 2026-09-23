@@ -3,6 +3,7 @@ import type {
   FollowUpOutcome,
   SessionStatus,
   TaskId,
+  TaskSubstitutionReason,
   WakeSession,
   WakeCapabilityProfile,
   WakeContext,
@@ -30,6 +31,10 @@ export interface SessionRecord {
   wakeContext: WakeContext;
   durationMinutes: WakeDurationMinutes;
   personalization: import("./model.js").WakePersonalizationSnapshot;
+  sessionKind?: import("./model.js").SessionKind;
+  parentSessionId?: string | null;
+  recoveryBaseline?: import("./model.js").RecoveryBaselineProvenance | null;
+  experience?: import("./model.js").WakeExperienceSnapshot;
   startedAt: Date | null;
   protocolCompletedAt: Date | null;
   followUpDueAt: Date | null;
@@ -89,6 +94,7 @@ export interface BootstrapSession {
     version: number;
     title: string;
     steps: unknown;
+    effectiveSteps?: unknown;
   };
   assignment: {
     strategyVersion: string;
@@ -97,6 +103,7 @@ export interface BootstrapSession {
   };
   baseline: number | null;
   postRating: number | null;
+  substitutions?: SessionTaskSubstitutionRecord[];
 }
 
 export interface BootstrapSnapshot {
@@ -129,6 +136,7 @@ export type SessionCommand =
       expectedVersion: number;
       value: number;
       clientObservedAt?: string;
+      experience?: import("./model.js").WakeExperienceSnapshot;
     }
   | {
       type: "task";
@@ -188,6 +196,42 @@ export class SessionCommandConflict extends Error {
 
 export interface SessionCommandRepository {
   execute(envelope: SessionCommandEnvelope): Promise<SessionCommandResult>;
+}
+
+export interface SessionTaskSubstitutionRecord {
+  id: string;
+  sessionId: string;
+  stepIndex: number;
+  originalTaskId: TaskId;
+  replacementTaskId: TaskId;
+  reason: TaskSubstitutionReason;
+  operationId: string;
+  createdAt: Date;
+}
+
+export interface SessionTaskSubstitutionRepository {
+  list(userId: string, sessionId: string): Promise<SessionTaskSubstitutionRecord[]>;
+  append(input: {
+    userId: string;
+    sessionId: string;
+    stepIndex: number;
+    originalTaskId: TaskId;
+    replacementTaskId: TaskId;
+    reason: TaskSubstitutionReason;
+    operationId: string;
+    requestHash: string;
+    now: Date;
+  }): Promise<SessionTaskSubstitutionRecord>;
+}
+
+export class SessionTaskSubstitutionConflict extends Error {
+  constructor(
+    readonly code: "session_not_found" | "idempotency_conflict",
+    message: string,
+  ) {
+    super(message);
+    this.name = "SessionTaskSubstitutionConflict";
+  }
 }
 
 export interface AnalyticsRepository {
@@ -284,7 +328,15 @@ export interface LegalAcceptanceRepository {
 export interface AdminGrowthSummary {
   users: { total: number; new: number; active: number };
   sessions: { started: number; completed: number; abandoned: number };
-  funnel: { assigned: number; started: number; completed: number; followedUp: number };
+  funnel: {
+    assigned: number;
+    started: number;
+    baselineRecorded: number;
+    completed: number;
+    followedUp: number;
+    droppedBeforeBaseline: number;
+    droppedAfterBaseline: number;
+  };
   wakeQuality: {
     pairedSessions: number;
     averageDelta: number | null;
@@ -300,6 +352,8 @@ export interface AdminGrowthSummary {
   retention: {
     d1Eligible: number;
     d1Retained: number;
+    d3Eligible: number;
+    d3Retained: number;
     d7Eligible: number;
     d7Retained: number;
     secondSessionWithin7Days: {

@@ -19,17 +19,30 @@ export const TASK_IDS = [
 export const TASK_CATEGORIES = ["cognitive", "movement", "behavioral", "environment"] as const;
 
 export const FOLLOW_UP_OUTCOMES = ["up", "back", "drowsy"] as const;
+export const SESSION_KINDS = ["primary", "recovery"] as const;
+export const TASK_SUBSTITUTION_REASONS = ["unwilling_now", "not_helpful", "cannot_do"] as const;
+export const WAKE_SOUND_MODES = ["unknown", "off", "on"] as const;
 
 export const TaskIdSchema = Type.Union(TASK_IDS.map((value) => Type.Literal(value)));
 export const TaskCategorySchema = Type.Union(TASK_CATEGORIES.map((value) => Type.Literal(value)));
 export const FollowUpOutcomeSchema = Type.Union(
   FOLLOW_UP_OUTCOMES.map((value) => Type.Literal(value)),
 );
+export const SessionKindSchema = Type.Union(SESSION_KINDS.map((value) => Type.Literal(value)));
+export const TaskSubstitutionReasonSchema = Type.Union(
+  TASK_SUBSTITUTION_REASONS.map((value) => Type.Literal(value)),
+);
+export const WakeSoundModeSchema = Type.Union(WAKE_SOUND_MODES.map((value) => Type.Literal(value)));
+export const WakeExperienceSnapshotSchema = Type.Object(
+  { soundMode: WakeSoundModeSchema },
+  { additionalProperties: false },
+);
 
 export const RatingInputSchema = Type.Object(
   {
     value: Type.Integer({ minimum: 1, maximum: 10 }),
     clientObservedAt: Type.Optional(Type.String({ format: "date-time" })),
+    experience: Type.Optional(WakeExperienceSnapshotSchema),
   },
   { additionalProperties: false },
 );
@@ -53,6 +66,10 @@ export const FollowUpInputSchema = Type.Object(
 export type TaskId = Static<typeof TaskIdSchema>;
 export type TaskCategory = Static<typeof TaskCategorySchema>;
 export type FollowUpOutcome = Static<typeof FollowUpOutcomeSchema>;
+export type SessionKind = Static<typeof SessionKindSchema>;
+export type TaskSubstitutionReason = Static<typeof TaskSubstitutionReasonSchema>;
+export type WakeSoundMode = Static<typeof WakeSoundModeSchema>;
+export type WakeExperienceSnapshot = Static<typeof WakeExperienceSnapshotSchema>;
 export type RatingInput = Static<typeof RatingInputSchema>;
 export type TaskResultInput = Static<typeof TaskResultInputSchema>;
 export type FollowUpInput = Static<typeof FollowUpInputSchema>;
@@ -211,6 +228,30 @@ export interface SessionHistoryItemResponse {
   durationMinutes: WakeDurationMinutes;
 }
 
+export interface SessionTaskSubstitutionResponse {
+  id: string;
+  stepIndex: number;
+  originalTaskId: TaskId;
+  replacementTaskId: TaskId;
+  reason: TaskSubstitutionReason;
+  operationId: string;
+  createdAt: string;
+}
+
+/** Поля добавляются к session payload обратно совместимо: старый клиент продолжает читать assignment. */
+export interface WakeSessionEvolutionResponse {
+  effectiveSteps?: Array<{
+    index: number;
+    taskId: TaskId;
+    category: TaskCategory;
+  }>;
+  substitutions?: SessionTaskSubstitutionResponse[];
+  sessionKind?: SessionKind;
+  parentSessionId?: string | null;
+  recoveryBaseline?: { sessionId: string; ratingKind: "post_protocol" } | null;
+  experience?: WakeExperienceSnapshot;
+}
+
 export interface SessionHistoryResponse {
   sessions: SessionHistoryItemResponse[];
 }
@@ -242,9 +283,13 @@ export interface AdminGrowthResponse {
   funnel: {
     assigned: number;
     started: number;
+    baselineRecorded: number;
     completed: number;
     followedUp: number;
+    droppedBeforeBaseline: number;
+    droppedAfterBaseline: number;
     startRate: number;
+    baselineRate: number;
     completionRate: number;
     followUpRate: number;
   };
@@ -265,6 +310,7 @@ export interface AdminGrowthResponse {
   };
   retention: {
     d1: { eligible: number; retained: number; rate: number };
+    d3: { eligible: number; retained: number; rate: number };
     d7: { eligible: number; retained: number; rate: number };
     secondSessionWithin7Days: {
       cohort: number;
