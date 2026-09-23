@@ -14,6 +14,8 @@ const BASE_ESTIMATED_SECONDS: Record<TaskId, number> = {
   window: 40,
   curtains: 20,
   sit_edge: 10,
+  cool_wash: 20,
+  pushups: 25,
 };
 
 const TEN_MINUTE_ESTIMATED_SECONDS: Record<TaskId, number> = {
@@ -28,6 +30,8 @@ const TEN_MINUTE_ESTIMATED_SECONDS: Record<TaskId, number> = {
   window: 60,
   curtains: 30,
   sit_edge: 10,
+  cool_wash: 30,
+  pushups: 30,
 };
 
 export function taskSuccessTarget(taskId: TaskId, durationMinutes: WakeDurationMinutes): number {

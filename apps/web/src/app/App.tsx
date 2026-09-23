@@ -64,6 +64,12 @@ const GUIDED_TASK_EXPERIENCE_ENABLED =
   import.meta.env.VITE_GUIDED_TASK_EXPERIENCE_ENABLED !== "false";
 
 const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
+const StartRatingScreen = lazy(async () => ({
+  default: (await import("../features/session/rating-screens.js")).StartRatingScreen,
+}));
+const EndRatingScreen = lazy(async () => ({
+  default: (await import("../features/session/rating-screens.js")).EndRatingScreen,
+}));
 const HomeScreenPrompt = lazy(async () => ({
   default: (await import("../features/onboarding/home-screen-prompt.js")).HomeScreenPrompt,
 }));
@@ -71,10 +77,10 @@ const CapabilityOnboardingScreen = lazy(
   () => import("../features/personalization/capability-onboarding-screen.js"),
 );
 const StatsResearchCards = lazy(() => import("../features/research/stats-research-cards.js"));
-const TaskTimerVisual = lazy(() => import("../features/tasks/task-timer-visual.js"));
 const TaskMotionVisual = lazy(() => import("../features/tasks/task-motion-visual.js"));
 const TaskSoundToggle = lazy(() => import("../features/tasks/task-sound-toggle.js"));
 const ProtocolSheet = lazy(() => import("../features/tasks/protocol-sheet.js"));
+const ConfirmTask = lazy(() => import("../features/tasks/confirm-task.js"));
 const MorningExperienceSlot = lazy(
   () => import("../features/personalization/morning-experience-slot.js"),
 );
@@ -109,7 +115,9 @@ type TaskId =
   | "water"
   | "window"
   | "curtains"
-  | "sit_edge";
+  | "sit_edge"
+  | "cool_wash"
+  | "pushups";
 type TaskCategory = "cognitive" | "movement" | "behavioral" | "environment";
 type FollowUp = "up" | "back" | "drowsy" | null;
 type Confidence = "insufficient" | "low" | "medium" | "high";
@@ -234,6 +242,16 @@ const TASK_META: Record<TaskId, { category: TaskCategory; title: string; subtitl
     title: "Сесть на край кровати",
     subtitle: "Стопы на полу · 10 секунд",
   },
+  cool_wash: {
+    category: "behavioral",
+    title: "Умыться прохладной водой",
+    subtitle: "20 секунд у раковины",
+  },
+  pushups: {
+    category: "movement",
+    title: "Отжимания",
+    subtitle: "От пола или с колен",
+  },
 };
 
 const CAT_META: Record<TaskCategory, { label: string; color: string; bg: string }> = {
@@ -286,91 +304,6 @@ function MoonIcon({ className = "h-5 w-5" }: { className?: string }) {
       <path d="M20.5 14.4A8.5 8.5 0 0 1 9.6 3.5 8.5 8.5 0 1 0 20.5 14.4Z" />
     </svg>
   );
-}
-
-const CONFIRM_CONFIG: Partial<
-  Record<TaskId, { instruction: string; countdown: number; cta: string }>
-> = {
-  steps: {
-    instruction:
-      "Встаньте и пройдитесь по комнате или коридору. Шаги не измеряются датчиком — отметьте выполнение честно после таймера.",
-    countdown: 20,
-    cta: "Прошёл",
-  },
-  squats: {
-    instruction:
-      "Сделайте 5 приседаний медленно, глубоко дыша. Напрягите ноги и выпрямитесь полностью.",
-    countdown: 20,
-    cta: "Сделал",
-  },
-  shake: {
-    instruction: "Потрясите руками, подвигайте плечами и шеей. Разбудите тело за 15 секунд.",
-    countdown: 15,
-    cta: "Готово",
-  },
-  water: {
-    instruction: "Налейте и выпейте стакан воды, если это подходит вам и не запрещено врачом.",
-    countdown: 10,
-    cta: "Выпил",
-  },
-  window: {
-    instruction:
-      "Откройте шторы или включите яркий свет в комнате и побудьте при свете 30 секунд. Не смотрите прямо на солнце.",
-    countdown: 30,
-    cta: "Готово",
-  },
-  curtains: {
-    instruction:
-      "Откройте шторы и впустите дневной свет. Не смотрите прямо на солнце; если темно, включите яркий свет в комнате.",
-    countdown: 0,
-    cta: "Открыл",
-  },
-  sit_edge: {
-    instruction:
-      "Сядьте на край кровати и поставьте обе стопы на пол. Останьтесь так 10 секунд перед тем, как вставать.",
-    countdown: 10,
-    cta: "Готово",
-  },
-};
-
-const TEN_MINUTE_CONFIRM_OVERRIDES: Partial<
-  Record<TaskId, { instruction: string; countdown: number; cta: string }>
-> = {
-  steps: {
-    instruction:
-      "Встаньте и ходите по комнате или коридору одну минуту. Шаги не измеряются датчиком — отметьте выполнение честно после таймера.",
-    countdown: 60,
-    cta: "Прошёл",
-  },
-  squats: {
-    instruction:
-      "Сделайте 10 приседаний медленно, глубоко дыша. Напрягите ноги и выпрямитесь полностью.",
-    countdown: 45,
-    cta: "Сделал",
-  },
-  shake: {
-    instruction: "Разминайте руки, плечи и шею в течение 30 секунд, не делая резких движений.",
-    countdown: 30,
-    cta: "Готово",
-  },
-  window: {
-    instruction:
-      "Откройте шторы или включите яркий свет в комнате и побудьте при свете одну минуту. Не смотрите прямо на солнце.",
-    countdown: 60,
-    cta: "Готово",
-  },
-  curtains: {
-    instruction:
-      "Откройте шторы и останьтесь при дневном или ярком комнатном свете 30 секунд. Не смотрите прямо на солнце.",
-    countdown: 30,
-    cta: "Открыл",
-  },
-};
-
-function confirmConfig(taskId: TaskId, durationMinutes: WakeDurationMinutes) {
-  return durationMinutes === 10 && TEN_MINUTE_CONFIRM_OVERRIDES[taskId]
-    ? TEN_MINUTE_CONFIRM_OVERRIDES[taskId]!
-    : CONFIRM_CONFIG[taskId]!;
 }
 
 // ─── Learning Period Sequences ────────────────────────────────────────────────
@@ -620,37 +553,6 @@ function selectTasks(sessionCount: number, allSessions: Session[]): TaskId[] {
   if (sessionCount < LEARNING_SEQ.length) return LEARNING_SEQ[sessionCount];
   const plan = computeNextPlan(allSessions);
   return plan.taskIds;
-}
-
-// ─── Shared Rating Grid ───────────────────────────────────────────────────────
-function RatingGrid({
-  selected,
-  onSelect,
-}: {
-  selected: number | null;
-  onSelect: (n: number) => void;
-}) {
-  return (
-    <div className="grid grid-cols-5 gap-2 mb-3">
-      {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
-        const color =
-          n <= 3
-            ? "text-red-400 bg-red-500/15 border-red-500/40"
-            : n <= 6
-              ? "text-yellow-300 bg-yellow-500/15 border-yellow-500/40"
-              : "text-green-400 bg-green-500/15 border-green-500/40";
-        return (
-          <button
-            key={n}
-            onClick={() => onSelect(n)}
-            className={`aspect-square rounded-2xl border text-xl font-bold transition-all duration-150 ${n === selected ? color + " border-2 scale-110 shadow-lg" : "bg-secondary border-border text-foreground active:scale-95"}`}
-          >
-            {n}
-          </button>
-        );
-      })}
-    </div>
-  );
 }
 
 // ─── Math Task ────────────────────────────────────────────────────────────────
@@ -1057,112 +959,6 @@ export function ReactionTask({
   );
 }
 
-// ─── Confirm Task ─────────────────────────────────────────────────────────────
-export function ConfirmTask({
-  taskId,
-  durationMinutes,
-  onDone,
-  soundMode = "off",
-}: {
-  taskId: TaskId;
-  durationMinutes: WakeDurationMinutes;
-  onDone: (r: TaskResult) => void;
-  soundMode?: WakeSoundMode;
-}) {
-  const cfg = confirmConfig(taskId, durationMinutes);
-  const meta = TASK_META[taskId];
-  const [started, setStarted] = useState(false);
-  const [cd, setCd] = useState(cfg.countdown);
-  const [done, setDone] = useState(false);
-  const t0 = useRef(Date.now());
-  useEffect(() => {
-    if (!started || cd <= 0) return;
-    const t = setTimeout(() => setCd((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [started, cd]);
-  function confirm() {
-    if (done) return;
-    setDone(true);
-    setTimeout(
-      () =>
-        onDone({
-          id: taskId,
-          category: meta.category,
-          correct: 1,
-          total: 1,
-          timeMs: Date.now() - t0.current,
-        }),
-      500,
-    );
-  }
-  if (done)
-    return (
-      <div className="flex flex-col items-center gap-6">
-        <div className="w-20 h-20 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
-          <Check className="w-10 h-10 text-green-400" strokeWidth={2.5} />
-        </div>
-        <p className="text-lg font-semibold text-green-400">Готово!</p>
-      </div>
-    );
-  return (
-    <div className="grid min-h-[320px] grid-rows-[64px_minmax(160px,1fr)_64px] gap-4">
-      <p className="self-center text-center text-sm leading-relaxed text-muted-foreground">
-        {cfg.instruction}
-      </p>
-      <div className="grid min-h-40 place-items-center">
-        {cfg.countdown > 0 && started ? (
-          <Suspense
-            fallback={
-              <div className="grid h-40 w-40 place-items-center text-4xl font-black text-primary">
-                {cd}
-              </div>
-            }
-          >
-            <TaskTimerVisual taskId={taskId} remaining={cd} total={cfg.countdown} />
-          </Suspense>
-        ) : (
-          <p className="max-w-[240px] text-center text-xs leading-relaxed text-muted-foreground">
-            Нажми «Начать», когда будешь готов выполнить действие.
-          </p>
-        )}
-      </div>
-      {!started ? (
-        <button
-          onClick={() => {
-            setStarted(true);
-            sendTaskFeedback("start", soundMode);
-          }}
-          className="w-full py-4 rounded-2xl text-lg font-bold text-white active:scale-[0.98] transition-transform"
-          style={{
-            background: "linear-gradient(135deg,#F97316,#EA580C)",
-            boxShadow: "0 8px 32px rgba(249,115,22,.25)",
-          }}
-        >
-          Начать
-        </button>
-      ) : (
-        <button
-          onClick={confirm}
-          disabled={cfg.countdown > 0 && cd > 0}
-          className={`w-full py-4 rounded-2xl text-lg font-bold transition-all ${cfg.countdown > 0 && cd > 0 ? "bg-secondary text-muted-foreground" : "text-white active:scale-[0.98]"}`}
-          style={
-            cfg.countdown === 0 || cd === 0
-              ? {
-                  background: "linear-gradient(135deg,#F97316,#EA580C)",
-                  boxShadow: "0 8px 32px rgba(249,115,22,.25)",
-                }
-              : {}
-          }
-        >
-          <span className="inline-flex items-center justify-center gap-2">
-            {cfg.cta} <Check className="h-5 w-5" />
-          </span>
-        </button>
-      )}
-    </div>
-  );
-}
-
 // ─── Tasks Container ──────────────────────────────────────────────────────────
 export function TasksContainer({
   taskIds,
@@ -1336,14 +1132,18 @@ export function TasksContainer({
             id === "water" ||
             id === "window" ||
             id === "curtains" ||
-            id === "sit_edge") && (
-            <ConfirmTask
-              key={`${id}-${taskIndex}`}
-              taskId={id}
-              durationMinutes={durationMinutes}
-              soundMode={soundMode}
-              onDone={completeTask}
-            />
+            id === "sit_edge" ||
+            id === "cool_wash" ||
+            id === "pushups") && (
+            <Suspense fallback={<div className="min-h-[300px] rounded-2xl bg-secondary/30" />}>
+              <ConfirmTask
+                key={`${id}-${taskIndex}`}
+                taskId={id}
+                durationMinutes={durationMinutes}
+                soundMode={soundMode}
+                onDone={completeTask}
+              />
+            </Suspense>
           )}
         </div>
         <div
@@ -1480,147 +1280,6 @@ function HomeScreen({
         }}
       >
         <Sun className="w-5 h-5" /> {demo ? "Попробовать пробуждение" : "Начать пробуждение"}
-      </button>
-    </div>
-  );
-}
-
-// ─── Start Rating ─────────────────────────────────────────────────────────────
-export function StartRatingScreen({
-  onDone,
-  ready = true,
-  busy = false,
-  onRetry,
-  localStorageScope,
-  soundMode = "off",
-  onSoundModeChange = () => undefined,
-}: {
-  onDone: (v: number) => void;
-  ready?: boolean;
-  busy?: boolean;
-  onRetry?: () => void;
-  localStorageScope?: string;
-  soundMode?: WakeSoundMode;
-  onSoundModeChange?: (mode: WakeSoundMode) => void;
-}) {
-  const [sel, setSel] = useState<number | null>(null);
-  return (
-    <div className="flex flex-col flex-1 p-6 justify-center">
-      <div className="text-center mb-10">
-        <MoonIcon className="mx-auto mb-5 h-12 w-12 text-accent" />
-        <h1 className="text-2xl font-bold mb-2">Перед протоколом</h1>
-        <p className="text-muted-foreground">Насколько бодрым ты себя чувствуешь прямо сейчас?</p>
-      </div>
-      {GOAL_CALIBRATION_ENABLED && localStorageScope && (
-        <Suspense fallback={null}>
-          <MorningExperienceSlot mode="goal" storageScope={localStorageScope} />
-        </Suspense>
-      )}
-      {GUIDED_TASK_EXPERIENCE_ENABLED && (
-        <Suspense fallback={<div className="mb-6 h-24 rounded-2xl bg-card" />}>
-          <TaskSoundToggle mode={soundMode} onChange={onSoundModeChange} />
-        </Suspense>
-      )}
-      <RatingGrid selected={sel} onSelect={setSel} />
-      <div className="flex justify-between text-xs text-muted-foreground px-1 mb-8">
-        <span>1 — еле проснулся</span>
-        <span>10 — полностью бодр</span>
-      </div>
-      <button
-        onClick={() => sel && onDone(sel)}
-        disabled={!sel || !ready || busy}
-        className={`w-full py-4 rounded-2xl text-lg font-bold transition-all ${sel && ready && !busy ? "text-white active:scale-[0.98]" : "bg-secondary text-muted-foreground"}`}
-        style={
-          sel && ready && !busy
-            ? {
-                background: "linear-gradient(135deg,#F97316,#EA580C)",
-                boxShadow: "0 8px 32px rgba(249,115,22,.25)",
-              }
-            : {}
-        }
-      >
-        {!ready ? "Подготавливаем протокол…" : busy ? "Сохраняем…" : "Начать протокол →"}
-      </button>
-      {!ready && !busy && onRetry && (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-3 w-full rounded-2xl border border-border py-3 text-sm font-semibold"
-        >
-          Повторить подключение
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ─── End Rating ───────────────────────────────────────────────────────────────
-function EndRatingScreen({
-  startAlertness,
-  onDone,
-}: {
-  startAlertness: number;
-  onDone: (v: number) => void;
-}) {
-  const [sel, setSel] = useState<number | null>(null);
-  return (
-    <div className="flex flex-col flex-1 p-6 justify-center">
-      <div className="text-center mb-6">
-        <Sun className="mx-auto mb-5 h-12 w-12 text-accent" strokeWidth={1.7} />
-        <h1 className="text-2xl font-bold mb-2">Протокол завершён</h1>
-        <p className="text-muted-foreground">А сейчас насколько бодрым ты себя чувствуешь?</p>
-      </div>
-      <div className="flex items-center justify-center gap-4 mb-8">
-        <div className="text-center">
-          <div className="text-sm text-muted-foreground mb-1">Было</div>
-          <div className="text-3xl font-black text-muted-foreground">
-            {startAlertness}
-            <span className="text-base">/10</span>
-          </div>
-        </div>
-        <ArrowRight className="w-5 h-5 text-muted-foreground" />
-        <div className="text-center">
-          <div className="text-sm text-muted-foreground mb-1">Стало</div>
-          <div
-            className={`text-3xl font-black ${sel ? (sel > startAlertness ? "text-green-400" : "text-yellow-400") : "text-muted-foreground"}`}
-          >
-            {sel ? `${sel}/10` : "?/10"}
-          </div>
-        </div>
-        {sel && (
-          <>
-            <div className="w-px h-8 bg-border" />
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-1">Эффект</div>
-              <div
-                className={`text-3xl font-black ${sel - startAlertness > 0 ? "text-green-400" : "text-red-400"}`}
-              >
-                {sel - startAlertness > 0 ? "+" : ""}
-                {sel - startAlertness}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-      <RatingGrid selected={sel} onSelect={setSel} />
-      <div className="flex justify-between text-xs text-muted-foreground px-1 mb-8">
-        <span>1 — еле проснулся</span>
-        <span>10 — полностью бодр</span>
-      </div>
-      <button
-        onClick={() => sel && onDone(sel)}
-        disabled={!sel}
-        className={`w-full py-4 rounded-2xl text-lg font-bold transition-all ${sel ? "text-white active:scale-[0.98]" : "bg-secondary text-muted-foreground"}`}
-        style={
-          sel
-            ? {
-                background: "linear-gradient(135deg,#F97316,#EA580C)",
-                boxShadow: "0 8px 32px rgba(249,115,22,.25)",
-              }
-            : {}
-        }
-      >
-        Сохранить результат
       </button>
     </div>
   );
@@ -2909,19 +2568,25 @@ function PrototypeApp({
           </LazyBoundary>
         )}
         {screen === "startRating" && (
-          <StartRatingScreen
-            onDone={handleStartRating}
-            ready={demo || Boolean(serverSession)}
-            busy={syncing}
-            localStorageScope={localStorageScope}
-            soundMode={soundMode}
-            onSoundModeChange={setSoundMode}
-            onRetry={
-              launchSource === "wake" && !serverSession
-                ? () => void startSession("night_sleep", wakeProfile.defaultDurationMinutes)
-                : undefined
-            }
-          />
+          <Suspense
+            fallback={<div className="p-5 text-sm text-muted-foreground">Готовим оценку…</div>}
+          >
+            <StartRatingScreen
+              onDone={handleStartRating}
+              ready={demo || Boolean(serverSession)}
+              busy={syncing}
+              localStorageScope={localStorageScope}
+              soundMode={soundMode}
+              onSoundModeChange={setSoundMode}
+              goalCalibrationEnabled={GOAL_CALIBRATION_ENABLED}
+              guidedExperience={GUIDED_TASK_EXPERIENCE_ENABLED}
+              onRetry={
+                launchSource === "wake" && !serverSession
+                  ? () => void startSession("night_sleep", wakeProfile.defaultDurationMinutes)
+                  : undefined
+              }
+            />
+          </Suspense>
         )}
         {screen === "tasks" && (
           <TasksContainer
@@ -2936,7 +2601,11 @@ function PrototypeApp({
           />
         )}
         {screen === "endRating" && (
-          <EndRatingScreen startAlertness={startAlertness} onDone={handleEndRating} />
+          <Suspense
+            fallback={<div className="p-5 text-sm text-muted-foreground">Готовим оценку…</div>}
+          >
+            <EndRatingScreen startAlertness={startAlertness} onDone={handleEndRating} />
+          </Suspense>
         )}
         {screen === "results" && completedSession && (
           <ResultsScreen

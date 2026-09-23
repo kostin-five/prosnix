@@ -9,7 +9,9 @@ export type TaskId =
   | "water"
   | "window"
   | "curtains"
-  | "sit_edge";
+  | "sit_edge"
+  | "cool_wash"
+  | "pushups";
 
 export type TaskCategory = "cognitive" | "movement" | "behavioral" | "environment";
 export type FollowUpOutcome = "up" | "back" | "drowsy";
@@ -19,7 +21,8 @@ export type Confidence = "insufficient" | "low" | "medium" | "high";
 export type WakeContext = "unspecified" | "night_sleep" | "short_nap" | "long_nap" | "energy_reset";
 export type WakeDurationMinutes = 2 | 5 | 10;
 export type MovementLevel = "none" | "light" | "full";
-export type WakeResource = "water" | "bright_light" | "floor_space";
+export type WakeResource =
+  "water" | "bright_light" | "floor_space" | "wash_access" | "active_movement";
 
 export interface WakeCapabilityProfile {
   movementLevel: MovementLevel;

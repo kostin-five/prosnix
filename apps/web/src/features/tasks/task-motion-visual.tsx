@@ -14,6 +14,8 @@ const MOTION_LABELS: Record<TaskId, string> = {
   window: "Добавь яркий свет вокруг себя",
   curtains: "Открой шторы и впусти свет",
   sit_edge: "Сядь и поставь стопы на пол",
+  cool_wash: "Умой лицо прохладной водой",
+  pushups: "Выбери опору под свой уровень",
 };
 
 function prefersReducedMotion(): boolean {
@@ -34,8 +36,9 @@ export function TaskMotionVisual({ taskId }: { taskId: TaskId }) {
   }, []);
 
   const light = taskId === "window" || taskId === "curtains";
-  const movement = taskId === "steps" || taskId === "squats" || taskId === "shake";
-  const water = taskId === "water";
+  const movement =
+    taskId === "steps" || taskId === "squats" || taskId === "shake" || taskId === "pushups";
+  const water = taskId === "water" || taskId === "cool_wash";
   const seated = taskId === "sit_edge";
   const reaction = taskId === "reaction";
 

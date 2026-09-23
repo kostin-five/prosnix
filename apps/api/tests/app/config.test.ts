@@ -40,6 +40,7 @@ describe("application config", () => {
       deepseekBaseUrl: "https://api.deepseek.com",
       deepseekModel: "deepseek-v4-flash",
       deepseekTimeoutMs: 12_000,
+      wakeTaskCatalogV9Enabled: false,
     });
     expect(() =>
       loadConfig({ ...production, DEEPSEEK_BASE_URL: "http://api.deepseek.com" }),
@@ -47,6 +48,15 @@ describe("application config", () => {
     expect(() => loadConfig({ ...production, DEEPSEEK_TIMEOUT_MS: "500" })).toThrow(
       "between 1000 and 30000",
     );
+  });
+
+  it("keeps the v9 wake-task catalog disabled unless explicitly enabled", () => {
+    expect(
+      loadConfig({ ...production, WAKE_TASK_CATALOG_V9_ENABLED: "true" }).wakeTaskCatalogV9Enabled,
+    ).toBe(true);
+    expect(
+      loadConfig({ ...production, WAKE_TASK_CATALOG_V9_ENABLED: "false" }).wakeTaskCatalogV9Enabled,
+    ).toBe(false);
   });
 
   it("provides bounded readiness, shutdown and sensitive-route limits", () => {

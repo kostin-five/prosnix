@@ -146,3 +146,137 @@ test("пользователь может закрыть сохранённую 
   await expect(page.getByRole("heading", { name: "Prosnix" })).toBeVisible();
   await expect(page.locator("html")).not.toHaveAttribute("data-telegram-closed", "true");
 });
+
+test("mobile user продолжает protocol v9 с таймером умывания", async ({ page }) => {
+  await page.clock.install();
+  await page.route("https://telegram.org/js/telegram-web-app.js*", (route) =>
+    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
+  );
+  await page.addInitScript(() => {
+    window.Telegram = {
+      WebApp: {
+        initData: "signed-test-launch-data",
+        ready: () => undefined,
+        expand: () => undefined,
+      },
+    };
+  });
+  await page.route("**/api/v1/auth/telegram", (route) => route.fulfill({ status: 204 }));
+  await page.route("**/api/v1/legal/status", (route) =>
+    route.fulfill({
+      json: {
+        privacyVersion: "2026-08-31",
+        termsVersion: "2026-08-31",
+        accepted: true,
+        acceptedAt: "2026-08-31T00:00:00.000Z",
+      },
+    }),
+  );
+  const steps = [
+    { index: 0, taskId: "cool_wash", category: "behavioral" },
+    { index: 1, taskId: "sit_edge", category: "movement" },
+    { index: 2, taskId: "shake", category: "movement" },
+    { index: 3, taskId: "pushups", category: "movement" },
+  ];
+  await page.route("**/api/v1/bootstrap", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: { id: "user-v9", locale: "ru", timezone: "Europe/Moscow" },
+        activeSession: {
+          session: {
+            id: "session-v9",
+            status: "in_progress",
+            currentStepIndex: 0,
+            version: 3,
+            wakeContext: "night_sleep",
+            durationMinutes: 5,
+            personalization: {
+              profileRevision: 1,
+              movementLevel: "full",
+              availableResources: ["floor_space", "wash_access", "active_movement"],
+              excludedTaskIds: [],
+              fallbackReason: "none",
+            },
+          },
+          protocol: { key: "catalog-v9", version: 9, title: "Тест v9", steps },
+          assignment: { strategyVersion: "learning-v6", phase: "learning", hypothesis: "Тест v9" },
+          baseline: 3,
+          postRating: null,
+        },
+        dueFollowUpSessionId: null,
+        wakeProfile: {
+          movementLevel: "full",
+          availableResources: ["floor_space", "wash_access", "active_movement"],
+          excludedTaskIds: [],
+          defaultDurationMinutes: 5,
+          onboardingCompleted: true,
+          revision: 1,
+        },
+      }),
+    }),
+  );
+  await page.route("**/api/v1/sessions/session-v9/steps/0", async (route, request) => {
+    expect(request.headers()["if-match"]).toBe("3");
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "session-v9",
+        userId: "user-v9",
+        assignment: {
+          id: "assignment-v9",
+          protocolKey: "catalog-v9",
+          protocolVersion: 9,
+          strategyVersion: "learning-v6",
+          phase: "learning",
+          hypothesis: "Тест v9",
+          steps,
+        },
+        status: "in_progress",
+        currentStepIndex: 1,
+        version: 4,
+        wakeContext: "night_sleep",
+        durationMinutes: 5,
+        personalization: {
+          profileRevision: 1,
+          movementLevel: "full",
+          availableResources: ["floor_space", "wash_access", "active_movement"],
+          excludedTaskIds: [],
+          fallbackReason: "none",
+        },
+        baseline: 3,
+        tasks: [
+          {
+            stepIndex: 0,
+            taskId: "cool_wash",
+            category: "behavioral",
+            correct: 1,
+            total: 1,
+            durationMs: 20_000,
+            observedAt: "2026-09-23T06:00:20.000Z",
+          },
+        ],
+        postRating: null,
+        followUp: null,
+        startedAt: "2026-09-23T06:00:00.000Z",
+        protocolCompletedAt: null,
+        followUpDueAt: null,
+        abandonedAt: null,
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  await expect(page.getByRole("heading", { name: "Умыться прохладной водой" })).toBeVisible();
+  await page.getByRole("button", { name: "Начать", exact: true }).click();
+  await expect(page.getByRole("timer", { name: "Осталось 20 секунд" })).toBeVisible();
+  await page.clock.runFor(20_000);
+  await page.getByRole("button", { name: "Умылся" }).click();
+  await page.clock.runFor(600);
+  await expect(page.getByRole("heading", { name: "Сесть на край кровати" })).toBeVisible();
+  await page.getByRole("button", { name: "Протокол" }).click();
+  await expect(page.getByText("Отжимания", { exact: true })).toBeVisible();
+});

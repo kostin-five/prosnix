@@ -20,6 +20,9 @@ const TASK_IDS = new Set<string>([
   "water",
   "window",
   "curtains",
+  "sit_edge",
+  "cool_wash",
+  "pushups",
 ]);
 
 function isTaskId(value: string): value is TaskId {

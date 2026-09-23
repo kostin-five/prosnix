@@ -1,6 +1,6 @@
 # Current handoff
 
 Актуальный handoff:
-[`PROJECT_HANDOFF_2026-09-23-031.md`](PROJECT_HANDOFF_2026-09-23-031.md)
+[`PROJECT_HANDOFF_2026-09-23-032.md`](PROJECT_HANDOFF_2026-09-23-032.md)
 
 При завершении следующего этапа создайте новый датированный файл и замените только эту ссылку.

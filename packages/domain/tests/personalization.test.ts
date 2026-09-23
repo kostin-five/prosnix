@@ -307,6 +307,99 @@ describe("персонализация протокола", () => {
     expect(eligibleWakeTasks(fullProfile)).not.toContain("curtains");
   });
 
+  it("добавляет задания v9 только после новых явных разрешений", () => {
+    const legacyFullProfile: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: ["water", "bright_light", "floor_space"],
+    };
+    const v9Profile: WakeCapabilityProfile = {
+      ...legacyFullProfile,
+      availableResources: [
+        "water",
+        "bright_light",
+        "floor_space",
+        "wash_access",
+        "active_movement",
+      ],
+    };
+
+    expect(eligibleWakeTasks(legacyFullProfile, { v9Enabled: true })).not.toEqual(
+      expect.arrayContaining(["cool_wash", "pushups"]),
+    );
+    expect(eligibleWakeTasks(v9Profile)).not.toEqual(
+      expect.arrayContaining(["cool_wash", "pushups"]),
+    );
+    expect(eligibleWakeTasks(v9Profile, { v9Enabled: true })).toEqual(
+      expect.arrayContaining(["cool_wash", "pushups"]),
+    );
+  });
+
+  it("ставит отжимания после подъёма и разминки в протоколе v9", () => {
+    const v9Profile: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: ["floor_space", "wash_access", "active_movement"],
+    };
+    const result = personalizeAssignment(
+      {
+        ...assignment,
+        protocolKey: "catalog-v9-order",
+        steps: [
+          { index: 0, taskId: "cool_wash", category: "behavioral" },
+          { index: 1, taskId: "pushups", category: "movement" },
+        ],
+      },
+      v9Profile,
+      2,
+      { v9Enabled: true },
+    );
+    const taskIds = result.assignment.steps.map(({ taskId }) => taskId);
+
+    expect(result.assignment.protocolVersion).toBe(9);
+    expect(taskIds).toEqual(expect.arrayContaining(["cool_wash", "pushups"]));
+    expect(taskIds.indexOf("sit_edge")).toBeLessThan(taskIds.indexOf("shake"));
+    expect(taskIds.indexOf("shake")).toBeLessThan(taskIds.indexOf("pushups"));
+  });
+
+  it("соблюдает отдельный запрет отжиманий в каталоге v9", () => {
+    const v9Profile: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: ["floor_space", "wash_access", "active_movement"],
+      excludedTaskIds: ["pushups"],
+    };
+
+    expect(eligibleWakeTasks(v9Profile, { v9Enabled: true })).toContain("cool_wash");
+    expect(eligibleWakeTasks(v9Profile, { v9Enabled: true })).not.toContain("pushups");
+  });
+
+  it("чередует новые задания между протоколами каталога v9", () => {
+    const v9Profile: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: [
+        "water",
+        "bright_light",
+        "floor_space",
+        "wash_access",
+        "active_movement",
+      ],
+    };
+    const sequences = Array.from({ length: 13 }, (_, completedSessions) => {
+      const candidates = learningAssignmentCandidates(completedSessions).map(
+        (candidate, index) => ({ ...candidate, id: `v9-${completedSessions}-${index}` }),
+      );
+      return selectPersonalizedAssignment(candidates, v9Profile, 5, [], undefined, {
+        v9Enabled: true,
+      }).assignment.steps.map(({ taskId }) => taskId);
+    });
+
+    expect(new Set(sequences.map((taskIds) => taskIds.join(">"))).size).toBeGreaterThanOrEqual(7);
+    expect(sequences.some((taskIds) => taskIds.includes("cool_wash"))).toBe(true);
+    expect(sequences.some((taskIds) => taskIds.includes("pushups"))).toBe(true);
+  });
+
   it("ставит мягкое движение перед приседаниями", () => {
     const fullProfile: WakeCapabilityProfile = {
       ...profile,

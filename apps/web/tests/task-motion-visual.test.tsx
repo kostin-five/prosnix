@@ -17,6 +17,8 @@ const TASK_IDS: TaskId[] = [
   "window",
   "curtains",
   "sit_edge",
+  "cool_wash",
+  "pushups",
 ];
 
 function useReducedMotion(matches: boolean): void {

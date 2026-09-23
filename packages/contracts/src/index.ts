@@ -12,6 +12,8 @@ export const TASK_IDS = [
   "window",
   "curtains",
   "sit_edge",
+  "cool_wash",
+  "pushups",
 ] as const;
 
 export const TASK_CATEGORIES = ["cognitive", "movement", "behavioral", "environment"] as const;
@@ -82,7 +84,13 @@ export type ProInterestInput = Static<typeof ProInterestInputSchema>;
 export const WAKE_CONTEXTS = ["night_sleep", "short_nap", "long_nap", "energy_reset"] as const;
 export const WAKE_DURATIONS = [2, 5, 10] as const;
 export const MOVEMENT_LEVELS = ["none", "light", "full"] as const;
-export const WAKE_RESOURCES = ["water", "bright_light", "floor_space"] as const;
+export const WAKE_RESOURCES = [
+  "water",
+  "bright_light",
+  "floor_space",
+  "wash_access",
+  "active_movement",
+] as const;
 
 export const WakeContextSchema = Type.Union(WAKE_CONTEXTS.map((value) => Type.Literal(value)));
 export const WakeDurationSchema = Type.Union(WAKE_DURATIONS.map((value) => Type.Literal(value)));
@@ -101,8 +109,8 @@ export const CreateWakeSessionInputSchema = Type.Object(
 export const WakeProfileInputSchema = Type.Object(
   {
     movementLevel: MovementLevelSchema,
-    availableResources: Type.Array(WakeResourceSchema, { maxItems: 3, uniqueItems: true }),
-    excludedTaskIds: Type.Array(TaskIdSchema, { maxItems: 11, uniqueItems: true }),
+    availableResources: Type.Array(WakeResourceSchema, { maxItems: 5, uniqueItems: true }),
+    excludedTaskIds: Type.Array(TaskIdSchema, { maxItems: 13, uniqueItems: true }),
     defaultDurationMinutes: WakeDurationSchema,
     onboardingCompleted: Type.Boolean(),
   },

@@ -22,7 +22,13 @@ import {
 } from "../schema.js";
 import type { Database } from "./types.js";
 
-const RESOURCE_IDS = new Set<WakeResource>(["water", "bright_light", "floor_space"]);
+const RESOURCE_IDS = new Set<WakeResource>([
+  "water",
+  "bright_light",
+  "floor_space",
+  "wash_access",
+  "active_movement",
+]);
 const TASK_IDS = new Set<TaskId>([
   "math",
   "memory",
@@ -34,6 +40,9 @@ const TASK_IDS = new Set<TaskId>([
   "water",
   "window",
   "curtains",
+  "sit_edge",
+  "cool_wash",
+  "pushups",
 ]);
 
 function stringArray<T extends string>(value: unknown, allowed?: ReadonlySet<T>): T[] {

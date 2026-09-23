@@ -48,6 +48,9 @@ const TASK_IDS = new Set<TaskId>([
   "water",
   "window",
   "curtains",
+  "sit_edge",
+  "cool_wash",
+  "pushups",
 ]);
 const CATEGORIES = new Set<TaskCategory>(["cognitive", "movement", "behavioral", "environment"]);
 function parseSteps(value: unknown): readonly ProtocolStep[] {
@@ -93,8 +96,12 @@ function parseSnapshot(value: unknown): WakePersonalizationSnapshot {
         : "none",
     availableResources: Array.isArray(snapshot.availableResources)
       ? snapshot.availableResources.filter(
-          (resource): resource is "water" | "bright_light" | "floor_space" =>
-            resource === "water" || resource === "bright_light" || resource === "floor_space",
+          (resource): resource is WakeCapabilityProfile["availableResources"][number] =>
+            resource === "water" ||
+            resource === "bright_light" ||
+            resource === "floor_space" ||
+            resource === "wash_access" ||
+            resource === "active_movement",
         )
       : [],
     excludedTaskIds: Array.isArray(snapshot.excludedTaskIds)
@@ -118,8 +125,12 @@ function mapProfile(
     movementLevel: row.movementLevel,
     availableResources: Array.isArray(row.availableResources)
       ? row.availableResources.filter(
-          (resource): resource is "water" | "bright_light" | "floor_space" =>
-            resource === "water" || resource === "bright_light" || resource === "floor_space",
+          (resource): resource is WakeCapabilityProfile["availableResources"][number] =>
+            resource === "water" ||
+            resource === "bright_light" ||
+            resource === "floor_space" ||
+            resource === "wash_access" ||
+            resource === "active_movement",
         )
       : [],
     excludedTaskIds: Array.isArray(row.excludedTaskIds)
@@ -241,6 +252,7 @@ async function canonicalForCommand(
 async function createSession(
   db: Database,
   envelope: SessionCommandEnvelope,
+  options: { wakeTaskCatalogV9Enabled: boolean },
 ): Promise<{ session: WakeSession; responseStatus: 200 | 201 }> {
   const existing = await canonicalForCommand(db, envelope.userId, envelope.command);
   if (existing) return { session: existing, responseStatus: 200 };
@@ -370,6 +382,7 @@ async function createSession(
       wakeContext: envelope.command.wakeContext,
       completedSessions: user.learningSessionCount,
     },
+    { v9Enabled: options.wakeTaskCatalogV9Enabled },
   );
   const planned = personalized.assignment;
   await db
@@ -589,7 +602,12 @@ async function mutateSession(
 }
 
 export class PostgresSessionCommandRepository implements SessionCommandRepository {
-  constructor(private readonly db: Database) {}
+  constructor(
+    private readonly db: Database,
+    private readonly options: { wakeTaskCatalogV9Enabled: boolean } = {
+      wakeTaskCatalogV9Enabled: false,
+    },
+  ) {}
 
   execute(envelope: SessionCommandEnvelope): Promise<SessionCommandResult> {
     return this.db.transaction(async (transaction) => {
@@ -623,7 +641,7 @@ export class PostgresSessionCommandRepository implements SessionCommandRepositor
 
       const accepted =
         envelope.command.type === "create"
-          ? await createSession(db, envelope)
+          ? await createSession(db, envelope, this.options)
           : await mutateSession(db, envelope);
       await db.insert(idempotencyRecords).values({
         userId: envelope.userId,

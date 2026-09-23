@@ -9,8 +9,9 @@ vi.mock("../src/features/pro-interest/pro-interest-card.js", () => ({
   ProInterestCard: () => <div>pro</div>,
 }));
 
-import { StartRatingScreen, TasksContainer, initialProtocolScreen } from "../src/app/App.js";
+import { TasksContainer, initialProtocolScreen } from "../src/app/App.js";
 import StatsResearchCards from "../src/features/research/stats-research-cards.js";
+import { StartRatingScreen } from "../src/features/session/rating-screens.js";
 
 describe("утренний вход и компактный shell", () => {
   let root: Root;

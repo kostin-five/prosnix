@@ -2,7 +2,9 @@ export type WakeContext = "night_sleep" | "short_nap" | "long_nap" | "energy_res
 export type WakeDurationMinutes = 2 | 5 | 10;
 export interface WakeProfile {
   movementLevel: "none" | "light" | "full";
-  availableResources: Array<"water" | "bright_light" | "floor_space">;
+  availableResources: Array<
+    "water" | "bright_light" | "floor_space" | "wash_access" | "active_movement"
+  >;
   excludedTaskIds: string[];
   defaultDurationMinutes: WakeDurationMinutes;
   onboardingCompleted: boolean;

@@ -29,7 +29,9 @@ const database = connectDatabase(config.databaseUrl);
 const app = await createApp(config, {
   unitOfWork: database.unitOfWork,
   bootstrapRepository: new PostgresBootstrapRepository(database.db),
-  sessionCommands: new PostgresSessionCommandRepository(database.db),
+  sessionCommands: new PostgresSessionCommandRepository(database.db, {
+    wakeTaskCatalogV9Enabled: config.wakeTaskCatalogV9Enabled,
+  }),
   analyticsRepository: new PostgresAnalyticsRepository(database.db),
   coachInsightRepository: new PostgresCoachInsightRepository(database.db),
   coachGateway: config.deepseekApiKey

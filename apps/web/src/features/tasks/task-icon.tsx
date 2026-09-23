@@ -11,7 +11,9 @@ export type TaskId =
   | "water"
   | "window"
   | "curtains"
-  | "sit_edge";
+  | "sit_edge"
+  | "cool_wash"
+  | "pushups";
 
 const ICON_PATHS: Record<TaskId, string> = {
   math: "M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm1 4h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h4",
@@ -31,6 +33,8 @@ const ICON_PATHS: Record<TaskId, string> = {
   curtains:
     "M4 3h16M6 3v18m12-18v18M6 5c4 1 4 5 0 7 4 2 4 6 0 7m12-14c-4 1-4 5 0 7-4 2-4 6 0 7M10 12h4",
   sit_edge: "M7 4h10v8H7V4Zm-2 8h14v3H5v-3Zm3 3v5m8-5v5M12 6v4m0 0-3 2m3-2 3 2",
+  cool_wash: "M4 7h16M7 7V4h5v3m5 0v4a5 5 0 0 1-10 0V7m5 8v6m-3 0h6M17 3c0 1.5-2 2.5-2 4",
+  pushups: "M5 17h14M7 14l3-5 4 2 3 4M10 9 8 7m6 4 2-3m-1-3a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z",
 };
 
 export function TaskIcon({

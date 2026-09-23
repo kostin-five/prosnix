@@ -50,6 +50,12 @@ const EXERCISES: Array<{
     description: "Пять спокойных повторений при наличии места",
     levels: ["full"],
   },
+  {
+    id: "pushups",
+    title: "Отжимания",
+    description: "От пола или с колен — под свой уровень",
+    levels: ["full"],
+  },
 ];
 
 const OTHER_TASKS: Array<[TaskId, string]> = [
@@ -67,12 +73,14 @@ export function CapabilityProfileCard({
   onSave,
   onCompleted,
   initiallyEditing = !profile.onboardingCompleted,
+  catalogV9Enabled = import.meta.env.VITE_WAKE_TASK_CATALOG_V9_ENABLED === "true",
 }: {
   profile: WakeProfile;
   saving: boolean;
   onSave: (profile: Omit<WakeProfile, "revision">) => Promise<void>;
   onCompleted?: () => void;
   initiallyEditing?: boolean;
+  catalogV9Enabled?: boolean;
 }) {
   const [draft, setDraft] = React.useState(profile);
   const [editing, setEditing] = React.useState(initiallyEditing);
@@ -104,7 +112,11 @@ export function CapabilityProfileCard({
         ? current.excludedTaskIds.filter((item) => item !== taskId)
         : [...current.excludedTaskIds, taskId],
     }));
-  const visibleExercises = EXERCISES.filter(({ levels }) => levels.includes(draft.movementLevel));
+  const visibleExercises = EXERCISES.filter(
+    ({ id, levels }) =>
+      levels.includes(draft.movementLevel) && (id !== "pushups" || catalogV9Enabled),
+  );
+  const activeMovementAllowed = draft.availableResources.includes("active_movement");
 
   return (
     <section className="mb-4 rounded-3xl border border-border bg-card p-4">
@@ -164,6 +176,30 @@ export function CapabilityProfileCard({
             })}
           </div>
 
+          {catalogV9Enabled && draft.movementLevel === "full" && (
+            <button
+              type="button"
+              aria-pressed={activeMovementAllowed}
+              onClick={() => toggleResource("active_movement")}
+              className={`mt-3 flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left ${activeMovementAllowed ? "border-primary/50 bg-primary/8" : "border-border bg-secondary/40"}`}
+            >
+              <span>
+                <span className="block text-sm font-semibold">Можно активные упражнения</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Например, отжимания от пола или с колен
+                </span>
+              </span>
+              {activeMovementAllowed ? (
+                <Check aria-hidden="true" className="h-5 w-5 shrink-0 text-primary" />
+              ) : (
+                <ChevronRight
+                  aria-hidden="true"
+                  className="h-5 w-5 shrink-0 text-muted-foreground"
+                />
+              )}
+            </button>
+          )}
+
           {visibleExercises.length > 0 && (
             <div className="mt-5">
               <p className="text-sm font-semibold">Какие упражнения можно предлагать?</p>
@@ -172,13 +208,15 @@ export function CapabilityProfileCard({
               </p>
               <div className="mt-3 space-y-2">
                 {visibleExercises.map((exercise) => {
-                  const enabled = !draft.excludedTaskIds.includes(exercise.id);
+                  const permitted = exercise.id !== "pushups" || activeMovementAllowed;
+                  const enabled = permitted && !draft.excludedTaskIds.includes(exercise.id);
                   return (
                     <button
                       key={exercise.id}
                       type="button"
                       aria-pressed={enabled}
-                      onClick={() => toggleTask(exercise.id)}
+                      onClick={() => permitted && toggleTask(exercise.id)}
+                      disabled={!permitted}
                       className={`flex min-h-20 w-full items-center gap-3 rounded-2xl border p-3 text-left ${enabled ? "border-accent/40 bg-accent/8" : "border-border bg-secondary/40 opacity-65"}`}
                     >
                       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-secondary text-accent">
@@ -209,6 +247,11 @@ export function CapabilityProfileCard({
                 ["water", "Есть вода", "Можно заранее поставить стакан рядом"],
                 ["bright_light", "Есть окно или яркий свет", "Не нужно смотреть прямо на солнце"],
                 ["floor_space", "Есть свободное место", "Можно безопасно встать и двигаться"],
+                ...(catalogV9Enabled
+                  ? ([
+                      ["wash_access", "Можно умыться", "Есть доступ к раковине и прохладной воде"],
+                    ] as const)
+                  : []),
               ] as const
             ).map(([value, title, description]) => {
               const selected = draft.availableResources.includes(value);

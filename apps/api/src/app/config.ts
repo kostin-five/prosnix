@@ -21,6 +21,7 @@ export interface AppConfig {
   telegramStarsMonthlyPrice: number;
   telegramWebhookSecret: string;
   billingRateLimitMax: number;
+  wakeTaskCatalogV9Enabled: boolean;
 }
 
 function boundedInteger(
@@ -73,6 +74,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     100_000,
   );
   const telegramWebhookSecret = env.TELEGRAM_WEBHOOK_SECRET?.trim() ?? "";
+  const wakeTaskCatalogV9Enabled = env.WAKE_TASK_CATALOG_V9_ENABLED === "true";
   const adminTelegramUserIds = (env.ADMIN_TELEGRAM_USER_IDS ?? "")
     .split(",")
     .map((value) => value.trim())
@@ -151,5 +153,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     telegramStarsMonthlyPrice,
     telegramWebhookSecret,
     billingRateLimitMax,
+    wakeTaskCatalogV9Enabled,
   };
 }

@@ -335,7 +335,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           },
         })
       ).session;
-      expect(session.assignment.protocolVersion).toBe(5);
+      expect(session.assignment.protocolVersion).toBe(8);
       expect(session.assignment.steps).toHaveLength(7);
       expect(session.assignment.steps.map(({ taskId }) => taskId)).not.toContain("curtains");
 
@@ -398,6 +398,64 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
       expect(completed.status).toBe("protocol_completed");
 
       await deletion.deleteUser(user.id, "long-session-cleanup-after");
+    });
+
+    it("назначает новые задания только через включённый каталог v9", async () => {
+      const database = connect();
+      const telegramUserId = 910000000037n;
+      let user = await database.unitOfWork.transaction(({ users }) =>
+        users.createFromTelegram({ telegramUserId, locale: "ru" }),
+      );
+      const deletion = new PostgresUserDeletionRepository(database.db);
+      await deletion.deleteUser(user.id, "catalog-v9-cleanup-before");
+      user = await database.unitOfWork.transaction(({ users }) =>
+        users.createFromTelegram({ telegramUserId, locale: "ru" }),
+      );
+
+      const personalization = new PostgresWakePersonalizationRepository(database.db);
+      await personalization.saveProfile({
+        userId: user.id,
+        expectedRevision: 0,
+        operationId: "catalog-v9-profile-0001",
+        profile: {
+          movementLevel: "full",
+          availableResources: [
+            "water",
+            "bright_light",
+            "floor_space",
+            "wash_access",
+            "active_movement",
+          ],
+          excludedTaskIds: [],
+          defaultDurationMinutes: 5,
+          onboardingCompleted: true,
+        },
+        now: new Date("2026-09-10T06:00:00.000Z"),
+      });
+
+      const commands = new PostgresSessionCommandRepository(database.db, {
+        wakeTaskCatalogV9Enabled: true,
+      });
+      const session = (
+        await commands.execute({
+          userId: user.id,
+          operationId: "catalog-v9-session-0001",
+          requestHash: "catalog-v9-session-hash",
+          observedAt: new Date("2026-09-10T06:01:00.000Z"),
+          command: {
+            type: "create",
+            timezone: "Europe/Moscow",
+            wakeContext: "night_sleep",
+            durationMinutes: 5,
+          },
+        })
+      ).session;
+
+      expect(session.assignment.protocolVersion).toBe(9);
+      expect(session.assignment.steps.map(({ taskId }) => taskId)).toEqual(
+        expect.arrayContaining(["pushups"]),
+      );
+      await deletion.deleteUser(user.id, "catalog-v9-cleanup-after");
     });
   },
 );

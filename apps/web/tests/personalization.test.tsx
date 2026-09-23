@@ -144,6 +144,41 @@ describe("персонализация пробуждения", () => {
     );
   });
 
+  it("просит отдельные разрешения для умывания и активных упражнений v9", async () => {
+    const onSave = vi.fn(async () => undefined);
+    act(() =>
+      root.render(
+        <CapabilityProfileCard
+          catalogV9Enabled
+          profile={{
+            movementLevel: "none",
+            availableResources: [],
+            excludedTaskIds: [],
+            defaultDurationMinutes: 5,
+            onboardingCompleted: false,
+            revision: 0,
+          }}
+          saving={false}
+          onSave={onSave}
+        />,
+      ),
+    );
+
+    act(() => findButton(container, "Могу выполнять любые упражнения").click());
+    expect(findButton(container, "Отжимания").disabled).toBe(true);
+    act(() => findButton(container, "Можно активные упражнения").click());
+    expect(findButton(container, "Отжимания").disabled).toBe(false);
+    act(() => findButton(container, "Можно умыться").click());
+    await act(async () => findButton(container, "Сохранить возможности").click());
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        availableResources: expect.arrayContaining(["active_movement", "wash_access"]),
+        onboardingCompleted: true,
+      }),
+    );
+  });
+
   it("показывает заполненную анкету компактно до нажатия редактирования", () => {
     act(() =>
       root.render(

@@ -68,6 +68,9 @@ describe("мобильные состояния доступности", () => {
       "water",
       "window",
       "curtains",
+      "sit_edge",
+      "cool_wash",
+      "pushups",
     ] as const;
     act(() =>
       root.render(

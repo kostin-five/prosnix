@@ -15,7 +15,11 @@ export function TaskTimerVisual({
   const circumference = 2 * Math.PI * 54;
   const lightTask = taskId === "window" || taskId === "curtains";
   const movementTask =
-    taskId === "steps" || taskId === "squats" || taskId === "shake" || taskId === "sit_edge";
+    taskId === "steps" ||
+    taskId === "squats" ||
+    taskId === "shake" ||
+    taskId === "sit_edge" ||
+    taskId === "pushups";
 
   return (
     <div

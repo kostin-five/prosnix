@@ -31,6 +31,22 @@ const BUDGET_EXPANSION_ORDER: readonly TaskId[] = [
   "steps",
   "squats",
 ];
+const V9_BUDGET_EXPANSION_ORDER: readonly TaskId[] = [
+  "cool_wash",
+  "window",
+  "water",
+  "reaction",
+  "stroop",
+  "pushups",
+  "math",
+  "memory",
+  "shake",
+  "steps",
+  "squats",
+];
+export interface WakeTaskCatalogOptions {
+  v9Enabled?: boolean;
+}
 const ACTIVE_TASK_IDS = new Set<TaskId>([
   "steps",
   "squats",
@@ -38,6 +54,8 @@ const ACTIVE_TASK_IDS = new Set<TaskId>([
   "water",
   "window",
   "curtains",
+  "cool_wash",
+  "pushups",
 ]);
 const STANDING_TASK_IDS = new Set<TaskId>([
   "steps",
@@ -46,11 +64,30 @@ const STANDING_TASK_IDS = new Set<TaskId>([
   "water",
   "window",
   "curtains",
+  "cool_wash",
+  "pushups",
 ]);
+const WARMUP_TASK_IDS = new Set<TaskId>(["steps", "shake"]);
+const INTENSE_TASK_IDS = new Set<TaskId>(["squats", "pushups"]);
 
-function allowed(taskId: TaskId, profile: WakeCapabilityProfile): boolean {
+function allowed(
+  taskId: TaskId,
+  profile: WakeCapabilityProfile,
+  options: WakeTaskCatalogOptions,
+): boolean {
   if (taskId === "sit_edge") return true;
   if (profile.excludedTaskIds.includes(taskId)) return false;
+  if (taskId === "cool_wash") {
+    return options.v9Enabled === true && profile.availableResources.includes("wash_access");
+  }
+  if (taskId === "pushups") {
+    return (
+      options.v9Enabled === true &&
+      profile.movementLevel === "full" &&
+      profile.availableResources.includes("floor_space") &&
+      profile.availableResources.includes("active_movement")
+    );
+  }
   if (taskId === "squats") {
     return profile.movementLevel === "full" && profile.availableResources.includes("floor_space");
   }
@@ -62,7 +99,10 @@ function allowed(taskId: TaskId, profile: WakeCapabilityProfile): boolean {
   return true;
 }
 
-export function eligibleWakeTasks(profile: WakeCapabilityProfile): TaskId[] {
+export function eligibleWakeTasks(
+  profile: WakeCapabilityProfile,
+  options: WakeTaskCatalogOptions = {},
+): TaskId[] {
   return (
     [
       "math",
@@ -74,15 +114,22 @@ export function eligibleWakeTasks(profile: WakeCapabilityProfile): TaskId[] {
       "shake",
       "water",
       "window",
+      ...(options.v9Enabled ? (["cool_wash", "pushups"] as const) : []),
     ] as TaskId[]
-  ).filter((taskId) => allowed(taskId, profile));
+  ).filter((taskId) => allowed(taskId, profile, options));
 }
 
 function categoryForTask(taskId: TaskId): ProtocolStep["category"] {
-  if (taskId === "steps" || taskId === "squats" || taskId === "shake" || taskId === "sit_edge") {
+  if (
+    taskId === "steps" ||
+    taskId === "squats" ||
+    taskId === "shake" ||
+    taskId === "sit_edge" ||
+    taskId === "pushups"
+  ) {
     return "movement";
   }
-  if (taskId === "water") return "behavioral";
+  if (taskId === "water" || taskId === "cool_wash") return "behavioral";
   if (taskId === "window" || taskId === "curtains") return "environment";
   return "cognitive";
 }
@@ -119,6 +166,7 @@ function planForDuration(
   profile: WakeCapabilityProfile,
   durationMinutes: WakeDurationMinutes,
   rotationSeed = 0,
+  options: WakeTaskCatalogOptions = {},
 ): { steps: ProtocolStep[]; belowMinimum: boolean } {
   const minimumSeconds = durationMinutes * 60 * 0.9;
   const maximumSeconds = durationMinutes * 60 * 1.1;
@@ -126,8 +174,31 @@ function planForDuration(
   const used = new Set<TaskId>();
 
   const tryAppend = (step: ProtocolStep): boolean => {
-    if (step.taskId === "sit_edge" || used.has(step.taskId) || !allowed(step.taskId, profile)) {
+    if (
+      step.taskId === "sit_edge" ||
+      used.has(step.taskId) ||
+      !allowed(step.taskId, profile, options)
+    ) {
       return false;
+    }
+    if (
+      INTENSE_TASK_IDS.has(step.taskId) &&
+      !selected.some(({ taskId }) => WARMUP_TASK_IDS.has(taskId))
+    ) {
+      const warmup = (["shake", "steps"] as const).find(
+        (taskId) => !used.has(taskId) && allowed(taskId, profile, options),
+      );
+      if (!warmup) return false;
+      const candidate = withStandingTransition([
+        ...selected,
+        { index: selected.length, taskId: warmup, category: "movement" },
+        step,
+      ]);
+      if (plannedProtocolSeconds(candidate, durationMinutes) > maximumSeconds) return false;
+      selected = candidate;
+      used.add(warmup);
+      used.add(step.taskId);
+      return true;
     }
     const candidate = withStandingTransition([...selected, step]);
     if (plannedProtocolSeconds(candidate, durationMinutes) > maximumSeconds) return false;
@@ -137,11 +208,9 @@ function planForDuration(
   };
 
   for (const step of seed) tryAppend(step);
-  const rotation = rotationSeed % BUDGET_EXPANSION_ORDER.length;
-  const expansionOrder = [
-    ...BUDGET_EXPANSION_ORDER.slice(rotation),
-    ...BUDGET_EXPANSION_ORDER.slice(0, rotation),
-  ];
+  const catalogOrder = options.v9Enabled ? V9_BUDGET_EXPANSION_ORDER : BUDGET_EXPANSION_ORDER;
+  const rotation = rotationSeed % catalogOrder.length;
+  const expansionOrder = [...catalogOrder.slice(rotation), ...catalogOrder.slice(0, rotation)];
   for (const taskId of expansionOrder) {
     if (plannedProtocolSeconds(selected, durationMinutes) >= minimumSeconds) break;
     tryAppend({ index: selected.length, taskId, category: categoryForTask(taskId) });
@@ -154,35 +223,38 @@ function planForDuration(
   };
 }
 
-function placeSquatsAfterWarmup(steps: readonly ProtocolStep[]): ProtocolStep[] {
+function placeIntenseMovementAfterWarmup(steps: readonly ProtocolStep[]): ProtocolStep[] {
   const result = [...steps];
-  const squatsIndex = result.findIndex(({ taskId }) => taskId === "squats");
-  if (squatsIndex < 0) return result;
-  const warmupIndex = result.findIndex(({ taskId }) => taskId === "steps" || taskId === "shake");
-  if (warmupIndex < 0 || warmupIndex < squatsIndex) return result;
-  const [squats] = result.splice(squatsIndex, 1);
-  const movedWarmupIndex = result.findIndex(
+  const intense = result.filter(({ taskId }) => INTENSE_TASK_IDS.has(taskId));
+  if (intense.length === 0) return result;
+  const firstIntenseIndex = result.findIndex(({ taskId }) => INTENSE_TASK_IDS.has(taskId));
+  const warmupIndex = result.findIndex(({ taskId }) => WARMUP_TASK_IDS.has(taskId));
+  if (warmupIndex < 0 || warmupIndex < firstIntenseIndex) return result;
+  const withoutIntense = result.filter(({ taskId }) => !INTENSE_TASK_IDS.has(taskId));
+  const movedWarmupIndex = withoutIntense.findIndex(
     ({ taskId }) => taskId === "steps" || taskId === "shake",
   );
-  result.splice(movedWarmupIndex + 1, 0, squats!);
-  return result;
+  withoutIntense.splice(movedWarmupIndex + 1, 0, ...intense);
+  return withoutIntense;
 }
 
 export function personalizeAssignment(
   assignment: ExperimentAssignment,
   profile: WakeCapabilityProfile,
   durationMinutes: WakeDurationMinutes,
+  options: WakeTaskCatalogOptions = {},
 ): { assignment: ExperimentAssignment; snapshot: WakePersonalizationSnapshot } {
   const rotationSeed = [...assignment.protocolKey].reduce(
     (total, character) => total + character.charCodeAt(0),
     0,
   );
-  const eligible = assignment.steps.filter((step) => allowed(step.taskId, profile));
+  const eligible = assignment.steps.filter((step) => allowed(step.taskId, profile, options));
   let planned = planForDuration(
-    placeSquatsAfterWarmup(eligible),
+    placeIntenseMovementAfterWarmup(eligible),
     profile,
     durationMinutes,
     rotationSeed,
+    options,
   );
   let steps = planned.steps;
   let fallbackReason: WakePersonalizationSnapshot["fallbackReason"] = profile.onboardingCompleted
@@ -191,14 +263,14 @@ export function personalizeAssignment(
 
   if (steps.length === 0) {
     const byId = new Map(assignment.steps.map((step) => [step.taskId, step.category]));
-    const fallback = FALLBACK_ORDER.filter((taskId) => allowed(taskId, profile)).map(
+    const fallback = FALLBACK_ORDER.filter((taskId) => allowed(taskId, profile, options)).map(
       (taskId, index): ProtocolStep => ({
         index,
         taskId,
         category: byId.get(taskId) ?? (taskId === "shake" ? "movement" : "cognitive"),
       }),
     );
-    planned = planForDuration(fallback, profile, durationMinutes, rotationSeed);
+    planned = planForDuration(fallback, profile, durationMinutes, rotationSeed, options);
     steps = planned.steps;
     fallbackReason = "limited_eligible_tasks";
   } else if (eligible.length !== assignment.steps.length) {
@@ -208,8 +280,8 @@ export function personalizeAssignment(
   if (planned.belowMinimum) fallbackReason = "limited_eligible_tasks";
 
   if (durationMinutes >= 5 && !steps.some((step) => ACTIVE_TASK_IDS.has(step.taskId))) {
-    const active = eligibleWakeTasks(profile)
-      .filter((taskId) => ACTIVE_TASK_IDS.has(taskId) && allowed(taskId, profile))
+    const active = eligibleWakeTasks(profile, options)
+      .filter((taskId) => ACTIVE_TASK_IDS.has(taskId) && allowed(taskId, profile, options))
       .find((taskId) => !steps.some((step) => step.taskId === taskId));
     if (active) {
       const category: ProtocolStep["category"] =
@@ -223,6 +295,7 @@ export function personalizeAssignment(
         profile,
         durationMinutes,
         rotationSeed,
+        options,
       ).steps;
     }
   }
@@ -233,7 +306,7 @@ export function personalizeAssignment(
   return {
     assignment: {
       ...baseAssignment,
-      protocolVersion: Math.max(8, assignment.protocolVersion),
+      protocolVersion: Math.max(options.v9Enabled ? 9 : 8, assignment.protocolVersion),
       protocolKey: `${assignment.protocolKey}:${durationMinutes}m:${suffix}`,
       steps,
       ...(preserveComparison ? { comparison } : {}),
@@ -263,6 +336,7 @@ export function selectPersonalizedAssignment(
     wakeContext: WakeContext;
     completedSessions: number;
   },
+  options: WakeTaskCatalogOptions = {},
 ): { assignment: ExperimentAssignment; snapshot: WakePersonalizationSnapshot } {
   if (candidates.length === 0) throw new Error("At least one assignment candidate is required");
   const personalizedBySequence = new Map<
@@ -270,7 +344,7 @@ export function selectPersonalizedAssignment(
     { assignment: ExperimentAssignment; snapshot: WakePersonalizationSnapshot }
   >();
   for (const candidate of candidates) {
-    const value = personalizeAssignment(candidate, profile, durationMinutes);
+    const value = personalizeAssignment(candidate, profile, durationMinutes, options);
     const signature = value.assignment.steps.map(({ taskId }) => taskId).join(">");
     if (!personalizedBySequence.has(signature)) personalizedBySequence.set(signature, value);
   }
