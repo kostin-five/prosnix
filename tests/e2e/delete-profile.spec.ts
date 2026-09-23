@@ -32,6 +32,14 @@ test("пользователь подтверждает удаление и на
         user: { id: "clean-user", locale: "ru", timezone: "Europe/Moscow" },
         activeSession: null,
         dueFollowUpSessionId: null,
+        wakeProfile: {
+          movementLevel: "full",
+          availableResources: ["water", "bright_light", "floor_space"],
+          excludedTaskIds: [],
+          defaultDurationMinutes: 5,
+          onboardingCompleted: true,
+          revision: 1,
+        },
       }),
     }),
   );

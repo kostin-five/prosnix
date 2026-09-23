@@ -14,7 +14,8 @@ export function TaskTimerVisual({
   const progress = total <= 0 ? 1 : Math.min(1, Math.max(0, (total - remaining) / total));
   const circumference = 2 * Math.PI * 54;
   const lightTask = taskId === "window" || taskId === "curtains";
-  const movementTask = taskId === "steps" || taskId === "squats" || taskId === "shake";
+  const movementTask =
+    taskId === "steps" || taskId === "squats" || taskId === "shake" || taskId === "sit_edge";
 
   return (
     <div

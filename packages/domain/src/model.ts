@@ -8,7 +8,8 @@ export type TaskId =
   | "shake"
   | "water"
   | "window"
-  | "curtains";
+  | "curtains"
+  | "sit_edge";
 
 export type TaskCategory = "cognitive" | "movement" | "behavioral" | "environment";
 export type FollowUpOutcome = "up" | "back" | "drowsy";

@@ -32,6 +32,7 @@ describe("утренний вход и компактный shell", () => {
   it("направляет wake deep link сразу к исходной оценке", () => {
     expect(initialProtocolScreen(undefined, "wake")).toBe("startRating");
     expect(initialProtocolScreen(undefined, null)).toBe("home");
+    expect(initialProtocolScreen(undefined, "wake", false)).toBe("onboarding");
   });
 
   it("не принимает исходную оценку до подтверждения серверной сессии", () => {
@@ -61,7 +62,8 @@ describe("утренний вход и компактный shell", () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
-  it("скрывает полный протокол, показывает следующий шаг и открывает состав по кнопке", () => {
+  it("скрывает полный протокол, показывает следующий шаг и открывает состав по кнопке", async () => {
+    await import("../src/features/tasks/protocol-sheet.js");
     act(() => {
       root.render(
         <TasksContainer
@@ -76,13 +78,17 @@ describe("утренний вход и компактный shell", () => {
     expect(container.textContent).not.toContain("Почему этот протокол");
     expect(container.textContent).toContain("Дальше");
     expect(container.textContent).toContain("Стакан воды");
+    expect(container.textContent).toContain("осталось");
     expect(container.querySelector('[role="dialog"]')).toBeNull();
 
     const protocolButton = [...container.querySelectorAll("button")].find(
       (button) => button.textContent?.trim() === "Протокол",
     );
     expect(protocolButton).toBeTruthy();
-    act(() => protocolButton?.click());
+    await act(async () => {
+      protocolButton?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
 
     expect(container.querySelector('[role="dialog"]')).not.toBeNull();
     expect(container.textContent).toContain("Твой протокол");

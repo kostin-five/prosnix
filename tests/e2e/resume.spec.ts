@@ -55,6 +55,14 @@ test("mobile user resumes from the next confirmed task", async ({ page }) => {
           postRating: null,
         },
         dueFollowUpSessionId: null,
+        wakeProfile: {
+          movementLevel: "full",
+          availableResources: ["water", "bright_light", "floor_space"],
+          excludedTaskIds: [],
+          defaultDurationMinutes: 5,
+          onboardingCompleted: true,
+          revision: 1,
+        },
       }),
     }),
   );
@@ -109,6 +117,14 @@ test("пользователь может закрыть сохранённую 
           postRating: null,
         },
         dueFollowUpSessionId: null,
+        wakeProfile: {
+          movementLevel: "full",
+          availableResources: ["water", "bright_light", "floor_space"],
+          excludedTaskIds: [],
+          defaultDurationMinutes: 5,
+          onboardingCompleted: true,
+          revision: 1,
+        },
       }),
     }),
   );

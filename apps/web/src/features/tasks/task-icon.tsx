@@ -10,7 +10,8 @@ export type TaskId =
   | "shake"
   | "water"
   | "window"
-  | "curtains";
+  | "curtains"
+  | "sit_edge";
 
 const ICON_PATHS: Record<TaskId, string> = {
   math: "M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm1 4h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h4",
@@ -29,6 +30,7 @@ const ICON_PATHS: Record<TaskId, string> = {
     "M12 2v3m0 14v3M4.9 4.9 7 7m10 10 2.1 2.1M2 12h3m14 0h3M4.9 19.1 7 17m10-10 2.1-2.1M8.5 12a3.5 3.5 0 1 0 7 0 3.5 3.5 0 0 0-7 0Z",
   curtains:
     "M4 3h16M6 3v18m12-18v18M6 5c4 1 4 5 0 7 4 2 4 6 0 7m12-14c-4 1-4 5 0 7-4 2-4 6 0 7M10 12h4",
+  sit_edge: "M7 4h10v8H7V4Zm-2 8h14v3H5v-3Zm3 3v5m8-5v5M12 6v4m0 0-3 2m3-2 3 2",
 };
 
 export function TaskIcon({

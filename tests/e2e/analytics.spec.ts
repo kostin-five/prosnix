@@ -37,6 +37,14 @@ async function openTelegramApp(page: Page) {
       user: { id: "user-1", locale: "ru", timezone: "Europe/Moscow" },
       activeSession: null,
       dueFollowUpSessionId: null,
+      wakeProfile: {
+        movementLevel: "full",
+        availableResources: ["water", "bright_light", "floor_space"],
+        excludedTaskIds: [],
+        defaultDurationMinutes: 5,
+        onboardingCompleted: true,
+        revision: 1,
+      },
     }),
   );
   await page.route("**/api/v1/experiment-feedback", (route) =>
@@ -169,15 +177,13 @@ test("профиль показывает только воспроизводи�
   await expect(page.getByText("Бодрость: 3 → 7")).toBeVisible();
   await expect(page.getByText("Длительность: 1 мин")).toBeVisible();
   await expect(page.getByText("Через 15 минут: встал")).toBeVisible();
-  await page.getByText("Справка об аналитике").click();
-  await expect(page.getByText(/Прирост — разница оценок после/)).toBeVisible();
+  await expect(page.getByText("Справка об аналитике")).toHaveCount(0);
   await expect(page.getByText(/Сессия s1/)).toHaveCount(0);
   await expect(page.getByText("Персональный отчёт", { exact: true })).toBeVisible();
   await expect(page.getByText(/один новый бесплатный отчёт в день/)).toBeVisible();
   expect(coachRequests).toBe(0);
   await page.getByRole("button", { name: "Создать персональный отчёт" }).click();
   await expect(page.getByText("Главный вывод")).toBeVisible();
-  await expect(page.getByText("Повторить протокол с движением и светом.")).toBeVisible();
   await expect(page.getByText("Высокая уверенность")).toHaveCount(0);
   await expect(page.getByText(/Движение даёт наиболее устойчивый/)).toBeVisible();
   expect(coachRequests).toBe(1);

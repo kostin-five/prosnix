@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
-import { taskSuccessTarget } from "@awc/domain";
+import { estimatedTaskSeconds, taskSuccessTarget } from "@awc/domain";
 import {
   Home,
   BarChart2,
@@ -17,8 +17,6 @@ import {
   AlertCircle,
   Sparkles,
   Settings,
-  ListTree,
-  X,
 } from "lucide-react";
 import { useBootstrap } from "../features/bootstrap/use-bootstrap.js";
 import { useAnalyticsProfile } from "../features/analytics/use-analytics.js";
@@ -61,8 +59,15 @@ import {
 } from "../features/session/task-submission-gate.js";
 
 const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
+const HomeScreenPrompt = lazy(async () => ({
+  default: (await import("../features/onboarding/home-screen-prompt.js")).HomeScreenPrompt,
+}));
+const CapabilityOnboardingScreen = lazy(
+  () => import("../features/personalization/capability-onboarding-screen.js"),
+);
 const StatsResearchCards = lazy(() => import("../features/research/stats-research-cards.js"));
 const TaskTimerVisual = lazy(() => import("../features/tasks/task-timer-visual.js"));
+const ProtocolSheet = lazy(() => import("../features/tasks/protocol-sheet.js"));
 const WakeProfileSummary = lazy(() => import("../features/analytics/wake-profile-summary.js"));
 const WakeContextSheet = lazy(async () => ({
   default: (await import("../features/personalization/wake-context-sheet.js")).WakeContextSheet,
@@ -73,7 +78,15 @@ const WakeRoutineChecklist = lazy(async () => ({
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Screen =
-  "home" | "context" | "startRating" | "tasks" | "endRating" | "results" | "stats" | "settings";
+  | "home"
+  | "onboarding"
+  | "context"
+  | "startRating"
+  | "tasks"
+  | "endRating"
+  | "results"
+  | "stats"
+  | "settings";
 type TaskId =
   | "math"
   | "memory"
@@ -84,7 +97,8 @@ type TaskId =
   | "shake"
   | "water"
   | "window"
-  | "curtains";
+  | "curtains"
+  | "sit_edge";
 type TaskCategory = "cognitive" | "movement" | "behavioral" | "environment";
 type FollowUp = "up" | "back" | "drowsy" | null;
 type Confidence = "insufficient" | "low" | "medium" | "high";
@@ -156,7 +170,9 @@ function screenForSession(session: WakeSessionResponse, taskCount: number): Scre
 export function initialProtocolScreen(
   resume: NonNullable<BootstrapResponse["activeSession"]> | undefined,
   launchSource: string | null,
+  onboardingCompleted = true,
 ): Screen {
+  if (!resume && !onboardingCompleted) return "onboarding";
   if (!resume) return launchSource === "wake" ? "startRating" : "home";
   if (resume.baseline === null) return "startRating";
   const taskCount = resume.protocol.steps.filter((step) => step.category !== undefined).length;
@@ -191,6 +207,11 @@ const TASK_META: Record<TaskId, { category: TaskCategory; title: string; subtitl
     category: "environment",
     title: "Открыть шторы",
     subtitle: "Впустить утренний свет",
+  },
+  sit_edge: {
+    category: "movement",
+    title: "Сесть на край кровати",
+    subtitle: "Стопы на полу · 10 секунд",
   },
 };
 
@@ -282,6 +303,12 @@ const CONFIRM_CONFIG: Partial<
       "Откройте шторы и впустите дневной свет. Не смотрите прямо на солнце; если темно, включите яркий свет в комнате.",
     countdown: 0,
     cta: "Открыл",
+  },
+  sit_edge: {
+    instruction:
+      "Сядьте на край кровати и поставьте обе стопы на пол. Останьтесь так 10 секунд перед тем, как вставать.",
+    countdown: 10,
+    cta: "Готово",
   },
 };
 
@@ -1118,13 +1145,25 @@ export function TasksContainer({
   const nextId = taskIds[taskIndex + 1];
   const meta = TASK_META[id];
   const catMeta = CAT_META[meta.category];
-  const progress = (taskIndex / taskIds.length) * 100;
+  const plannedSeconds = taskIds.map((taskId) => estimatedTaskSeconds(taskId, durationMinutes));
+  const plannedTotal = plannedSeconds.reduce((total, seconds) => total + seconds, 0);
+  const plannedCompleted = plannedSeconds
+    .slice(0, taskIndex)
+    .reduce((total, seconds) => total + seconds, 0);
+  const plannedRemaining = plannedSeconds
+    .slice(taskIndex)
+    .reduce((total, seconds) => total + seconds, 0);
+  const progress = plannedTotal === 0 ? 0 : (plannedCompleted / plannedTotal) * 100;
+  const remainingLabel =
+    plannedRemaining < 60
+      ? `≈ ${plannedRemaining} сек осталось`
+      : `≈ ${Math.ceil(plannedRemaining / 60)} мин осталось`;
   return (
     <div className="flex flex-col flex-1 p-6">
       <div className="mb-8">
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">
-            Шаг {taskIndex + 1} из {taskIds.length}
+            Шаг {taskIndex + 1} из {taskIds.length} · {remainingLabel}
           </span>
           <button
             type="button"
@@ -1132,8 +1171,8 @@ export function TasksContainer({
             onClick={() => setProtocolOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground active:scale-[0.98]"
           >
-            <ListTree className="h-4 w-4 text-primary" />
             Протокол
+            <ChevronRight className="h-4 w-4 text-primary" />
           </button>
         </div>
         <div className="mb-2 flex items-center justify-end">
@@ -1153,47 +1192,13 @@ export function TasksContainer({
           />
         </div>
         {protocolOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-end bg-black/60 p-4"
-            onClick={() => setProtocolOpen(false)}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Назначенный протокол"
-              className="mx-auto w-full max-w-[358px] rounded-3xl border border-border bg-card p-4 shadow-2xl"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-bold">Твой протокол</p>
-                  <p className="text-xs text-muted-foreground">
-                    Порядок сохранён для этого пробуждения
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Закрыть протокол"
-                  onClick={() => setProtocolOpen(false)}
-                  className="grid h-9 w-9 place-items-center rounded-xl bg-secondary text-muted-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <ol className="space-y-2">
-                {taskIds.map((taskId, index) => (
-                  <li
-                    key={`${taskId}-${index}`}
-                    className={`flex items-center gap-3 rounded-xl px-3 py-2 ${index === taskIndex ? "bg-primary/10 text-primary" : "bg-secondary/60"}`}
-                  >
-                    <span className="w-5 text-center text-xs font-bold">{index + 1}</span>
-                    <TaskIcon taskId={taskId} className="h-4 w-4" />
-                    <span className="text-sm font-medium">{TASK_META[taskId].title}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
+          <Suspense fallback={null}>
+            <ProtocolSheet
+              steps={taskIds.map((taskId) => ({ taskId, title: TASK_META[taskId].title }))}
+              currentIndex={taskIndex}
+              onClose={() => setProtocolOpen(false)}
+            />
+          </Suspense>
         )}
       </div>
       <div className="flex items-center gap-3 mb-10">
@@ -1255,7 +1260,8 @@ export function TasksContainer({
           id === "shake" ||
           id === "water" ||
           id === "window" ||
-          id === "curtains") && (
+          id === "curtains" ||
+          id === "sit_edge") && (
           <ConfirmTask
             key={`${id}-${taskIndex}`}
             taskId={id}
@@ -1726,6 +1732,10 @@ function ResultsScreen({
           </div>
         )}
       </div>
+
+      <Suspense fallback={null}>
+        <HomeScreenPrompt firstCompletion={evidenceCount === 1} />
+      </Suspense>
 
       <Suspense fallback={null}>
         <WakeRoutineChecklist sessionId={session.id} routine={routine} demo={demo} />
@@ -2309,7 +2319,9 @@ function PrototypeApp({
   const resumedTaskIds = (resume?.protocol.steps ?? [])
     .map(({ taskId }) => taskId)
     .filter((taskId): taskId is TaskId => taskId in TASK_META);
-  const [screen, setScreen] = useState<Screen>(() => initialProtocolScreen(resume, launchSource));
+  const [screen, setScreen] = useState<Screen>(() =>
+    initialProtocolScreen(resume, launchSource, initialWakeProfile.onboardingCompleted),
+  );
   const [navTab, setNavTab] = useState<"home" | "stats" | "settings">("home");
   const [alarmTime, setAlarmTime] = useState(initialWakeSchedule?.localTime ?? "07:00");
   const [wakeSchedule, setWakeSchedule] = useState<WakeSchedule | null>(
@@ -2345,10 +2357,17 @@ function PrototypeApp({
   }, [serverSession?.id, taskIndex]);
 
   useEffect(() => {
-    if (launchSource !== "wake" || resume || directWakeStartedRef.current) return;
+    if (
+      launchSource !== "wake" ||
+      resume ||
+      !wakeProfile.onboardingCompleted ||
+      directWakeStartedRef.current
+    ) {
+      return;
+    }
     directWakeStartedRef.current = true;
-    void startSession("night_sleep", initialWakeProfile.defaultDurationMinutes);
-  }, [initialWakeProfile.defaultDurationMinutes, launchSource, resume]);
+    void startSession("night_sleep", wakeProfile.defaultDurationMinutes);
+  }, [launchSource, resume, wakeProfile.defaultDurationMinutes, wakeProfile.onboardingCompleted]);
 
   async function saveScheduleSetting(input: {
     localTime: string;
@@ -2591,6 +2610,15 @@ function PrototypeApp({
     }
   }
 
+  function finishOnboarding(): void {
+    if (launchSource === "wake") {
+      setScreen("startRating");
+      return;
+    }
+    setNavTab("home");
+    setScreen("home");
+  }
+
   async function updateWakeRoutine(input: Omit<WakeRoutine, "revision">): Promise<void> {
     setPersonalizationSaving(true);
     try {
@@ -2661,6 +2689,20 @@ function PrototypeApp({
         {screen === "home" && (
           <HomeScreen onStart={() => setScreen("context")} sessions={sessions} demo={demo} />
         )}
+        {screen === "onboarding" && (
+          <Suspense
+            fallback={
+              <div className="p-5 text-sm text-muted-foreground">Готовим первую настройку…</div>
+            }
+          >
+            <CapabilityOnboardingScreen
+              profile={wakeProfile}
+              saving={personalizationSaving}
+              onSave={updateWakeProfile}
+              onCompleted={finishOnboarding}
+            />
+          </Suspense>
+        )}
         {screen === "context" && (
           <Suspense
             fallback={
@@ -2712,7 +2754,7 @@ function PrototypeApp({
             busy={syncing}
             onRetry={
               launchSource === "wake" && !serverSession
-                ? () => void startSession("night_sleep", initialWakeProfile.defaultDurationMinutes)
+                ? () => void startSession("night_sleep", wakeProfile.defaultDurationMinutes)
                 : undefined
             }
           />

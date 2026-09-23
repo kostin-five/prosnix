@@ -11,8 +11,12 @@ test("пользователь настраивает возможности, к
     .filter({ has: page.getByRole("heading", { name: "Что тебе подходит" }) })
     .getByRole("button", { name: "Изменить" })
     .click();
-  await page.getByLabel("Допустимое движение").selectOption("full");
-  await page.getByRole("button", { name: "Есть вода" }).click();
+  await page.getByRole("button", { name: /Без упражнений/ }).click();
+  await page.getByRole("button", { name: /Могу выполнять любые упражнения/ }).click();
+  await expect(page.getByRole("button", { name: /Приседания/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await page.getByRole("button", { name: "2 мин" }).click();
   await page.getByRole("button", { name: "Сохранить возможности" }).click();
 

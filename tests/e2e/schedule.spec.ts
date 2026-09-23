@@ -38,6 +38,14 @@ test("расписание сохраняется на сервере и пок�
       user: { id: "00000000-0000-4000-8000-000000000042", locale: "ru", timezone: "UTC" },
       activeSession: null,
       dueFollowUpSessionId: null,
+      wakeProfile: {
+        movementLevel: "full",
+        availableResources: ["water", "bright_light", "floor_space"],
+        excludedTaskIds: [],
+        defaultDurationMinutes: 5,
+        onboardingCompleted: true,
+        revision: 1,
+      },
     }),
   );
   await page.route("**/api/v1/me/wake-schedule", async (route, request) => {
@@ -59,14 +67,15 @@ test("расписание сохраняется на сервере и пок�
 
   await page.goto("/");
   await page.getByRole("button", { name: "Настройки" }).click();
-  await expect(page.getByText("Telegram-напоминание")).toBeVisible();
-  await page.getByRole("button", { name: "Изменить" }).click();
+  const schedule = page.getByLabel("Telegram-напоминание");
+  await expect(schedule).toBeVisible();
+  await schedule.getByRole("button", { name: "Изменить" }).click();
   await page.getByLabel("Время пробуждения").fill("07:15");
   await page.getByLabel("Включить Telegram-напоминание").check();
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
   await expect(page.getByText(/Следующее:/)).toBeVisible();
   await expect(page.getByText(/не системный будильник/i)).toBeVisible();
-  await page.getByRole("button", { name: "Изменить" }).click();
+  await schedule.getByRole("button", { name: "Изменить" }).click();
   await page.getByLabel("Включить Telegram-напоминание").uncheck();
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
   await expect(page.getByText("Напоминание выключено")).toBeVisible();

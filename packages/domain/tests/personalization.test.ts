@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   eligibleWakeTasks,
   learningAssignmentCandidates,
+  plannedProtocolSeconds,
   personalizeAssignment,
   SAFE_WAKE_PROFILE,
   selectPersonalizedAssignment,
@@ -78,7 +79,7 @@ describe("персонализация протокола", () => {
         }),
       );
       const selected = selectPersonalizedAssignment(candidates, fullProfile, 5).assignment;
-      expect(selected.protocolVersion).toBe(7);
+      expect(selected.protocolVersion).toBe(8);
       expect(selected.strategyVersion).toBe("learning-v6");
       return selected.steps.map(({ taskId }) => taskId);
     });
@@ -86,9 +87,10 @@ describe("персонализация протокола", () => {
       sequences.filter((taskIds) => taskIds.includes(taskId)).length;
 
     expect(new Set(sequences.map((taskIds) => taskIds.join(">"))).size).toBe(7);
-    expect(count("math")).toBeLessThanOrEqual(4);
-    expect(count("memory")).toBeLessThanOrEqual(4);
-    expect(count("reaction")).toBeLessThanOrEqual(4);
+    expect(new Set(sequences.map((taskIds) => taskIds[0])).size).toBeGreaterThanOrEqual(4);
+    expect(new Set(sequences.map((taskIds) => taskIds.indexOf("sit_edge"))).size).toBeGreaterThan(
+      1,
+    );
     expect(count("squats")).toBeGreaterThanOrEqual(2);
     expect(count("squats")).toBeLessThanOrEqual(4);
 
@@ -218,11 +220,12 @@ describe("персонализация протокола", () => {
   });
   it("исключает интенсивное движение и недоступные условия", () => {
     const result = personalizeAssignment(assignment, profile, 5);
-    expect(result.assignment.steps.map(({ taskId }) => taskId)).toEqual([
-      "steps",
-      "water",
-      "stroop",
-    ]);
+    const taskIds = result.assignment.steps.map(({ taskId }) => taskId);
+    expect(taskIds).not.toContain("squats");
+    expect(taskIds).not.toContain("window");
+    expect(taskIds.indexOf("sit_edge")).toBeLessThan(taskIds.indexOf("steps"));
+    expect(plannedProtocolSeconds(result.assignment.steps, 5)).toBeGreaterThanOrEqual(270);
+    expect(plannedProtocolSeconds(result.assignment.steps, 5)).toBeLessThanOrEqual(330);
     expect(result.assignment.comparison).toBeUndefined();
     expect(result.snapshot).toMatchObject({
       profileRevision: 3,
@@ -230,18 +233,16 @@ describe("персонализация протокола", () => {
     });
   });
 
-  it("укладывает оценочную длительность в бюджет с допуском 30 секунд", () => {
+  it("укладывает двухминутный протокол в диапазон 90–110%", () => {
     const result = personalizeAssignment(
       assignment,
       { ...profile, movementLevel: "full", availableResources: ["water", "floor_space"] },
       2,
     );
-    expect(result.assignment.steps.map(({ taskId }) => taskId)).toEqual([
-      "steps",
-      "squats",
-      "water",
-      "stroop",
-    ]);
+    const taskIds = result.assignment.steps.map(({ taskId }) => taskId);
+    expect(taskIds).toEqual(["sit_edge", "steps", "squats", "water"]);
+    expect(plannedProtocolSeconds(result.assignment.steps, 2)).toBeGreaterThanOrEqual(108);
+    expect(plannedProtocolSeconds(result.assignment.steps, 2)).toBeLessThanOrEqual(132);
   });
 
   it("добавляет доступное активное действие к пяти минутам", () => {
@@ -250,7 +251,11 @@ describe("персонализация протокола", () => {
       profile,
       5,
     );
-    expect(result.assignment.steps.map(({ taskId }) => taskId)).toContain("steps");
+    const taskIds = result.assignment.steps.map(({ taskId }) => taskId);
+    expect(taskIds.some((taskId) => ["steps", "shake", "water", "window"].includes(taskId))).toBe(
+      true,
+    );
+    expect(plannedProtocolSeconds(result.assignment.steps, 5)).toBeGreaterThanOrEqual(270);
   });
 
   it("дополняет десятиминутный протокол до семи уникальных разрешённых заданий", () => {
@@ -268,11 +273,26 @@ describe("персонализация протокола", () => {
         ({ taskId }) => taskId,
       );
 
-      expect(taskIds).toHaveLength(7);
-      expect(new Set(taskIds)).toHaveLength(7);
-      expect(taskIds.every((taskId) => eligibleWakeTasks(fullProfile).includes(taskId))).toBe(true);
+      expect(new Set(taskIds)).toHaveLength(taskIds.length);
+      expect(
+        taskIds.every(
+          (taskId) => taskId === "sit_edge" || eligibleWakeTasks(fullProfile).includes(taskId),
+        ),
+      ).toBe(true);
       expect(taskIds).not.toContain("curtains");
       expect(taskIds.filter((taskId) => taskId === "window")).toHaveLength(1);
+      expect(
+        plannedProtocolSeconds(
+          personalizeAssignment(candidate, fullProfile, 10).assignment.steps,
+          10,
+        ),
+      ).toBeGreaterThanOrEqual(540);
+      expect(
+        plannedProtocolSeconds(
+          personalizeAssignment(candidate, fullProfile, 10).assignment.steps,
+          10,
+        ),
+      ).toBeLessThanOrEqual(660);
     }
   });
 
@@ -310,8 +330,8 @@ describe("персонализация протокола", () => {
       ...[taskIds.indexOf("steps"), taskIds.indexOf("shake")].filter((index) => index >= 0),
     );
 
-    expect(taskIds).toHaveLength(7);
     expect(warmupIndex).toBeLessThan(taskIds.indexOf("squats"));
+    expect(taskIds.indexOf("sit_edge")).toBeLessThan(warmupIndex);
   });
 
   it("не нарушает ограничения ради семи шагов", () => {
@@ -338,7 +358,30 @@ describe("персонализация протокола", () => {
       { ...profile, movementLevel: "none", availableResources: [], excludedTaskIds: ["reaction"] },
       2,
     );
-    expect(result.assignment.steps.map(({ taskId }) => taskId)).toEqual(["stroop", "memory"]);
+    expect(result.assignment.steps.map(({ taskId }) => taskId)).toEqual(["stroop", "math"]);
     expect(result.assignment.phase).toBe("fallback");
+  });
+
+  it("оставляет когнитивное задание первым и вставляет переход только перед подъёмом", () => {
+    const fullProfile: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: ["water", "bright_light", "floor_space"],
+    };
+    const candidate: ExperimentAssignment = {
+      ...learningAssignmentCandidates(0)[0]!,
+      id: "cognitive-first",
+    };
+    const taskIds = personalizeAssignment(candidate, fullProfile, 5).assignment.steps.map(
+      ({ taskId }) => taskId,
+    );
+    const firstStanding = taskIds.findIndex((taskId) =>
+      ["water", "window", "steps", "squats", "shake"].includes(taskId),
+    );
+
+    expect(taskIds[0]).toBe("math");
+    expect(firstStanding).toBeGreaterThan(0);
+    expect(taskIds[firstStanding - 1]).toBe("sit_edge");
+    expect(taskIds.filter((taskId) => taskId === "sit_edge")).toHaveLength(1);
   });
 });

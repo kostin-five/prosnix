@@ -68,6 +68,7 @@ const TASK_LABELS: Record<string, string> = {
   water: "Стакан воды",
   window: "Яркий свет",
   curtains: "Открыть шторы",
+  sit_edge: "Сесть на край кровати",
 };
 
 function sequenceLabel(key: string): string {

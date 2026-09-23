@@ -102,6 +102,7 @@ describe("персонализация пробуждения", () => {
         />,
       ),
     );
+    act(() => findButton(container, "Могу выполнять любые упражнения").click());
     act(() => findButton(container, "Приседания").click());
     await act(async () => findButton(container, "Сохранить возможности").click());
     expect(onProfileSave).toHaveBeenCalledWith(
@@ -162,12 +163,13 @@ describe("персонализация пробуждения", () => {
     expect(container.textContent).toContain("доступно ресурсов: 2");
     expect(container.querySelector('select[aria-label="Допустимое движение"]')).toBeNull();
     act(() => findButton(container, "Изменить").click());
-    const movementSelect = container.querySelector<HTMLSelectElement>(
-      'select[aria-label="Допустимое движение"]',
+    expect(container.querySelector('select[aria-label="Допустимое движение"]')).toBeNull();
+    expect(findButton(container, "Только лёгкое движение").getAttribute("aria-pressed")).toBe(
+      "true",
     );
-    expect(movementSelect).not.toBeNull();
-    expect(movementSelect?.className).toContain("min-h-14");
-    expect(movementSelect?.className).toContain("text-base");
+    expect(container.textContent).toContain("Пройтись");
+    expect(container.textContent).toContain("Мягкая разминка");
+    expect(container.textContent).not.toContain("Пять спокойных повторений");
     expect(container.textContent).toContain("Яркий свет");
     expect(container.textContent).not.toContain("Шторы");
   });

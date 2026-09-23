@@ -5,6 +5,23 @@ interface TelegramWebApp {
   expand(): void;
   close?(): void;
   openInvoice?(url: string, callback?: (status: string) => void): void;
+  checkHomeScreenStatus?(callback: (status: TelegramHomeScreenStatus) => void): void;
+  addToHomeScreen?(): void;
+}
+
+export type TelegramHomeScreenStatus = "unsupported" | "unknown" | "added" | "missed";
+
+export function checkTelegramHomeScreenStatus(): Promise<TelegramHomeScreenStatus> {
+  const webApp = window.Telegram?.WebApp;
+  if (!webApp?.checkHomeScreenStatus) return Promise.resolve("unsupported");
+  return new Promise((resolve) => webApp.checkHomeScreenStatus!(resolve));
+}
+
+export function addTelegramToHomeScreen(): boolean {
+  const webApp = window.Telegram?.WebApp;
+  if (!webApp?.addToHomeScreen) return false;
+  webApp.addToHomeScreen();
+  return true;
 }
 
 export function closeTelegramMiniApp(): void {

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("кнопка откладывает ближайшее Telegram-напоминание на пять минут", async ({ page }) => {
+test("wake-ссылка сразу открывает исходную оценку без промежуточного экрана", async ({ page }) => {
   await page.route("https://telegram.org/js/telegram-web-app.js*", (route) =>
     route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
   );
@@ -45,8 +45,8 @@ test("кнопка откладывает ближайшее Telegram-напом
           availableResources: [],
           excludedTaskIds: [],
           defaultDurationMinutes: 5,
-          onboardingCompleted: false,
-          revision: 0,
+          onboardingCompleted: true,
+          revision: 1,
         },
         wakeRoutine: { enabled: false, items: [], revision: 0 },
       }),
@@ -82,25 +82,7 @@ test("кнопка откладывает ближайшее Telegram-напом
       }),
     }),
   );
-  await page.route("**/api/v1/me/wake-schedule/snooze", async (route, request) => {
-    expect(request.method()).toBe("POST");
-    expect(request.postData()).toBeNull();
-    expect(request.headers()["idempotency-key"]).toBeTruthy();
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        localTime: "07:00",
-        timezone: "Europe/Moscow",
-        enabled: true,
-        nextTriggerAt: "2026-08-31T09:05:00.000Z",
-        botStatus: "available",
-        revision: 2,
-      }),
-    });
-  });
-
   await page.goto("/?source=wake");
-  await page.getByRole("button", { name: "Отложить на 5 минут" }).click();
-  await expect(page.getByRole("button", { name: /Отложено до/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Перед протоколом" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Отложить на 5 минут" })).toHaveCount(0);
 });

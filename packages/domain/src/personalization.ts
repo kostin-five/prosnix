@@ -20,7 +20,7 @@ export const SAFE_WAKE_PROFILE: WakeCapabilityProfile = {
 };
 
 const FALLBACK_ORDER: readonly TaskId[] = ["reaction", "stroop", "memory", "math", "shake"];
-const TEN_MINUTE_EXPANSION_ORDER: readonly TaskId[] = [
+const BUDGET_EXPANSION_ORDER: readonly TaskId[] = [
   "window",
   "water",
   "reaction",
@@ -39,8 +39,17 @@ const ACTIVE_TASK_IDS = new Set<TaskId>([
   "window",
   "curtains",
 ]);
+const STANDING_TASK_IDS = new Set<TaskId>([
+  "steps",
+  "squats",
+  "shake",
+  "water",
+  "window",
+  "curtains",
+]);
 
 function allowed(taskId: TaskId, profile: WakeCapabilityProfile): boolean {
+  if (taskId === "sit_edge") return true;
   if (profile.excludedTaskIds.includes(taskId)) return false;
   if (taskId === "squats") {
     return profile.movementLevel === "full" && profile.availableResources.includes("floor_space");
@@ -69,42 +78,80 @@ export function eligibleWakeTasks(profile: WakeCapabilityProfile): TaskId[] {
   ).filter((taskId) => allowed(taskId, profile));
 }
 
-function fitBudget(
-  steps: readonly ProtocolStep[],
-  durationMinutes: WakeDurationMinutes,
-): ProtocolStep[] {
-  const maximumSeconds = durationMinutes * 60 + 30;
-  let elapsed = 0;
-  const selected: ProtocolStep[] = [];
-  for (const step of steps) {
-    const estimate = estimatedTaskSeconds(step.taskId, durationMinutes);
-    if (elapsed + estimate > maximumSeconds) continue;
-    selected.push(step);
-    elapsed += estimate;
-  }
-  return selected.map((step, index) => ({ ...step, index }));
-}
-
 function categoryForTask(taskId: TaskId): ProtocolStep["category"] {
-  if (taskId === "steps" || taskId === "squats" || taskId === "shake") return "movement";
+  if (taskId === "steps" || taskId === "squats" || taskId === "shake" || taskId === "sit_edge") {
+    return "movement";
+  }
   if (taskId === "water") return "behavioral";
   if (taskId === "window" || taskId === "curtains") return "environment";
   return "cognitive";
 }
 
-function expandTenMinuteProtocol(
-  steps: readonly ProtocolStep[],
-  profile: WakeCapabilityProfile,
-): ProtocolStep[] {
-  const result = [...steps];
-  const used = new Set(result.map(({ taskId }) => taskId));
-  for (const taskId of TEN_MINUTE_EXPANSION_ORDER) {
-    if (result.length >= 7) break;
-    if (used.has(taskId) || !allowed(taskId, profile)) continue;
-    result.push({ index: result.length, taskId, category: categoryForTask(taskId) });
-    used.add(taskId);
+function withStandingTransition(steps: readonly ProtocolStep[]): ProtocolStep[] {
+  const withoutTransition = steps.filter(({ taskId }) => taskId !== "sit_edge");
+  const firstStandingIndex = withoutTransition.findIndex(({ taskId }) =>
+    STANDING_TASK_IDS.has(taskId),
+  );
+  if (firstStandingIndex < 0) {
+    return withoutTransition.map((step, index) => ({ ...step, index }));
   }
-  return result;
+  const result = [...withoutTransition];
+  result.splice(firstStandingIndex, 0, {
+    index: firstStandingIndex,
+    taskId: "sit_edge",
+    category: "movement",
+  });
+  return result.map((step, index) => ({ ...step, index }));
+}
+
+export function plannedProtocolSeconds(
+  steps: readonly ProtocolStep[],
+  durationMinutes: WakeDurationMinutes,
+): number {
+  return steps.reduce(
+    (total, { taskId }) => total + estimatedTaskSeconds(taskId, durationMinutes),
+    0,
+  );
+}
+
+function planForDuration(
+  seed: readonly ProtocolStep[],
+  profile: WakeCapabilityProfile,
+  durationMinutes: WakeDurationMinutes,
+  rotationSeed = 0,
+): { steps: ProtocolStep[]; belowMinimum: boolean } {
+  const minimumSeconds = durationMinutes * 60 * 0.9;
+  const maximumSeconds = durationMinutes * 60 * 1.1;
+  let selected: ProtocolStep[] = [];
+  const used = new Set<TaskId>();
+
+  const tryAppend = (step: ProtocolStep): boolean => {
+    if (step.taskId === "sit_edge" || used.has(step.taskId) || !allowed(step.taskId, profile)) {
+      return false;
+    }
+    const candidate = withStandingTransition([...selected, step]);
+    if (plannedProtocolSeconds(candidate, durationMinutes) > maximumSeconds) return false;
+    selected = candidate;
+    used.add(step.taskId);
+    return true;
+  };
+
+  for (const step of seed) tryAppend(step);
+  const rotation = rotationSeed % BUDGET_EXPANSION_ORDER.length;
+  const expansionOrder = [
+    ...BUDGET_EXPANSION_ORDER.slice(rotation),
+    ...BUDGET_EXPANSION_ORDER.slice(0, rotation),
+  ];
+  for (const taskId of expansionOrder) {
+    if (plannedProtocolSeconds(selected, durationMinutes) >= minimumSeconds) break;
+    tryAppend({ index: selected.length, taskId, category: categoryForTask(taskId) });
+  }
+
+  selected = withStandingTransition(selected);
+  return {
+    steps: selected,
+    belowMinimum: plannedProtocolSeconds(selected, durationMinutes) < minimumSeconds,
+  };
 }
 
 function placeSquatsAfterWarmup(steps: readonly ProtocolStep[]): ProtocolStep[] {
@@ -126,10 +173,18 @@ export function personalizeAssignment(
   profile: WakeCapabilityProfile,
   durationMinutes: WakeDurationMinutes,
 ): { assignment: ExperimentAssignment; snapshot: WakePersonalizationSnapshot } {
+  const rotationSeed = [...assignment.protocolKey].reduce(
+    (total, character) => total + character.charCodeAt(0),
+    0,
+  );
   const eligible = assignment.steps.filter((step) => allowed(step.taskId, profile));
-  const expanded =
-    durationMinutes === 10 ? expandTenMinuteProtocol(eligible, profile) : [...eligible];
-  let steps = fitBudget(placeSquatsAfterWarmup(expanded), durationMinutes);
+  let planned = planForDuration(
+    placeSquatsAfterWarmup(eligible),
+    profile,
+    durationMinutes,
+    rotationSeed,
+  );
+  let steps = planned.steps;
   let fallbackReason: WakePersonalizationSnapshot["fallbackReason"] = profile.onboardingCompleted
     ? "none"
     : "profile_missing";
@@ -143,11 +198,14 @@ export function personalizeAssignment(
         category: byId.get(taskId) ?? (taskId === "shake" ? "movement" : "cognitive"),
       }),
     );
-    steps = fitBudget(fallback, durationMinutes).slice(0, 2);
+    planned = planForDuration(fallback, profile, durationMinutes, rotationSeed);
+    steps = planned.steps;
     fallbackReason = "limited_eligible_tasks";
   } else if (eligible.length !== assignment.steps.length) {
     fallbackReason = "limited_eligible_tasks";
   }
+
+  if (planned.belowMinimum) fallbackReason = "limited_eligible_tasks";
 
   if (durationMinutes >= 5 && !steps.some((step) => ACTIVE_TASK_IDS.has(step.taskId))) {
     const active = eligibleWakeTasks(profile)
@@ -160,10 +218,12 @@ export function personalizeAssignment(
           : active === "water"
             ? "behavioral"
             : "environment";
-      steps = fitBudget(
+      steps = planForDuration(
         [...steps, { index: steps.length, taskId: active, category }],
+        profile,
         durationMinutes,
-      );
+        rotationSeed,
+      ).steps;
     }
   }
 
@@ -173,6 +233,7 @@ export function personalizeAssignment(
   return {
     assignment: {
       ...baseAssignment,
+      protocolVersion: Math.max(8, assignment.protocolVersion),
       protocolKey: `${assignment.protocolKey}:${durationMinutes}m:${suffix}`,
       steps,
       ...(preserveComparison ? { comparison } : {}),
