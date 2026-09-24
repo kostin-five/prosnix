@@ -12,6 +12,7 @@ import {
   categoryForTask,
   SAFE_WAKE_PROFILE,
   selectPersonalizedAssignment,
+  selectTaskSubstitution,
   type ExperimentAssignment,
   type AdaptiveProtocolEvidence,
   type ProtocolStep,
@@ -360,9 +361,9 @@ async function createSession(
       )
     : [];
   const completedIds = completedRows.map(({ sessionId }) => sessionId);
-  const [completedRatings, completedFollowUps] =
+  const [completedRatings, completedFollowUps, completedTasks] =
     completedIds.length === 0
-      ? [[], []]
+      ? [[], [], []]
       : await Promise.all([
           db
             .select({
@@ -379,6 +380,15 @@ async function createSession(
             })
             .from(followUpObservations)
             .where(inArray(followUpObservations.sessionId, completedIds)),
+          db
+            .select({
+              sessionId: taskObservations.sessionId,
+              stepIndex: taskObservations.protocolStepIndex,
+              taskId: taskObservations.taskId,
+            })
+            .from(taskObservations)
+            .where(inArray(taskObservations.sessionId, completedIds))
+            .orderBy(asc(taskObservations.protocolStepIndex)),
         ]);
   const adaptiveEvidence: AdaptiveProtocolEvidence[] = completedRows.flatMap((row) => {
     const baseline = completedRatings.find(
@@ -388,16 +398,21 @@ async function createSession(
       (rating) => rating.sessionId === row.sessionId && rating.kind === "post_protocol",
     )?.value;
     if (baseline === undefined || postRating === undefined || !Array.isArray(row.steps)) return [];
-    const sequenceKey = row.steps
-      .flatMap((step) =>
-        typeof step === "object" &&
-        step !== null &&
-        "taskId" in step &&
-        typeof step.taskId === "string"
-          ? [step.taskId]
-          : [],
-      )
-      .join(">");
+    const actualTaskIds = completedTasks
+      .filter((task) => task.sessionId === row.sessionId)
+      .map(({ taskId }) => taskId);
+    const sequenceKey = (
+      actualTaskIds.length > 0
+        ? actualTaskIds
+        : row.steps.flatMap((step) =>
+            typeof step === "object" &&
+            step !== null &&
+            "taskId" in step &&
+            typeof step.taskId === "string"
+              ? [step.taskId]
+              : [],
+          )
+    ).join(">");
     if (!sequenceKey) return [];
     return [
       {
@@ -573,6 +588,92 @@ async function mutateSession(
           : {}),
         operationId: envelope.operationId,
       });
+    } else if (command.type === "substitute") {
+      if (current.version !== command.expectedVersion) {
+        throw new SessionCommandConflict(
+          "stale_version",
+          "Состояние сессии уже изменилось на другом устройстве",
+          current,
+        );
+      }
+      if (current.status !== "in_progress" || current.baseline === null) {
+        throw new SessionCommandConflict(
+          "invalid_transition",
+          "Задание можно заменить только во время активного протокола",
+          current,
+        );
+      }
+      const effectiveSteps = [...(current.effectiveSteps ?? current.assignment.steps)];
+      const originalStep = effectiveSteps[command.stepIndex];
+      const profile: WakeCapabilityProfile = {
+        movementLevel: current.personalization.movementLevel,
+        availableResources: current.personalization.availableResources,
+        excludedTaskIds: current.personalization.excludedTaskIds,
+        defaultDurationMinutes: current.durationMinutes,
+        onboardingCompleted: current.personalization.fallbackReason !== "profile_missing",
+        revision: current.personalization.profileRevision,
+      };
+      const selection = selectTaskSubstitution({
+        steps: effectiveSteps,
+        targetIndex: command.stepIndex,
+        currentStepIndex: current.currentStepIndex,
+        completedTaskIds: current.tasks.map(({ taskId }) => taskId),
+        rejectedTaskIds: (current.substitutions ?? []).flatMap((substitution) => [
+          substitution.originalTaskId,
+          substitution.replacementTaskId,
+        ]),
+        profile,
+        durationMinutes: current.durationMinutes,
+        ...(current.assignment.comparison?.factorKey
+          ? { comparisonFactorKey: current.assignment.comparison.factorKey }
+          : {}),
+        catalog: { v9Enabled: current.assignment.protocolVersion >= 9 },
+        reason: command.reason,
+      });
+      if (!originalStep || !selection) {
+        throw new SessionCommandConflict(
+          "no_alternative",
+          "Для этого шага сейчас нет новой безопасной альтернативы",
+          current,
+        );
+      }
+      const [inserted] = await db
+        .insert(sessionTaskSubstitutions)
+        .values({
+          userId: envelope.userId,
+          sessionId: current.id,
+          stepIndex: command.stepIndex,
+          originalTaskId: originalStep.taskId,
+          replacementTaskId: selection.replacementTaskId,
+          reason: command.reason,
+          operationId: envelope.operationId,
+          createdAt: envelope.observedAt,
+        })
+        .returning();
+      if (!inserted) throw new Error("Замена задания не была сохранена");
+      effectiveSteps[command.stepIndex] = {
+        index: command.stepIndex,
+        taskId: selection.replacementTaskId,
+        category: selection.category,
+      };
+      next = {
+        ...current,
+        effectiveSteps,
+        substitutions: [
+          ...(current.substitutions ?? []),
+          {
+            id: inserted.id,
+            stepIndex: inserted.stepIndex,
+            originalTaskId: inserted.originalTaskId as TaskId,
+            replacementTaskId: inserted.replacementTaskId as TaskId,
+            reason: inserted.reason,
+            operationId: inserted.operationId,
+            createdAt: inserted.createdAt.toISOString(),
+          },
+        ],
+        version: current.version + 1,
+      };
+      await updateSnapshot(db, current, next, envelope.observedAt);
     } else if (command.type === "task") {
       next = acceptTaskResult(current, { ...command, observedAt });
       await updateSnapshot(db, current, next, envelope.observedAt);

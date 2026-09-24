@@ -2,6 +2,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 
 import {
   computeAnalyticsProfile,
+  isFactorComparisonPreserved,
   type AnalyticsProfile,
   type AnalyticsRepository,
   type CompletedSessionEvidence,
@@ -14,6 +15,7 @@ import {
   followUpObservations,
   protocolDefinitions,
   ratingObservations,
+  sessionTaskSubstitutions,
   taskObservations,
   wakeSessions,
   users,
@@ -68,14 +70,18 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
             eq(experimentAssignments.protocolDefinitionId, protocolDefinitions.id),
           )
           .where(
-            and(eq(wakeSessions.userId, userId), eq(wakeSessions.status, "protocol_completed")),
+            and(
+              eq(wakeSessions.userId, userId),
+              eq(wakeSessions.status, "protocol_completed"),
+              eq(wakeSessions.sessionKind, "primary"),
+            ),
           ),
       ]);
 
       let evidence: CompletedSessionEvidence[] = [];
       if (sessions.length > 0) {
         const sessionIds = sessions.map(({ sessionId }) => sessionId);
-        const [ratings, followUps, tasks] = await Promise.all([
+        const [ratings, followUps, tasks, substitutions] = await Promise.all([
           db
             .select({
               sessionId: ratingObservations.sessionId,
@@ -95,10 +101,15 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
             .select({
               sessionId: taskObservations.sessionId,
               taskId: taskObservations.taskId,
+              category: taskObservations.category,
             })
             .from(taskObservations)
             .where(inArray(taskObservations.sessionId, sessionIds))
             .orderBy(asc(taskObservations.protocolStepIndex)),
+          db
+            .select({ sessionId: sessionTaskSubstitutions.sessionId })
+            .from(sessionTaskSubstitutions)
+            .where(inArray(sessionTaskSubstitutions.sessionId, sessionIds)),
         ]);
         evidence = sessions.flatMap((session) => {
           const baseline = ratings.find(
@@ -108,10 +119,25 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
             (rating) => rating.sessionId === session.sessionId && rating.kind === "post_protocol",
           )?.value;
           if (baseline === undefined || postRating === undefined) return [];
+          const sessionTasks = tasks.filter((task) => task.sessionId === session.sessionId);
+          const hasSubstitution = substitutions.some(
+            (substitution) => substitution.sessionId === session.sessionId,
+          );
+          const comparisonPreserved =
+            session.evaluatedFactor &&
+            (session.comparisonLevel === "with" || session.comparisonLevel === "without")
+              ? isFactorComparisonPreserved({
+                  factorKey: session.evaluatedFactor,
+                  level: session.comparisonLevel,
+                  actualCategories: sessionTasks.map(({ category }) => category),
+                  hasSubstitution,
+                })
+              : true;
           const comparison: ExperimentAssignment["comparison"] =
             session.evaluatedFactor &&
             session.comparisonGroupKey &&
-            (session.comparisonLevel === "with" || session.comparisonLevel === "without")
+            (session.comparisonLevel === "with" || session.comparisonLevel === "without") &&
+            comparisonPreserved
               ? {
                   factorKey: session.evaluatedFactor,
                   groupKey: `${session.comparisonGroupKey}:${session.wakeContext}:${session.durationMinutes}m`,
@@ -127,10 +153,7 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
               postRating,
               followUp:
                 followUps.find(({ sessionId }) => sessionId === session.sessionId)?.outcome ?? null,
-              sequenceKey: tasks
-                .filter((task) => task.sessionId === session.sessionId)
-                .map((task) => task.taskId)
-                .join(">"),
+              sequenceKey: sessionTasks.map((task) => task.taskId).join(">"),
               ...(session.completedAt ? { completedAt: session.completedAt.toISOString() } : {}),
               ...(comparison ? { comparison } : {}),
             },

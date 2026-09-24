@@ -51,6 +51,42 @@ function assignedSession(): WakeSession {
 }
 
 describe("wake session transitions", () => {
+  it("проверяет результат по effectiveSteps после замены", () => {
+    const session = acceptBaseline(
+      {
+        ...assignedSession(),
+        effectiveSteps: [
+          { index: 0, taskId: "reaction", category: "cognitive" },
+          assignment.steps[1]!,
+        ],
+      },
+      { expectedVersion: 1, value: 3, observedAt: "2026-09-23T04:00:00.000Z" },
+    );
+
+    expect(() =>
+      acceptTaskResult(session, {
+        expectedVersion: 2,
+        stepIndex: 0,
+        taskId: "math",
+        correct: 1,
+        total: 1,
+        durationMs: 1_000,
+        observedAt: "2026-09-23T04:00:01.000Z",
+      }),
+    ).toThrowError(/reaction/);
+    expect(
+      acceptTaskResult(session, {
+        expectedVersion: 2,
+        stepIndex: 0,
+        taskId: "reaction",
+        correct: 1,
+        total: 1,
+        durationMs: 1_000,
+        observedAt: "2026-09-23T04:00:01.000Z",
+      }).tasks[0],
+    ).toMatchObject({ taskId: "reaction", category: "cognitive" });
+  });
+
   it("не принимает недостаточный когнитивный результат нового протокола", () => {
     const session = acceptBaseline(
       {

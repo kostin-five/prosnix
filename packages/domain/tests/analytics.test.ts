@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CompletedSessionEvidence } from "../src/model.js";
-import { computeAnalyticsProfile } from "../src/analytics/profile.js";
+import { computeAnalyticsProfile, isFactorComparisonPreserved } from "../src/analytics/profile.js";
 
 function evidence(
   id: string,
@@ -21,6 +21,25 @@ function evidence(
 }
 
 describe("analytics v1", () => {
+  it("оставляет общий результат, но исключает замену, нарушившую фактор", () => {
+    expect(
+      isFactorComparisonPreserved({
+        factorKey: "movement",
+        level: "with",
+        actualCategories: ["cognitive", "behavioral"],
+        hasSubstitution: true,
+      }),
+    ).toBe(false);
+    expect(
+      isFactorComparisonPreserved({
+        factorKey: "movement",
+        level: "without",
+        actualCategories: ["cognitive", "behavioral"],
+        hasSubstitution: true,
+      }),
+    ).toBe(true);
+  });
+
   it("publishes a preliminary protocol result after one completed session", () => {
     const profile = computeAnalyticsProfile([evidence("s1", 2, 6)]);
     expect(profile.protocolEffects[0]).toMatchObject({

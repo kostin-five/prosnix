@@ -58,6 +58,11 @@ export const TaskResultInputSchema = Type.Object(
   { additionalProperties: false },
 );
 
+export const TaskSubstitutionInputSchema = Type.Object(
+  { reason: TaskSubstitutionReasonSchema },
+  { additionalProperties: false },
+);
+
 export const FollowUpInputSchema = Type.Object(
   { outcome: FollowUpOutcomeSchema },
   { additionalProperties: false },
@@ -72,6 +77,7 @@ export type WakeSoundMode = Static<typeof WakeSoundModeSchema>;
 export type WakeExperienceSnapshot = Static<typeof WakeExperienceSnapshotSchema>;
 export type RatingInput = Static<typeof RatingInputSchema>;
 export type TaskResultInput = Static<typeof TaskResultInputSchema>;
+export type TaskSubstitutionInput = Static<typeof TaskSubstitutionInputSchema>;
 export type FollowUpInput = Static<typeof FollowUpInputSchema>;
 
 export const ExperimentFeedbackInputSchema = Type.Object(

@@ -3,11 +3,13 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   FollowUpInputSchema,
   RatingInputSchema,
+  TaskSubstitutionInputSchema,
   TaskResultInputSchema,
   CreateWakeSessionInputSchema,
   type CreateWakeSessionInput,
   type FollowUpInput,
   type RatingInput,
+  type TaskSubstitutionInput,
   type TaskResultInput,
 } from "@awc/contracts";
 import { SessionCommandConflict, type SessionCommand } from "@awc/domain";
@@ -148,6 +150,34 @@ export async function registerSessionRoutes(
           expectedVersion: version,
           stepIndex,
           ...request.body,
+        },
+      );
+    },
+  );
+
+  app.put<{ Params: StepParams; Body: TaskSubstitutionInput }>(
+    "/api/v1/sessions/:sessionId/steps/:stepIndex/substitution",
+    { schema: { body: TaskSubstitutionInputSchema } },
+    (request, reply) => {
+      if (!options.config.wakeTaskSubstitutionEnabled) {
+        return reply.status(404).send({ code: "feature_unavailable" });
+      }
+      const version = expectedVersion(request);
+      const stepIndex = Number(request.params.stepIndex);
+      if (!version) return reply.status(400).send({ code: "expected_version_required" });
+      if (!Number.isInteger(stepIndex) || stepIndex < 0) {
+        return reply.status(400).send({ code: "invalid_step_index" });
+      }
+      return execute(
+        request,
+        reply,
+        { ...options, now },
+        {
+          type: "substitute",
+          sessionId: request.params.sessionId,
+          expectedVersion: version,
+          stepIndex,
+          reason: request.body.reason,
         },
       );
     },

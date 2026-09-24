@@ -7,6 +7,7 @@ import {
   personalizeAssignment,
   SAFE_WAKE_PROFILE,
   selectPersonalizedAssignment,
+  selectTaskSubstitution,
   type ExperimentAssignment,
   type WakeCapabilityProfile,
 } from "../src/index.js";
@@ -37,6 +38,46 @@ const profile: WakeCapabilityProfile = {
 };
 
 describe("персонализация протокола", () => {
+  it("детерминированно заменяет только текущий или следующий шаг без повторов", () => {
+    const fullProfile: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: ["water", "bright_light", "floor_space"],
+    };
+    const steps = [
+      { index: 0, taskId: "math", category: "cognitive" },
+      { index: 1, taskId: "memory", category: "cognitive" },
+      { index: 2, taskId: "sit_edge", category: "movement" },
+      { index: 3, taskId: "steps", category: "movement" },
+    ] as const;
+
+    expect(
+      selectTaskSubstitution({
+        steps,
+        targetIndex: 1,
+        currentStepIndex: 0,
+        completedTaskIds: [],
+        rejectedTaskIds: ["stroop"],
+        profile: fullProfile,
+        durationMinutes: 5,
+        comparisonFactorKey: "movement",
+        reason: "unwilling_now",
+      }),
+    ).toMatchObject({ replacementTaskId: "reaction", preservesComparison: true });
+    expect(
+      selectTaskSubstitution({
+        steps,
+        targetIndex: 2,
+        currentStepIndex: 0,
+        completedTaskIds: [],
+        rejectedTaskIds: [],
+        profile: fullProfile,
+        durationMinutes: 5,
+        reason: "cannot_do",
+      }),
+    ).toBeNull();
+  });
+
   it("исследует семь разных последовательностей до повторной проверки", () => {
     const fullProfile: WakeCapabilityProfile = {
       ...profile,

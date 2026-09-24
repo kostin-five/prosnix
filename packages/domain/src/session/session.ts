@@ -81,7 +81,8 @@ export function acceptTaskResult(session: WakeSession, command: TaskResultComman
       "A baseline must be recorded before task results",
     );
   }
-  const expectedStep = session.assignment.steps[session.currentStepIndex];
+  const effectiveSteps = session.effectiveSteps ?? session.assignment.steps;
+  const expectedStep = effectiveSteps[session.currentStepIndex];
   if (
     expectedStep === undefined ||
     command.stepIndex !== session.currentStepIndex ||
@@ -148,7 +149,7 @@ export function acceptPostRating(session: WakeSession, command: PostRatingComman
       "A baseline must be recorded before the post rating",
     );
   }
-  if (session.currentStepIndex !== session.assignment.steps.length) {
+  if (session.currentStepIndex !== (session.effectiveSteps ?? session.assignment.steps).length) {
     throw new SessionCommandError(
       "invalid_transition",
       "All assigned steps must be completed before the post rating",

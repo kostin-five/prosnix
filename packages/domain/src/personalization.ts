@@ -3,6 +3,7 @@ import type {
   ExperimentAssignment,
   ProtocolStep,
   TaskId,
+  TaskSubstitutionReason,
   WakeCapabilityProfile,
   WakeDurationMinutes,
   WakePersonalizationSnapshot,
@@ -132,6 +133,123 @@ export function categoryForTask(taskId: TaskId): ProtocolStep["category"] {
   if (taskId === "water" || taskId === "cool_wash") return "behavioral";
   if (taskId === "window" || taskId === "curtains") return "environment";
   return "cognitive";
+}
+
+export interface TaskSubstitutionSelection {
+  replacementTaskId: TaskId;
+  category: ProtocolStep["category"];
+  preservesComparison: boolean;
+}
+
+function factorPresence(taskId: TaskId, factorKey: string | undefined): boolean | null {
+  if (!factorKey) return null;
+  if (
+    factorKey === "cognitive" ||
+    factorKey === "movement" ||
+    factorKey === "behavioral" ||
+    factorKey === "environment"
+  ) {
+    return categoryForTask(taskId) === factorKey;
+  }
+  return null;
+}
+
+function keepsSafeOrder(
+  steps: readonly ProtocolStep[],
+  targetIndex: number,
+  taskId: TaskId,
+): boolean {
+  const candidate = steps.map((step, index) =>
+    index === targetIndex ? { ...step, taskId, category: categoryForTask(taskId) } : step,
+  );
+  if (STANDING_TASK_IDS.has(taskId)) {
+    const transitionIndex = candidate.findIndex((step) => step.taskId === "sit_edge");
+    if (transitionIndex < 0 || transitionIndex >= targetIndex) return false;
+  }
+  if (INTENSE_TASK_IDS.has(taskId)) {
+    const warmedUp = candidate
+      .slice(0, targetIndex)
+      .some(({ taskId: precedingTaskId }) => WARMUP_TASK_IDS.has(precedingTaskId));
+    if (!warmedUp) return false;
+  }
+  return true;
+}
+
+/**
+ * Выбирает воспроизводимую безопасную альтернативу без обучения на единичной субъективной причине.
+ * Причина сохраняется вызывающим слоем, но не меняет порядок выбора внутри текущей сессии.
+ */
+export function selectTaskSubstitution(input: {
+  steps: readonly ProtocolStep[];
+  targetIndex: number;
+  currentStepIndex: number;
+  completedTaskIds: readonly TaskId[];
+  rejectedTaskIds: readonly TaskId[];
+  profile: WakeCapabilityProfile;
+  durationMinutes: WakeDurationMinutes;
+  comparisonFactorKey?: string;
+  catalog?: WakeTaskCatalogOptions;
+  reason: TaskSubstitutionReason;
+}): TaskSubstitutionSelection | null {
+  const target = input.steps[input.targetIndex];
+  if (
+    !target ||
+    target.taskId === "sit_edge" ||
+    input.targetIndex < input.currentStepIndex ||
+    input.targetIndex > input.currentStepIndex + 1
+  ) {
+    return null;
+  }
+
+  const unavailable = new Set<TaskId>([
+    ...input.completedTaskIds,
+    ...input.rejectedTaskIds,
+    ...input.steps.map(({ taskId }) => taskId),
+  ]);
+  unavailable.delete(target.taskId);
+  const originalSeconds = estimatedTaskSeconds(target.taskId, input.durationMinutes);
+  const plannedSeconds = plannedProtocolSeconds(input.steps, input.durationMinutes);
+  const maximumSeconds = input.durationMinutes * 60 * 1.1;
+  const originalFactor = factorPresence(target.taskId, input.comparisonFactorKey);
+
+  const candidates = eligibleWakeTasks(input.profile, input.catalog)
+    .filter((taskId) => taskId !== target.taskId && !unavailable.has(taskId))
+    .filter((taskId) => keepsSafeOrder(input.steps, input.targetIndex, taskId))
+    .filter(
+      (taskId) =>
+        plannedSeconds - originalSeconds + estimatedTaskSeconds(taskId, input.durationMinutes) <=
+        maximumSeconds,
+    )
+    .map((taskId, order) => {
+      const candidateFactor = factorPresence(taskId, input.comparisonFactorKey);
+      const preservesComparison =
+        originalFactor === null || candidateFactor === null || originalFactor === candidateFactor;
+      return {
+        taskId,
+        order,
+        category: categoryForTask(taskId),
+        preservesComparison,
+        sameCategory: categoryForTask(taskId) === target.category,
+        durationDistance: Math.abs(
+          estimatedTaskSeconds(taskId, input.durationMinutes) - originalSeconds,
+        ),
+      };
+    })
+    .sort(
+      (left, right) =>
+        Number(right.preservesComparison) - Number(left.preservesComparison) ||
+        Number(right.sameCategory) - Number(left.sameCategory) ||
+        left.durationDistance - right.durationDistance ||
+        left.order - right.order,
+    );
+  const selected = candidates[0];
+  return selected
+    ? {
+        replacementTaskId: selected.taskId,
+        category: selected.category,
+        preservesComparison: selected.preservesComparison,
+      }
+    : null;
 }
 
 function withStandingTransition(steps: readonly ProtocolStep[]): ProtocolStep[] {

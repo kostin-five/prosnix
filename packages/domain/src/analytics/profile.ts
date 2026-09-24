@@ -4,7 +4,26 @@ import type {
   Confidence,
   DailyWakeTrendPoint,
   Metric,
+  TaskCategory,
 } from "../model.js";
+
+export function isFactorComparisonPreserved(input: {
+  factorKey: string;
+  level: "with" | "without";
+  actualCategories: readonly TaskCategory[];
+  hasSubstitution: boolean;
+}): boolean {
+  if (!input.hasSubstitution) return true;
+  if (
+    input.factorKey !== "cognitive" &&
+    input.factorKey !== "movement" &&
+    input.factorKey !== "behavioral" &&
+    input.factorKey !== "environment"
+  ) {
+    return false;
+  }
+  return input.actualCategories.includes(input.factorKey) === (input.level === "with");
+}
 
 function mean(values: readonly number[]): number | null {
   if (values.length === 0) return null;

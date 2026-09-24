@@ -10,6 +10,85 @@ import {
 } from "../helpers.js";
 
 describe("контракт команд wake-сессии", () => {
+  it("идемпотентно заменяет текущий шаг и возвращает effectiveSteps", async () => {
+    const dependencies = createMemoryDependencies();
+    const app = await createApp(
+      { ...testConfig, wakeTaskSubstitutionEnabled: true },
+      {
+        ...dependencies,
+        sessionCommands: createMemorySessionCommands(dependencies.user.id),
+        now: () => testNow,
+      },
+    );
+    const cookie = await authenticateTestUser(app);
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/sessions",
+      headers: { cookie, "idempotency-key": "replace-create-1" },
+      payload: { timezone: "Europe/Moscow", wakeContext: "night_sleep", durationMinutes: 5 },
+    });
+    const sessionId = created.json().id as string;
+    await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${sessionId}/baseline`,
+      headers: { cookie, "idempotency-key": "replace-baseline-1", "if-match": "1" },
+      payload: { value: 3 },
+    });
+    const nextHeaders = {
+      cookie,
+      "idempotency-key": "replace-next-0001",
+      "if-match": "2",
+    };
+    const nextReplaced = await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${sessionId}/steps/1/substitution`,
+      headers: nextHeaders,
+      payload: { reason: "unwilling_now" },
+    });
+    const nextReplayed = await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${sessionId}/steps/1/substitution`,
+      headers: nextHeaders,
+      payload: { reason: "unwilling_now" },
+    });
+    expect(nextReplaced.statusCode).toBe(200);
+    expect(nextReplaced.json()).toMatchObject({
+      version: 3,
+      currentStepIndex: 0,
+      effectiveSteps: [{ taskId: "math" }, { taskId: "reaction" }],
+      substitutions: [
+        {
+          stepIndex: 1,
+          originalTaskId: "memory",
+          replacementTaskId: "reaction",
+          reason: "unwilling_now",
+        },
+      ],
+    });
+    expect(nextReplayed.json()).toEqual(nextReplaced.json());
+
+    const currentReplaced = await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${sessionId}/steps/0/substitution`,
+      headers: {
+        cookie,
+        "idempotency-key": "replace-current-1",
+        "if-match": "3",
+      },
+      payload: { reason: "cannot_do" },
+    });
+    expect(currentReplaced.json()).toMatchObject({
+      version: 4,
+      currentStepIndex: 0,
+      effectiveSteps: [{ taskId: "stroop" }, { taskId: "reaction" }],
+      substitutions: [
+        { stepIndex: 1, replacementTaskId: "reaction" },
+        { stepIndex: 0, replacementTaskId: "stroop", reason: "cannot_do" },
+      ],
+    });
+    await app.close();
+  });
+
   it("закрывает активную сессию POST-запросом без тела", async () => {
     const dependencies = createMemoryDependencies();
     const app = await createApp(testConfig, {

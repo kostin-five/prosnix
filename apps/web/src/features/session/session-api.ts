@@ -125,6 +125,20 @@ export function saveTaskResult(
   );
 }
 
+export function substituteWakeTask(
+  sessionId: string,
+  expectedVersion: number,
+  stepIndex: number,
+  reason: "unwilling_now" | "not_helpful" | "cannot_do",
+): Promise<WakeSessionResponse> {
+  return sendCommand(
+    "PUT",
+    `/api/v1/sessions/${sessionId}/steps/${stepIndex}/substitution`,
+    { reason },
+    expectedVersion,
+  );
+}
+
 export function savePostRating(
   sessionId: string,
   expectedVersion: number,

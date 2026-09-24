@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import {
   connectDatabase,
+  PostgresBootstrapRepository,
   PostgresSessionCommandRepository,
   PostgresSessionTaskSubstitutionRepository,
   PostgresUserDeletionRepository,
@@ -21,6 +22,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
     const database = connectDatabase(databaseUrl!);
     const telegramUserId = 910000009101n;
     const otherTelegramUserId = 910000009102n;
+    const replacementTelegramUserId = 910000009103n;
 
     afterAll(async () => {
       const deletion = new PostgresUserDeletionRepository(database.db);
@@ -28,6 +30,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
         Promise.all([
           users.findByTelegramId(telegramUserId),
           users.findByTelegramId(otherTelegramUserId),
+          users.findByTelegramId(replacementTelegramUserId),
         ]),
       );
       await Promise.all(
@@ -36,6 +39,89 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           .map((user, index) => deletion.deleteUser(user.id, `wake-engagement-cleanup-${index}`)),
       );
       await database.close();
+    });
+
+    it("восстанавливает effectiveSteps после versioned замены", async () => {
+      const deletion = new PostgresUserDeletionRepository(database.db);
+      const previous = await database.unitOfWork.transaction(({ users }) =>
+        users.findByTelegramId(replacementTelegramUserId),
+      );
+      if (previous) await deletion.deleteUser(previous.id, "wake-replacement-reset");
+      const user = await database.unitOfWork.transaction(({ users }) =>
+        users.createFromTelegram({ telegramUserId: replacementTelegramUserId, locale: "ru" }),
+      );
+      const commands = new PostgresSessionCommandRepository(database.db);
+      const created = await commands.execute({
+        userId: user.id,
+        operationId: "replacement-create-0001",
+        requestHash: "replacement-create-hash",
+        observedAt: new Date("2026-09-23T06:00:00.000Z"),
+        command: {
+          type: "create",
+          timezone: "Europe/Moscow",
+          wakeContext: "night_sleep",
+          durationMinutes: 2,
+        },
+      });
+      const baseline = await commands.execute({
+        userId: user.id,
+        operationId: "replacement-baseline-0001",
+        requestHash: "replacement-baseline-hash",
+        observedAt: new Date("2026-09-23T06:00:10.000Z"),
+        command: {
+          type: "baseline",
+          sessionId: created.session.id,
+          expectedVersion: created.session.version,
+          value: 3,
+        },
+      });
+      const nextReplaced = await commands.execute({
+        userId: user.id,
+        operationId: "replacement-next-0001",
+        requestHash: "replacement-next-hash",
+        observedAt: new Date("2026-09-23T06:00:15.000Z"),
+        command: {
+          type: "substitute",
+          sessionId: baseline.session.id,
+          expectedVersion: baseline.session.version,
+          stepIndex: baseline.session.currentStepIndex + 1,
+          reason: "not_helpful",
+        },
+      });
+      expect(nextReplaced.session.effectiveSteps?.[1]?.taskId).not.toBe(
+        baseline.session.effectiveSteps?.[1]?.taskId,
+      );
+      expect(nextReplaced.session.substitutions).toHaveLength(1);
+
+      const afterNextResume = await new PostgresBootstrapRepository(database.db).load(user.id);
+      expect(afterNextResume?.activeSession?.protocol.effectiveSteps).toEqual(
+        nextReplaced.session.effectiveSteps,
+      );
+
+      const currentReplaced = await commands.execute({
+        userId: user.id,
+        operationId: "replacement-current-0001",
+        requestHash: "replacement-current-hash",
+        observedAt: new Date("2026-09-23T06:00:20.000Z"),
+        command: {
+          type: "substitute",
+          sessionId: baseline.session.id,
+          expectedVersion: nextReplaced.session.version,
+          stepIndex: baseline.session.currentStepIndex,
+          reason: "cannot_do",
+        },
+      });
+      expect(currentReplaced.session.effectiveSteps?.[0]?.taskId).not.toBe(
+        baseline.session.effectiveSteps?.[0]?.taskId,
+      );
+      expect(currentReplaced.session.substitutions).toHaveLength(2);
+
+      const resumed = await new PostgresBootstrapRepository(database.db).load(user.id);
+      expect(resumed?.activeSession?.protocol.effectiveSteps).toEqual(
+        currentReplaced.session.effectiveSteps,
+      );
+      expect(resumed?.activeSession?.substitutions).toHaveLength(2);
+      await deletion.deleteUser(user.id, "wake-replacement-cleanup");
     });
 
     it("сохраняет sound snapshot и изолирует идемпотентные замены заданий по владельцу", async () => {

@@ -130,6 +130,43 @@ describe("утренний вход и компактный shell", () => {
     );
   });
 
+  it("показывает две точки замены и требует причину", async () => {
+    const onReplace = vi.fn();
+    await Promise.all([
+      import("../src/features/tasks/task-motion-visual.js"),
+      import("../src/features/tasks/task-sound-toggle.js"),
+      import("../src/features/tasks/task-substitution-sheet.js"),
+    ]);
+    await act(async () => {
+      root.render(
+        <TasksContainer
+          taskIds={["math", "water", "window"]}
+          taskIndex={0}
+          durationMinutes={5}
+          substitutionEnabled
+          onReplace={onReplace}
+          onDone={() => undefined}
+        />,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const replaceButtons = [...container.querySelectorAll("button")].filter(
+      (button) => button.textContent?.trim() === "Заменить",
+    );
+    expect(replaceButtons).toHaveLength(2);
+    await act(async () => {
+      replaceButtons[1]?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(container.textContent).toContain("Почему заменить «Стакан воды»?");
+    const cannotDo = [...container.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Не могу выполнить"),
+    );
+    act(() => cannotDo?.click());
+    expect(onReplace).toHaveBeenCalledWith(1, "cannot_do");
+  });
+
   it("не показывает общую справку об аналитике", () => {
     act(() => root.render(<StatsResearchCards refreshKey={1} />));
 

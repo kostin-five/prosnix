@@ -150,6 +150,13 @@ export type SessionCommand =
       difficultyLevel?: number;
     }
   | {
+      type: "substitute";
+      sessionId: string;
+      expectedVersion: number;
+      stepIndex: number;
+      reason: TaskSubstitutionReason;
+    }
+  | {
       type: "post_rating";
       sessionId: string;
       expectedVersion: number;
@@ -185,7 +192,11 @@ export interface SessionCommandResult {
 export class SessionCommandConflict extends Error {
   constructor(
     readonly code:
-      "idempotency_conflict" | "stale_version" | "invalid_transition" | "session_not_found",
+      | "idempotency_conflict"
+      | "stale_version"
+      | "invalid_transition"
+      | "session_not_found"
+      | "no_alternative",
     message: string,
     readonly canonicalSession: WakeSession | null,
   ) {

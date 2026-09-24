@@ -17,6 +17,7 @@ import {
   AlertCircle,
   Sparkles,
   Settings,
+  RefreshCw,
 } from "lucide-react";
 import { useBootstrap } from "../features/bootstrap/use-bootstrap.js";
 import { useAnalyticsProfile } from "../features/analytics/use-analytics.js";
@@ -30,6 +31,7 @@ import {
   saveFollowUp,
   savePostRating,
   saveTaskResult,
+  substituteWakeTask,
 } from "../features/session/session-api.js";
 import type { BootstrapResponse, WakeSessionResponse } from "../shared/api/client.js";
 import { saveWakeSchedule, type WakeSchedule } from "../features/schedule/schedule-api.js";
@@ -58,10 +60,13 @@ import {
   taskSubmissionConflictMessage,
 } from "../features/session/task-submission-gate.js";
 import type { WakeSoundMode } from "../features/tasks/task-experience-feedback.js";
+import type { TaskSubstitutionReason } from "../features/tasks/task-substitution-sheet.js";
 
 const GOAL_CALIBRATION_ENABLED = import.meta.env.VITE_GOAL_CALIBRATION_ENABLED !== "false";
 const GUIDED_TASK_EXPERIENCE_ENABLED =
   import.meta.env.VITE_GUIDED_TASK_EXPERIENCE_ENABLED !== "false";
+const WAKE_TASK_SUBSTITUTION_ENABLED =
+  import.meta.env.VITE_WAKE_TASK_SUBSTITUTION_ENABLED === "true";
 
 const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
 const StartRatingScreen = lazy(async () => ({
@@ -80,6 +85,7 @@ const StatsResearchCards = lazy(() => import("../features/research/stats-researc
 const TaskMotionVisual = lazy(() => import("../features/tasks/task-motion-visual.js"));
 const TaskSoundToggle = lazy(() => import("../features/tasks/task-sound-toggle.js"));
 const ProtocolSheet = lazy(() => import("../features/tasks/protocol-sheet.js"));
+const TaskSubstitutionSheet = lazy(() => import("../features/tasks/task-substitution-sheet.js"));
 const ConfirmTask = lazy(() => import("../features/tasks/confirm-task.js"));
 const MorningExperienceSlot = lazy(
   () => import("../features/personalization/morning-experience-slot.js"),
@@ -979,6 +985,8 @@ export function TasksContainer({
   onDone,
   soundMode = "off",
   onSoundModeChange = () => undefined,
+  onReplace,
+  substitutionEnabled = false,
   submitting = false,
   guidedExperience = GUIDED_TASK_EXPERIENCE_ENABLED,
 }: {
@@ -988,10 +996,13 @@ export function TasksContainer({
   onDone: (r: TaskResult) => void;
   soundMode?: WakeSoundMode;
   onSoundModeChange?: (mode: WakeSoundMode) => void;
+  onReplace?: (stepIndex: number, reason: TaskSubstitutionReason) => void;
+  substitutionEnabled?: boolean;
   submitting?: boolean;
   guidedExperience?: boolean;
 }) {
   const [protocolOpen, setProtocolOpen] = useState(false);
+  const [replacementTarget, setReplacementTarget] = useState<number | null>(null);
   const id = taskIds[taskIndex];
   const nextId = taskIds[taskIndex + 1];
   const meta = TASK_META[id];
@@ -1024,10 +1035,16 @@ export function TasksContainer({
             Шаг {taskIndex + 1} из {taskIds.length} · {remainingLabel}
           </span>
           <div className="flex items-start gap-2">
-            {guidedExperience && (
-              <Suspense fallback={<div className="h-10 w-24 rounded-xl bg-card" />}>
-                <TaskSoundToggle compact mode={soundMode} onChange={onSoundModeChange} />
-              </Suspense>
+            {substitutionEnabled && onReplace && id !== "sit_edge" && (
+              <button
+                type="button"
+                onClick={() => setReplacementTarget(taskIndex)}
+                disabled={submitting}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground disabled:opacity-50 active:scale-[0.98]"
+              >
+                <RefreshCw className="h-3.5 w-3.5 text-primary" />
+                Заменить
+              </button>
             )}
             <button
               type="button"
@@ -1056,12 +1073,32 @@ export function TasksContainer({
             style={{ width: `${progress}%` }}
           />
         </div>
+        {guidedExperience && (
+          <div className="mt-3 flex justify-end">
+            <Suspense fallback={<div className="h-10 w-24 rounded-xl bg-card" />}>
+              <TaskSoundToggle compact mode={soundMode} onChange={onSoundModeChange} />
+            </Suspense>
+          </div>
+        )}
         {protocolOpen && (
           <Suspense fallback={null}>
             <ProtocolSheet
               steps={taskIds.map((taskId) => ({ taskId, title: TASK_META[taskId].title }))}
               currentIndex={taskIndex}
               onClose={() => setProtocolOpen(false)}
+            />
+          </Suspense>
+        )}
+        {replacementTarget !== null && onReplace && (
+          <Suspense fallback={null}>
+            <TaskSubstitutionSheet
+              taskTitle={TASK_META[taskIds[replacementTarget]!].title}
+              busy={submitting}
+              onClose={() => setReplacementTarget(null)}
+              onSelect={(reason) => {
+                onReplace(replacementTarget, reason);
+                setReplacementTarget(null);
+              }}
             />
           </Suspense>
         )}
@@ -1093,7 +1130,18 @@ export function TasksContainer({
             <span className="min-w-0 flex-1 truncate text-sm font-semibold">
               {TASK_META[nextId].title}
             </span>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            {substitutionEnabled && onReplace && nextId !== "sit_edge" ? (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => setReplacementTarget(taskIndex + 1)}
+                className="min-h-9 rounded-xl px-2 text-xs font-semibold text-primary disabled:opacity-50"
+              >
+                Заменить
+              </button>
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
           </div>
         )}
       </div>
@@ -2129,7 +2177,7 @@ function PrototypeApp({
   initialWakeRoutine: WakeRoutine;
 }) {
   const launchSource = new URLSearchParams(window.location.search).get("source");
-  const resumedTaskIds = (resume?.protocol.steps ?? [])
+  const resumedTaskIds = (resume?.protocol.effectiveSteps ?? resume?.protocol.steps ?? [])
     .map(({ taskId }) => taskId)
     .filter((taskId): taskId is TaskId => taskId in TASK_META);
   const [screen, setScreen] = useState<Screen>(() =>
@@ -2159,11 +2207,14 @@ function PrototypeApp({
   );
   const [taskResults, setTaskResults] = useState<TaskResult[]>([]);
   const [startAlertness, setStartAlertness] = useState(resume?.baseline ?? 0);
-  const [soundMode, setSoundMode] = useState<WakeSoundMode>("off");
+  const [soundMode, setSoundMode] = useState<WakeSoundMode>(
+    resume?.session.experience?.soundMode === "on" ? "on" : "off",
+  );
   const sessionStartRef = useRef(Date.now());
   const taskSubmissionGateRef = useRef(new TaskSubmissionGate());
   const [taskRenderVersion, setTaskRenderVersion] = useState(0);
   const [completedSession, setCompletedSession] = useState<Session | null>(null);
+  const [pendingProfileExclusion, setPendingProfileExclusion] = useState<TaskId | null>(null);
   const directWakeStartedRef = useRef(false);
 
   useEffect(() => {
@@ -2214,7 +2265,7 @@ function PrototypeApp({
   function applyConflict(error: unknown, submittedStepIndex?: number): void {
     if (error instanceof SessionConflictError && error.canonicalSession) {
       const canonical = error.canonicalSession;
-      const canonicalTaskIds = canonical.assignment.steps
+      const canonicalTaskIds = (canonical.effectiveSteps ?? canonical.assignment.steps)
         .map(({ taskId }) => taskId)
         .filter((taskId): taskId is TaskId => taskId in TASK_META);
       setServerSession(canonical);
@@ -2257,7 +2308,7 @@ function PrototypeApp({
       );
       setServerSession(created);
       setTaskIds(
-        created.assignment.steps
+        (created.effectiveSteps ?? created.assignment.steps)
           .map(({ taskId }) => taskId)
           .filter((taskId): taskId is TaskId => taskId in TASK_META),
       );
@@ -2317,15 +2368,94 @@ function PrototypeApp({
           : { difficultyLevel: result.difficultyLevel }),
       });
       setServerSession(updated);
+      const updatedTaskIds = (updated.effectiveSteps ?? updated.assignment.steps)
+        .map(({ taskId }) => taskId)
+        .filter((taskId): taskId is TaskId => taskId in TASK_META);
+      setTaskIds(updatedTaskIds);
       setTaskResults((current) => [...current, result]);
       setTaskIndex(updated.currentStepIndex);
       sendTaskFeedback("success", soundMode);
-      if (updated.currentStepIndex >= taskIds.length) setScreen("endRating");
+      if (updated.currentStepIndex >= updatedTaskIds.length) setScreen("endRating");
     } catch (error) {
       taskSubmissionGateRef.current.reset();
       setTaskRenderVersion((version) => version + 1);
       sendTaskFeedback("error", soundMode);
       applyConflict(error, taskIndex);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function handleTaskReplacement(
+    stepIndex: number,
+    reason: TaskSubstitutionReason,
+  ): Promise<void> {
+    const originalTaskId = taskIds[stepIndex];
+    if (!originalTaskId) return;
+    setSyncError(null);
+    if (demo) {
+      const replacement = (["reaction", "stroop", "memory", "math", "shake"] as TaskId[]).find(
+        (taskId) => taskId !== originalTaskId && !taskIds.includes(taskId),
+      );
+      if (!replacement) {
+        setSyncError("Для этого шага сейчас нет новой безопасной альтернативы.");
+        return;
+      }
+      setTaskIds((current) =>
+        current.map((taskId, index) => (index === stepIndex ? replacement : taskId)),
+      );
+      if (reason === "cannot_do") setPendingProfileExclusion(originalTaskId);
+      return;
+    }
+    if (!serverSession) return;
+    setSyncing(true);
+    try {
+      const updated = await substituteWakeTask(
+        serverSession.id,
+        serverSession.version,
+        stepIndex,
+        reason,
+      );
+      const updatedTaskIds = (updated.effectiveSteps ?? updated.assignment.steps)
+        .map(({ taskId }) => taskId)
+        .filter((taskId): taskId is TaskId => taskId in TASK_META);
+      setServerSession(updated);
+      setTaskIds(updatedTaskIds);
+      if (reason === "cannot_do") setPendingProfileExclusion(originalTaskId);
+    } catch (error) {
+      if (error instanceof SessionConflictError && error.code === "no_alternative") {
+        if (error.canonicalSession) {
+          setServerSession(error.canonicalSession);
+          setTaskIds(
+            (error.canonicalSession.effectiveSteps ?? error.canonicalSession.assignment.steps)
+              .map(({ taskId }) => taskId)
+              .filter((taskId): taskId is TaskId => taskId in TASK_META),
+          );
+        }
+        setSyncError("Для этого шага сейчас нет новой безопасной альтернативы.");
+      } else {
+        applyConflict(error);
+      }
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function confirmProfileExclusion(): Promise<void> {
+    if (!pendingProfileExclusion) return;
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      await updateWakeProfile({
+        movementLevel: wakeProfile.movementLevel,
+        availableResources: wakeProfile.availableResources,
+        excludedTaskIds: [...new Set([...wakeProfile.excludedTaskIds, pendingProfileExclusion])],
+        defaultDurationMinutes: wakeProfile.defaultDurationMinutes,
+        onboardingCompleted: wakeProfile.onboardingCompleted,
+      });
+      setPendingProfileExclusion(null);
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "Не удалось обновить ограничения");
     } finally {
       setSyncing(false);
     }
@@ -2509,6 +2639,45 @@ function PrototypeApp({
             {syncError ?? "Сохраняем подтверждённое состояние…"}
           </div>
         )}
+        {pendingProfileExclusion && (
+          <div className="fixed inset-0 z-[80] flex items-end bg-black/65 p-4">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Обновить будущие ограничения"
+              className="mx-auto w-full max-w-[358px] rounded-3xl border border-border bg-card p-5 shadow-2xl"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                Будущие пробуждения
+              </p>
+              <h2 className="mt-1 text-xl font-bold">
+                Больше не предлагать «{TASK_META[pendingProfileExclusion].title}»?
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Текущая замена уже сохранена. Ограничение профиля изменится только после отдельного
+                подтверждения.
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={syncing}
+                  onClick={() => setPendingProfileExclusion(null)}
+                  className="min-h-12 rounded-xl border border-border bg-secondary text-sm font-semibold"
+                >
+                  Только сейчас
+                </button>
+                <button
+                  type="button"
+                  disabled={syncing}
+                  onClick={() => void confirmProfileExclusion()}
+                  className="min-h-12 rounded-xl bg-primary text-sm font-bold text-primary-foreground"
+                >
+                  Исключить
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {screen === "home" && (
           <HomeScreen
             onStart={() => setScreen("context")}
@@ -2609,6 +2778,8 @@ function PrototypeApp({
             soundMode={soundMode}
             onSoundModeChange={setSoundMode}
             submitting={syncing}
+            substitutionEnabled={WAKE_TASK_SUBSTITUTION_ENABLED}
+            onReplace={(stepIndex, reason) => void handleTaskReplacement(stepIndex, reason)}
             onDone={handleTaskDone}
           />
         )}

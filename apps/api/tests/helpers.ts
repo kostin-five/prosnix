@@ -17,6 +17,7 @@ import {
   acceptFollowUp,
   acceptPostRating,
   acceptTaskResult,
+  categoryForTask,
   type WakeSession,
 } from "@awc/domain";
 import type { AppConfig } from "../src/app/config.js";
@@ -215,6 +216,52 @@ export function createMemorySessionCommands(
             });
           } else if (command.type === "task") {
             session = acceptTaskResult(session, { ...command, observedAt });
+          } else if (command.type === "substitute") {
+            if (session.version !== command.expectedVersion) {
+              throw new SessionCommandError("stale_version", "Версия сессии изменилась");
+            }
+            if (
+              session.status !== "in_progress" ||
+              command.stepIndex < session.currentStepIndex ||
+              command.stepIndex > session.currentStepIndex + 1
+            ) {
+              throw new SessionCommandError("invalid_transition", "Шаг нельзя заменить");
+            }
+            const effectiveSteps = [...(session.effectiveSteps ?? session.assignment.steps)];
+            const original = effectiveSteps[command.stepIndex];
+            const used = new Set(effectiveSteps.map(({ taskId }) => taskId));
+            const replacementTaskId = (["reaction", "stroop", "memory", "math"] as const).find(
+              (taskId) => !used.has(taskId),
+            );
+            if (!original || !replacementTaskId) {
+              throw new SessionCommandConflict(
+                "no_alternative",
+                "Нет безопасной альтернативы",
+                session,
+              );
+            }
+            effectiveSteps[command.stepIndex] = {
+              index: command.stepIndex,
+              taskId: replacementTaskId,
+              category: categoryForTask(replacementTaskId),
+            };
+            session = {
+              ...session,
+              effectiveSteps,
+              substitutions: [
+                ...(session.substitutions ?? []),
+                {
+                  id: `substitution-${command.stepIndex}`,
+                  stepIndex: command.stepIndex,
+                  originalTaskId: original.taskId,
+                  replacementTaskId,
+                  reason: command.reason,
+                  operationId: envelope.operationId,
+                  createdAt: observedAt,
+                },
+              ],
+              version: session.version + 1,
+            };
           } else if (command.type === "post_rating") {
             session = acceptPostRating(session, {
               expectedVersion: command.expectedVersion,
