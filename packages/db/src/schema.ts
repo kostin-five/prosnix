@@ -206,6 +206,7 @@ export const wakeSessions = pgTable(
     parentSessionId: uuid("parent_session_id"),
     baselineSourceSessionId: uuid("baseline_source_session_id"),
     baselineSourceRatingKind: ratingKind("baseline_source_rating_kind"),
+    recoveryOfferDeclinedAt: timestamp("recovery_offer_declined_at", { withTimezone: true }),
     startedAt: timestamp("started_at", { withTimezone: true }),
     protocolCompletedAt: timestamp("protocol_completed_at", { withTimezone: true }),
     followUpDueAt: timestamp("follow_up_due_at", { withTimezone: true }),

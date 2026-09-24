@@ -32,6 +32,7 @@ describe("мобильные состояния доступности", () => {
   });
 
   it("озвучивает безопасную ошибку входа и даёт понятное действие", async () => {
+    await import("../src/features/bootstrap/bootstrap-error-screen.js");
     act(() => root.render(<App />));
     await settle();
     const alert = container.querySelector<HTMLElement>('[role="alert"]');

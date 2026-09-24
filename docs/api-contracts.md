@@ -36,16 +36,18 @@ Auth ограничен отдельным per-IP rate limit. Browser не пе�
 
 ## Wake-сессии
 
-| Метод | Маршрут                                          | Дополнительные требования                    |
-| ----- | ------------------------------------------------ | -------------------------------------------- |
-| POST  | `/api/v1/sessions`                               | timezone, wakeContext, duration, idempotency |
-| PUT   | `/api/v1/sessions/:id/baseline`                  | rating body, idempotency, `If-Match`         |
-| PUT   | `/api/v1/sessions/:id/steps/:index`              | task result, idempotency, `If-Match`         |
-| PUT   | `/api/v1/sessions/:id/steps/:index/substitution` | `{ reason }`, idempotency, `If-Match`        |
-| PUT   | `/api/v1/sessions/:id/post-rating`               | rating body, idempotency, `If-Match`         |
-| PUT   | `/api/v1/sessions/:id/follow-up`                 | `{ outcome }`, idempotency                   |
-| POST  | `/api/v1/sessions/:id/abandon`                   | idempotency, `If-Match`                      |
-| GET   | `/api/v1/sessions/history?limit=1..20`           | последние завершённые сессии                 |
+| Метод | Маршрут                                          | Дополнительные требования                      |
+| ----- | ------------------------------------------------ | ---------------------------------------------- |
+| POST  | `/api/v1/sessions`                               | timezone, wakeContext, duration, idempotency   |
+| PUT   | `/api/v1/sessions/:id/baseline`                  | rating body, idempotency, `If-Match`           |
+| PUT   | `/api/v1/sessions/:id/steps/:index`              | task result, idempotency, `If-Match`           |
+| PUT   | `/api/v1/sessions/:id/steps/:index/substitution` | `{ reason }`, idempotency, `If-Match`          |
+| PUT   | `/api/v1/sessions/:id/post-rating`               | rating body, idempotency, `If-Match`           |
+| POST  | `/api/v1/sessions/:id/recovery`                  | начать короткий раунд; idempotency, `If-Match` |
+| POST  | `/api/v1/sessions/:id/recovery/decline`          | отказаться; idempotency, `If-Match`            |
+| PUT   | `/api/v1/sessions/:id/follow-up`                 | `{ outcome }`, idempotency                     |
+| POST  | `/api/v1/sessions/:id/abandon`                   | idempotency, `If-Match`                        |
+| GET   | `/api/v1/sessions/history?limit=1..20`           | последние завершённые сессии                   |
 
 Conflict `409` возвращает code и canonical session, чтобы клиент мог восстановить актуальное
 состояние. Повтор идентичной операции возвращает сохранённый результат; повтор key с другим payload
@@ -54,12 +56,20 @@ Conflict `409` возвращает code и canonical session, чтобы кли
 Baseline body обратно совместимо принимает необязательный `experience: { soundMode: "on" | "off" }`.
 Сервер сохраняет только этот явный выбор, не считывает системную громкость и возвращает его в session
 response. Ответ session/bootstrap может дополнительно содержать `effectiveSteps`, `substitutions`,
-`sessionKind`, `parentSessionId` и `recovery`; старые клиенты могут игнорировать эти поля. Пока
+`sessionKind`, `parentSessionId`, `recoveryBaseline` и `recoveryOffer`; старые клиенты могут
+игнорировать эти поля. Пока
 `WAKE_TASK_SUBSTITUTION_ENABLED=false` и `WAKE_LOW_EFFECT_RECOVERY_ENABLED=false`, маршруты
 соответствующего этапа отвечают `404 feature_unavailable`. При включённой замене сервер принимает
 только причины `unwilling_now`, `not_helpful` и `cannot_do`, разрешает менять текущий либо следующий
 невыполненный индекс и возвращает канонические `effectiveSteps`. Повтор с тем же
 `Idempotency-Key` возвращает прежний ответ, а устаревший `If-Match` — canonical session в `409`.
+
+При включённом recovery завершённая primary-сессия с эффектом не выше `+1` может получить одно
+предложение. Принятие создаёт отдельную `sessionKind=recovery` с максимум двумя действиями и
+плановым лимитом 90 секунд; её baseline берётся из сохранённого post-rating primary и не дублируется
+как новое baseline-наблюдение. Отказ сохраняется. После принятия follow-up primary снимается и
+назначается только после завершения либо явного прекращения recovery. History возвращает
+`sessionKind` и `parentSessionId`, а основной `averageDelta` учитывает только primary.
 
 Начиная с protocol version 3 сервер принимает результат когнитивного шага только после минимального числа
 успехов: math/stroop/reaction — 3 для 2/5 минут и 5 для 10 минут, memory — соответственно 2 и 3.

@@ -57,11 +57,11 @@
 
 ## 8. Recovery при слабом результате
 
-- [ ] 8.1 Реализовать eligibility `postRating - baseline <= 1`, максимум одну recovery-сессию и до двух заданий/90 секунд
-- [ ] 8.2 Добавить идемпотентное создание recovery с baseline provenance из primary post-rating и неизменным primary evidence
-- [ ] 8.3 Реализовать resume/abandon и ровно один follow-up после последнего принятого этапа
-- [ ] 8.4 Показать спокойную карточку «Ещё до 90 секунд» с явным отказом и без повторного показа
-- [ ] 8.5 Отображать primary/recovery раздельно и не включать recovery в основной averageDelta
+- [x] 8.1 Реализовать eligibility `postRating - baseline <= 1`, максимум одну recovery-сессию и до двух заданий/90 секунд
+- [x] 8.2 Добавить идемпотентное создание recovery с baseline provenance из primary post-rating и неизменным primary evidence
+- [x] 8.3 Реализовать resume/abandon и ровно один follow-up после последнего принятого этапа
+- [x] 8.4 Показать спокойную карточку «Ещё до 90 секунд» с явным отказом и без повторного показа
+- [x] 8.5 Отображать primary/recovery раздельно и не включать recovery в основной averageDelta
 
 ## 9. Анализ сочетаний и выпуск
 

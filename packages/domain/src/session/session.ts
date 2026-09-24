@@ -180,7 +180,9 @@ export function acceptPostRating(session: WakeSession, command: PostRatingComman
 
 export function acceptFollowUp(session: WakeSession, command: FollowUpCommand): WakeSession {
   assertVersion(session, command.expectedVersion);
-  if (session.status !== "protocol_completed" || session.postRating === null) {
+  const completedProtocol = session.status === "protocol_completed" && session.postRating !== null;
+  const abandonedRecovery = session.status === "abandoned" && session.sessionKind === "recovery";
+  if (!completedProtocol && !abandonedRecovery) {
     throw new SessionCommandError("invalid_transition", "Follow-up requires a completed protocol");
   }
   if (session.followUp !== null) {

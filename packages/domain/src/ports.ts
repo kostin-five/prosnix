@@ -164,6 +164,16 @@ export type SessionCommand =
       clientObservedAt?: string;
     }
   | {
+      type: "start_recovery";
+      sessionId: string;
+      expectedVersion: number;
+    }
+  | {
+      type: "decline_recovery";
+      sessionId: string;
+      expectedVersion: number;
+    }
+  | {
       type: "follow_up";
       sessionId: string;
       expectedVersion?: number;
@@ -196,7 +206,8 @@ export class SessionCommandConflict extends Error {
       | "stale_version"
       | "invalid_transition"
       | "session_not_found"
-      | "no_alternative",
+      | "no_alternative"
+      | "recovery_unavailable",
     message: string,
     readonly canonicalSession: WakeSession | null,
   ) {
@@ -314,6 +325,8 @@ export interface SessionHistoryItem {
   tasks: Array<{ taskId: TaskId; category: import("./model.js").TaskCategory }>;
   wakeContext: WakeContext;
   durationMinutes: WakeDurationMinutes;
+  sessionKind: import("./model.js").SessionKind;
+  parentSessionId: string | null;
 }
 
 export interface SessionHistoryRepository {

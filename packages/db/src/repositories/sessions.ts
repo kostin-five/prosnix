@@ -12,6 +12,7 @@ import {
   categoryForTask,
   SAFE_WAKE_PROFILE,
   selectPersonalizedAssignment,
+  selectRecoverySteps,
   selectTaskSubstitution,
   type ExperimentAssignment,
   type AdaptiveProtocolEvidence,
@@ -40,6 +41,16 @@ import {
   wakeCapabilityProfiles,
 } from "../schema.js";
 import type { Database } from "./types.js";
+
+interface SessionRepositoryOptions {
+  wakeTaskCatalogV9Enabled: boolean;
+  wakeLowEffectRecoveryEnabled: boolean;
+}
+
+const DEFAULT_OPTIONS: SessionRepositoryOptions = {
+  wakeTaskCatalogV9Enabled: false,
+  wakeLowEffectRecoveryEnabled: false,
+};
 
 const TASK_IDS = new Set<TaskId>([
   "math",
@@ -161,6 +172,7 @@ async function loadSession(
   db: Database,
   userId: string,
   sessionId: string,
+  options: SessionRepositoryOptions = DEFAULT_OPTIONS,
 ): Promise<WakeSession | null> {
   const [aggregate] = await db
     .select({
@@ -178,24 +190,44 @@ async function loadSession(
     .limit(1);
   if (!aggregate) return null;
 
-  const [ratings, tasks, followUps, substitutionRows] = await Promise.all([
-    db.select().from(ratingObservations).where(eq(ratingObservations.sessionId, sessionId)),
-    db
-      .select()
-      .from(taskObservations)
-      .where(eq(taskObservations.sessionId, sessionId))
-      .orderBy(asc(taskObservations.protocolStepIndex)),
-    db
-      .select()
-      .from(followUpObservations)
-      .where(eq(followUpObservations.sessionId, sessionId))
-      .limit(1),
-    db
-      .select()
-      .from(sessionTaskSubstitutions)
-      .where(eq(sessionTaskSubstitutions.sessionId, sessionId))
-      .orderBy(asc(sessionTaskSubstitutions.createdAt), asc(sessionTaskSubstitutions.id)),
-  ]);
+  const [ratings, tasks, followUps, substitutionRows, sourceRatings, linkedRecovery] =
+    await Promise.all([
+      db.select().from(ratingObservations).where(eq(ratingObservations.sessionId, sessionId)),
+      db
+        .select()
+        .from(taskObservations)
+        .where(eq(taskObservations.sessionId, sessionId))
+        .orderBy(asc(taskObservations.protocolStepIndex)),
+      db
+        .select()
+        .from(followUpObservations)
+        .where(eq(followUpObservations.sessionId, sessionId))
+        .limit(1),
+      db
+        .select()
+        .from(sessionTaskSubstitutions)
+        .where(eq(sessionTaskSubstitutions.sessionId, sessionId))
+        .orderBy(asc(sessionTaskSubstitutions.createdAt), asc(sessionTaskSubstitutions.id)),
+      aggregate.session.baselineSourceSessionId
+        ? db
+            .select()
+            .from(ratingObservations)
+            .where(eq(ratingObservations.sessionId, aggregate.session.baselineSourceSessionId))
+        : Promise.resolve([]),
+      aggregate.session.sessionKind === "primary"
+        ? db
+            .select({ id: wakeSessions.id })
+            .from(wakeSessions)
+            .where(
+              and(
+                eq(wakeSessions.userId, userId),
+                eq(wakeSessions.parentSessionId, aggregate.session.id),
+              ),
+            )
+            .limit(1)
+            .then((rows) => rows[0] ?? null)
+        : Promise.resolve(null),
+    ]);
   const comparison: ExperimentAssignment["comparison"] =
     aggregate.assignment.comparisonGroupKey &&
     aggregate.assignment.evaluatedFactor &&
@@ -220,7 +252,7 @@ async function loadSession(
     };
   }
 
-  return {
+  const session: WakeSession = {
     id: aggregate.session.id,
     userId: aggregate.session.userId,
     assignment: {
@@ -253,6 +285,18 @@ async function loadSession(
             ratingKind: "post_protocol",
           }
         : null,
+    recoveryOffer:
+      aggregate.session.sessionKind !== "primary"
+        ? null
+        : linkedRecovery
+          ? {
+              status: "accepted",
+              maxDurationSeconds: 90,
+              recoverySessionId: linkedRecovery.id,
+            }
+          : aggregate.session.recoveryOfferDeclinedAt
+            ? { status: "declined", maxDurationSeconds: 90, recoverySessionId: null }
+            : null,
     experience: parseExperienceSnapshot(aggregate.session.experienceSnapshot),
     wakeContext: aggregate.session.wakeContext,
     durationMinutes: aggregate.session.durationBudgetMinutes as 2 | 5 | 10,
@@ -260,7 +304,11 @@ async function loadSession(
     status: aggregate.session.status,
     currentStepIndex: aggregate.session.currentStepIndex,
     version: aggregate.session.version,
-    baseline: ratings.find(({ kind }) => kind === "baseline")?.value ?? null,
+    baseline:
+      ratings.find(({ kind }) => kind === "baseline")?.value ??
+      (aggregate.session.sessionKind === "recovery"
+        ? (sourceRatings.find(({ kind }) => kind === "post_protocol")?.value ?? null)
+        : null),
     tasks: tasks.map((task) => ({
       stepIndex: task.protocolStepIndex,
       taskId: task.taskId as TaskId,
@@ -278,14 +326,32 @@ async function loadSession(
     followUpDueAt: aggregate.session.followUpDueAt?.toISOString() ?? null,
     abandonedAt: aggregate.session.abandonedAt?.toISOString() ?? null,
   };
+  if (
+    options.wakeLowEffectRecoveryEnabled &&
+    session.sessionKind === "primary" &&
+    session.status === "protocol_completed" &&
+    session.baseline !== null &&
+    session.postRating !== null &&
+    session.postRating - session.baseline <= 1 &&
+    session.recoveryOffer === null &&
+    recoveryStepsFor(session).length > 0
+  ) {
+    session.recoveryOffer = {
+      status: "eligible",
+      maxDurationSeconds: 90,
+      recoverySessionId: null,
+    };
+  }
+  return session;
 }
 
 async function canonicalForCommand(
   db: Database,
   userId: string,
   command: SessionCommand,
+  options: SessionRepositoryOptions = DEFAULT_OPTIONS,
 ): Promise<WakeSession | null> {
-  if (command.type !== "create") return loadSession(db, userId, command.sessionId);
+  if (command.type !== "create") return loadSession(db, userId, command.sessionId, options);
   const [active] = await db
     .select({ id: wakeSessions.id })
     .from(wakeSessions)
@@ -296,15 +362,15 @@ async function canonicalForCommand(
       ),
     )
     .limit(1);
-  return active ? loadSession(db, userId, active.id) : null;
+  return active ? loadSession(db, userId, active.id, options) : null;
 }
 
 async function createSession(
   db: Database,
   envelope: SessionCommandEnvelope,
-  options: { wakeTaskCatalogV9Enabled: boolean },
+  options: SessionRepositoryOptions,
 ): Promise<{ session: WakeSession; responseStatus: 200 | 201 }> {
-  const existing = await canonicalForCommand(db, envelope.userId, envelope.command);
+  const existing = await canonicalForCommand(db, envelope.userId, envelope.command, options);
   if (existing) return { session: existing, responseStatus: 200 };
   if (envelope.command.type !== "create") {
     throw new SessionCommandConflict("session_not_found", "Сессия не найдена", null);
@@ -514,9 +580,165 @@ async function createSession(
     })
     .returning({ id: wakeSessions.id });
   if (!row) throw new Error("Не удалось создать wake-сессию");
-  const session = await loadSession(db, envelope.userId, row.id);
+  const session = await loadSession(db, envelope.userId, row.id, options);
   if (!session) throw new Error("Созданная wake-сессия не найдена");
   return { session, responseStatus: 201 };
+}
+
+function recoveryStepsFor(primary: WakeSession): ProtocolStep[] {
+  const profile: WakeCapabilityProfile = {
+    movementLevel: primary.personalization.movementLevel,
+    availableResources: primary.personalization.availableResources,
+    excludedTaskIds: primary.personalization.excludedTaskIds,
+    defaultDurationMinutes: primary.durationMinutes,
+    onboardingCompleted: primary.personalization.fallbackReason !== "profile_missing",
+    revision: primary.personalization.profileRevision,
+  };
+  return selectRecoverySteps({
+    primarySteps: primary.effectiveSteps ?? primary.assignment.steps,
+    completedTaskIds: primary.tasks.map(({ taskId }) => taskId),
+    rejectedTaskIds: (primary.substitutions ?? []).flatMap((substitution) => [
+      substitution.originalTaskId,
+      ...(substitution.reason === "cannot_do" || substitution.reason === "not_helpful"
+        ? [substitution.replacementTaskId]
+        : []),
+    ]),
+    profile,
+    catalog: { v9Enabled: primary.assignment.protocolVersion >= 9 },
+  });
+}
+
+async function createRecoverySession(
+  db: Database,
+  envelope: SessionCommandEnvelope & {
+    command: Extract<SessionCommand, { type: "start_recovery" }>;
+  },
+  options: SessionRepositoryOptions,
+): Promise<{ session: WakeSession; responseStatus: 201 }> {
+  const primary = await loadSession(db, envelope.userId, envelope.command.sessionId, options);
+  const unavailable = () =>
+    new SessionCommandConflict(
+      "recovery_unavailable",
+      "Дополнительный раунд для этой сессии недоступен",
+      primary,
+    );
+  if (
+    !primary ||
+    primary.version !== envelope.command.expectedVersion ||
+    primary.sessionKind === "recovery"
+  ) {
+    if (primary && primary.version !== envelope.command.expectedVersion) {
+      throw new SessionCommandConflict(
+        "stale_version",
+        "Состояние сессии уже изменилось на другом устройстве",
+        primary,
+      );
+    }
+    throw unavailable();
+  }
+  if (
+    primary.status !== "protocol_completed" ||
+    primary.baseline === null ||
+    primary.postRating === null ||
+    primary.postRating - primary.baseline > 1 ||
+    primary.recoveryOffer?.status === "accepted" ||
+    primary.recoveryOffer?.status === "declined"
+  ) {
+    throw unavailable();
+  }
+  const steps = recoveryStepsFor(primary);
+  if (steps.length === 0) throw unavailable();
+
+  const protocolKey = `recovery-${steps.map(({ taskId }) => taskId).join("-")}`;
+  const insertedProtocol = await db
+    .insert(protocolDefinitions)
+    .values({
+      protocolKey,
+      version: 1,
+      title: "Короткий дополнительный раунд",
+      steps,
+    })
+    .onConflictDoNothing()
+    .returning({ id: protocolDefinitions.id });
+  const existingProtocol = insertedProtocol[0]
+    ? undefined
+    : (
+        await db
+          .select({ id: protocolDefinitions.id })
+          .from(protocolDefinitions)
+          .where(
+            and(
+              eq(protocolDefinitions.protocolKey, protocolKey),
+              eq(protocolDefinitions.version, 1),
+            ),
+          )
+          .limit(1)
+      )[0];
+  const protocolId = insertedProtocol[0]?.id ?? existingProtocol?.id;
+  if (!protocolId) throw new Error("Не удалось получить recovery-протокол");
+
+  const [assignment] = await db
+    .insert(experimentAssignments)
+    .values({
+      userId: envelope.userId,
+      protocolDefinitionId: protocolId,
+      strategyVersion: "recovery-v1",
+      phase: "fallback",
+      hypothesis: "Проверяем короткое продолжение после слабого изменения бодрости",
+      evidenceSnapshot: {
+        parentSessionId: primary.id,
+        baselineSource: "primary_post_rating",
+      },
+    })
+    .returning({ id: experimentAssignments.id });
+  if (!assignment) throw new Error("Не удалось создать recovery-назначение");
+
+  const updatedPrimary = await db
+    .update(wakeSessions)
+    .set({
+      version: primary.version + 1,
+      followUpDueAt: null,
+      updatedAt: envelope.observedAt,
+    })
+    .where(
+      and(
+        eq(wakeSessions.id, primary.id),
+        eq(wakeSessions.userId, envelope.userId),
+        eq(wakeSessions.version, primary.version),
+      ),
+    )
+    .returning({ id: wakeSessions.id });
+  if (!updatedPrimary[0]) {
+    throw new SessionCommandConflict(
+      "stale_version",
+      "Состояние сессии уже изменилось на другом устройстве",
+      await loadSession(db, envelope.userId, primary.id, options),
+    );
+  }
+
+  const [row] = await db
+    .insert(wakeSessions)
+    .values({
+      userId: envelope.userId,
+      assignmentId: assignment.id,
+      status: "in_progress",
+      currentStepIndex: 0,
+      version: 1,
+      wakeContext: primary.wakeContext,
+      durationBudgetMinutes: 2,
+      personalizationSnapshot: primary.personalization,
+      experienceSnapshot: primary.experience ?? { soundMode: "unknown" },
+      sessionKind: "recovery",
+      parentSessionId: primary.id,
+      baselineSourceSessionId: primary.id,
+      baselineSourceRatingKind: "post_protocol",
+      startedAt: envelope.observedAt,
+    })
+    .returning({ id: wakeSessions.id });
+  if (!row) throw new Error("Не удалось создать recovery-сессию");
+  const recovery = await loadSession(db, envelope.userId, row.id, options);
+  if (!recovery) throw new Error("Созданная recovery-сессия не найдена");
+  return { session: recovery, responseStatus: 201 };
 }
 
 async function updateSnapshot(
@@ -558,10 +780,11 @@ async function updateSnapshot(
 async function mutateSession(
   db: Database,
   envelope: SessionCommandEnvelope,
+  options: SessionRepositoryOptions,
 ): Promise<{ session: WakeSession; responseStatus: 200 }> {
   const command = envelope.command;
   if (command.type === "create") throw new Error("Unexpected create mutation");
-  const current = await loadSession(db, envelope.userId, command.sessionId);
+  const current = await loadSession(db, envelope.userId, command.sessionId, options);
   if (!current) throw new SessionCommandConflict("session_not_found", "Сессия не найдена", null);
   const observedAt = envelope.observedAt.toISOString();
 
@@ -711,13 +934,87 @@ async function mutateSession(
           : {}),
         operationId: envelope.operationId,
       });
-      await db
-        .update(users)
+      if (current.sessionKind !== "recovery") {
+        await db
+          .update(users)
+          .set({
+            learningSessionCount: sql`${users.learningSessionCount} + 1`,
+            updatedAt: envelope.observedAt,
+          })
+          .where(eq(users.id, envelope.userId));
+      }
+      if (
+        options.wakeLowEffectRecoveryEnabled &&
+        current.sessionKind !== "recovery" &&
+        current.baseline !== null &&
+        command.value - current.baseline <= 1 &&
+        recoveryStepsFor(next).length > 0
+      ) {
+        next = {
+          ...next,
+          recoveryOffer: {
+            status: "eligible",
+            maxDurationSeconds: 90,
+            recoverySessionId: null,
+          },
+        };
+      }
+    } else if (command.type === "decline_recovery") {
+      if (
+        current.version !== command.expectedVersion ||
+        current.sessionKind === "recovery" ||
+        current.status !== "protocol_completed" ||
+        current.baseline === null ||
+        current.postRating === null ||
+        current.postRating - current.baseline > 1 ||
+        current.recoveryOffer?.status === "accepted" ||
+        current.recoveryOffer?.status === "declined" ||
+        recoveryStepsFor(current).length === 0
+      ) {
+        if (current.version !== command.expectedVersion) {
+          throw new SessionCommandConflict(
+            "stale_version",
+            "Состояние сессии уже изменилось на другом устройстве",
+            current,
+          );
+        }
+        throw new SessionCommandConflict(
+          "recovery_unavailable",
+          "Дополнительный раунд для этой сессии недоступен",
+          current,
+        );
+      }
+      next = {
+        ...current,
+        version: current.version + 1,
+        recoveryOffer: {
+          status: "declined",
+          maxDurationSeconds: 90,
+          recoverySessionId: null,
+        },
+      };
+      const rows = await db
+        .update(wakeSessions)
         .set({
-          learningSessionCount: sql`${users.learningSessionCount} + 1`,
+          version: next.version,
+          recoveryOfferDeclinedAt: envelope.observedAt,
           updatedAt: envelope.observedAt,
         })
-        .where(eq(users.id, envelope.userId));
+        .where(
+          and(
+            eq(wakeSessions.id, current.id),
+            eq(wakeSessions.userId, current.userId),
+            eq(wakeSessions.version, current.version),
+          ),
+        )
+        .returning({ id: wakeSessions.id });
+      if (!rows[0]) {
+        throw new SessionCommandConflict(
+          "stale_version",
+          "Состояние сессии уже изменилось на другом устройстве",
+          await loadSession(db, current.userId, current.id, options),
+        );
+      }
     } else if (command.type === "follow_up") {
       next = acceptFollowUp(current, {
         expectedVersion: command.expectedVersion ?? current.version,
@@ -740,6 +1037,12 @@ async function mutateSession(
       });
     } else {
       next = abandonSession(current, { expectedVersion: command.expectedVersion, observedAt });
+      if (current.sessionKind === "recovery") {
+        next = {
+          ...next,
+          followUpDueAt: new Date(envelope.observedAt.getTime() + 15 * 60_000).toISOString(),
+        };
+      }
       await updateSnapshot(db, current, next, envelope.observedAt);
     }
     return { session: next, responseStatus: 200 };
@@ -756,12 +1059,14 @@ async function mutateSession(
 }
 
 export class PostgresSessionCommandRepository implements SessionCommandRepository {
+  private readonly options: SessionRepositoryOptions;
+
   constructor(
     private readonly db: Database,
-    private readonly options: { wakeTaskCatalogV9Enabled: boolean } = {
-      wakeTaskCatalogV9Enabled: false,
-    },
-  ) {}
+    options: Partial<SessionRepositoryOptions> = {},
+  ) {
+    this.options = { ...DEFAULT_OPTIONS, ...options };
+  }
 
   execute(envelope: SessionCommandEnvelope): Promise<SessionCommandResult> {
     return this.db.transaction(async (transaction) => {
@@ -783,7 +1088,7 @@ export class PostgresSessionCommandRepository implements SessionCommandRepositor
           throw new SessionCommandConflict(
             "idempotency_conflict",
             "Ключ операции уже использован с другими данными",
-            await canonicalForCommand(db, envelope.userId, envelope.command),
+            await canonicalForCommand(db, envelope.userId, envelope.command, this.options),
           );
         }
         return {
@@ -796,7 +1101,15 @@ export class PostgresSessionCommandRepository implements SessionCommandRepositor
       const accepted =
         envelope.command.type === "create"
           ? await createSession(db, envelope, this.options)
-          : await mutateSession(db, envelope);
+          : envelope.command.type === "start_recovery"
+            ? await createRecoverySession(
+                db,
+                envelope as SessionCommandEnvelope & {
+                  command: Extract<SessionCommand, { type: "start_recovery" }>;
+                },
+                this.options,
+              )
+            : await mutateSession(db, envelope, this.options);
       await db.insert(idempotencyRecords).values({
         userId: envelope.userId,
         operationId: envelope.operationId,

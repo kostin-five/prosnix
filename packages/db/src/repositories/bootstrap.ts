@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, lte } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lte, or } from "drizzle-orm";
 
 import type { BootstrapRepository, BootstrapSession, ProtocolStep, TaskId } from "@awc/domain";
 import { categoryForTask, SAFE_WAKE_PROFILE } from "@awc/domain";
@@ -65,7 +65,7 @@ export class PostgresBootstrapRepository implements BootstrapRepository {
 
     let activeSession: BootstrapSession | null = null;
     if (active) {
-      const [ratings, substitutions] = await Promise.all([
+      const [ratings, substitutions, sourceRatings] = await Promise.all([
         this.db
           .select({ kind: ratingObservations.kind, value: ratingObservations.value })
           .from(ratingObservations)
@@ -75,6 +75,12 @@ export class PostgresBootstrapRepository implements BootstrapRepository {
           .from(sessionTaskSubstitutions)
           .where(eq(sessionTaskSubstitutions.sessionId, active.session.id))
           .orderBy(asc(sessionTaskSubstitutions.createdAt), asc(sessionTaskSubstitutions.id)),
+        active.session.baselineSourceSessionId
+          ? this.db
+              .select({ kind: ratingObservations.kind, value: ratingObservations.value })
+              .from(ratingObservations)
+              .where(eq(ratingObservations.sessionId, active.session.baselineSourceSessionId))
+          : Promise.resolve([]),
       ]);
       const assignedSteps = Array.isArray(active.protocol.steps)
         ? (active.protocol.steps as ProtocolStep[])
@@ -142,7 +148,11 @@ export class PostgresBootstrapRepository implements BootstrapRepository {
           phase: active.assignment.phase,
           hypothesis: active.assignment.hypothesis,
         },
-        baseline: ratings.find(({ kind }) => kind === "baseline")?.value ?? null,
+        baseline:
+          ratings.find(({ kind }) => kind === "baseline")?.value ??
+          (active.session.sessionKind === "recovery"
+            ? (sourceRatings.find(({ kind }) => kind === "post_protocol")?.value ?? null)
+            : null),
         postRating: ratings.find(({ kind }) => kind === "post_protocol")?.value ?? null,
         substitutions: substitutions.map((substitution) => ({
           id: substitution.id,
@@ -164,7 +174,10 @@ export class PostgresBootstrapRepository implements BootstrapRepository {
       .where(
         and(
           eq(wakeSessions.userId, userId),
-          eq(wakeSessions.status, "protocol_completed"),
+          or(
+            eq(wakeSessions.status, "protocol_completed"),
+            and(eq(wakeSessions.status, "abandoned"), eq(wakeSessions.sessionKind, "recovery")),
+          ),
           lte(wakeSessions.followUpDueAt, now),
           isNull(followUpObservations.id),
         ),

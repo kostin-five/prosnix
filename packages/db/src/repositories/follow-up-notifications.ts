@@ -42,7 +42,10 @@ export class PostgresFollowUpNotificationRepository implements FollowUpNotificat
         .leftJoin(wakeSchedules, eq(wakeSchedules.userId, wakeSessions.userId))
         .where(
           and(
-            eq(wakeSessions.status, "protocol_completed"),
+            or(
+              eq(wakeSessions.status, "protocol_completed"),
+              and(eq(wakeSessions.status, "abandoned"), eq(wakeSessions.sessionKind, "recovery")),
+            ),
             lte(wakeSessions.followUpDueAt, now),
             isNull(followUpObservations.id),
             isNull(followUpNotificationDeliveries.id),

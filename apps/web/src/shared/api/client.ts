@@ -47,6 +47,7 @@ export interface BootstrapResponse {
       sessionKind?: "primary" | "recovery";
       parentSessionId?: string | null;
       recoveryBaseline?: { sessionId: string; ratingKind: "post_protocol" } | null;
+      recoveryOffer?: RecoveryOfferResponse | null;
       experience?: { soundMode: "unknown" | "off" | "on" };
     };
     protocol: {
@@ -96,6 +97,7 @@ export interface WakeSessionResponse {
   sessionKind?: "primary" | "recovery";
   parentSessionId?: string | null;
   recoveryBaseline?: { sessionId: string; ratingKind: "post_protocol" } | null;
+  recoveryOffer?: RecoveryOfferResponse | null;
   experience?: { soundMode: "unknown" | "off" | "on" };
   assignment: {
     id: string;
@@ -139,6 +141,12 @@ export interface SessionTaskSubstitutionResponse {
   reason: "unwilling_now" | "not_helpful" | "cannot_do";
   operationId: string;
   createdAt: string;
+}
+
+export interface RecoveryOfferResponse {
+  status: "eligible" | "declined" | "accepted";
+  maxDurationSeconds: 90;
+  recoverySessionId: string | null;
 }
 
 export interface MetricResponse {
@@ -204,6 +212,8 @@ export interface SessionHistoryItemResponse {
   }>;
   wakeContext: WakeContext | "unspecified";
   durationMinutes: WakeDurationMinutes;
+  sessionKind: "primary" | "recovery";
+  parentSessionId: string | null;
 }
 
 export interface SessionHistoryResponse {

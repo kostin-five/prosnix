@@ -1,6 +1,6 @@
 # Фактическая архитектура Prosnix
 
-**Актуально на:** 23 сентября 2026 года
+**Актуально на:** 24 сентября 2026 года
 **Версия кода:** `dev`, OpenSpec change `strengthen-wake-engagement`
 
 Этот документ описывает реализованную систему. Планируемые изменения находятся в
@@ -144,8 +144,15 @@ baseline. Снимок не содержит системную громкост
 неизменяемым, а append-only события формируют канонические `effectiveSteps`. Причина `cannot_do`
 только предлагает отдельное подтверждение изменения будущего профиля. Bootstrap, resume и результат
 шага возвращают фактическую последовательность; аналитика использует выполненные task observations и
-исключает нарушенное factor comparison, сохраняя общий парный результат. Recovery пока остаётся
-выключен отдельным flag.
+исключает нарушенное factor comparison, сохраняя общий парный результат.
+
+Recovery после эффекта `+1` или ниже реализован как отдельная связанная сессия за выключенным по
+умолчанию `WAKE_LOW_EFFECT_RECOVERY_ENABLED`. Сервер сохраняет основной результат до предложения,
+назначает не более двух других допустимых действий суммарно до 90 секунд и использует post-rating
+primary как явно указанную исходную точку recovery. Принятие переносит единственный follow-up на
+последний завершённый или прекращённый этап; отказ сохраняется и не вызывает повторного предложения.
+Bootstrap восстанавливает незавершённый recovery отдельно, история показывает связь с primary, а
+основная аналитика читает только `session_kind=primary`.
 
 Каталог protocol version 9 добавляет `cool_wash` и `pushups`, но выключен по умолчанию двумя
 согласованными flags `WAKE_TASK_CATALOG_V9_ENABLED` и `VITE_WAKE_TASK_CATALOG_V9_ENABLED`. Умывание
@@ -265,8 +272,9 @@ payments/updates, `session_task_substitutions` и audit events. `task_observatio
 Migration `0009_subscription_status_repair` идемпотентно добавляет отсутствующее значение
 `past_due` в ранние варианты enum `subscription_status`; уже применённая `0004` не изменяется.
 Migration `0010_wake_engagement_foundation` добавляет privacy-safe experience snapshot, append-only
-замены заданий и ограничения recovery provenance. Полная цепочка и повторный запуск проверены на
-отдельной PostgreSQL 17; production migration этим не выполнялась.
+замены заданий и ограничения recovery provenance. Migration `0011_low_effect_recovery` отдельно
+фиксирует явный отказ от дополнительного раунда только для primary-сессии. Полная цепочка и
+повторный запуск проверены на отдельной PostgreSQL 17; production migration этим не выполнялась.
 
 ## Среды, deploy и rollback
 

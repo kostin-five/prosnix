@@ -88,6 +88,12 @@ export interface RecoveryBaselineProvenance {
   ratingKind: "post_protocol";
 }
 
+export interface RecoveryOfferState {
+  status: "eligible" | "declined" | "accepted";
+  maxDurationSeconds: 90;
+  recoverySessionId: string | null;
+}
+
 export interface ExperimentAssignment {
   id: string;
   protocolKey: string;
@@ -124,6 +130,7 @@ export interface WakeSession {
   sessionKind?: SessionKind;
   parentSessionId?: string | null;
   recoveryBaseline?: RecoveryBaselineProvenance | null;
+  recoveryOffer?: RecoveryOfferState | null;
   experience?: WakeExperienceSnapshot;
   wakeContext: WakeContext;
   durationMinutes: WakeDurationMinutes;

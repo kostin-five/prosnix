@@ -206,6 +206,45 @@ export async function registerSessionRoutes(
     },
   );
 
+  app.post<{ Params: SessionParams }>("/api/v1/sessions/:sessionId/recovery", (request, reply) => {
+    if (!options.config.wakeLowEffectRecoveryEnabled) {
+      return reply.status(404).send({ code: "feature_unavailable" });
+    }
+    const version = expectedVersion(request);
+    if (!version) return reply.status(400).send({ code: "expected_version_required" });
+    return execute(
+      request,
+      reply,
+      { ...options, now },
+      {
+        type: "start_recovery",
+        sessionId: request.params.sessionId,
+        expectedVersion: version,
+      },
+    );
+  });
+
+  app.post<{ Params: SessionParams }>(
+    "/api/v1/sessions/:sessionId/recovery/decline",
+    (request, reply) => {
+      if (!options.config.wakeLowEffectRecoveryEnabled) {
+        return reply.status(404).send({ code: "feature_unavailable" });
+      }
+      const version = expectedVersion(request);
+      if (!version) return reply.status(400).send({ code: "expected_version_required" });
+      return execute(
+        request,
+        reply,
+        { ...options, now },
+        {
+          type: "decline_recovery",
+          sessionId: request.params.sessionId,
+          expectedVersion: version,
+        },
+      );
+    },
+  );
+
   app.put<{ Params: SessionParams; Body: FollowUpInput }>(
     "/api/v1/sessions/:sessionId/follow-up",
     { schema: { body: FollowUpInputSchema } },

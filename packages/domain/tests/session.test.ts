@@ -302,4 +302,20 @@ describe("wake session transitions", () => {
     });
     expect(abandoned).toMatchObject({ status: "abandoned", version: 3 });
   });
+
+  it("accepts the single chain follow-up after an abandoned recovery", () => {
+    const recovery = {
+      ...assignedSession(),
+      sessionKind: "recovery" as const,
+      status: "abandoned" as const,
+      baseline: 4,
+      version: 3,
+      abandonedAt: "2026-08-27T04:00:20.000Z",
+    };
+
+    expect(acceptFollowUp(recovery, { expectedVersion: 3, outcome: "drowsy" })).toMatchObject({
+      followUp: "drowsy",
+      version: 4,
+    });
+  });
 });

@@ -70,6 +70,19 @@ const STANDING_TASK_IDS = new Set<TaskId>([
 ]);
 const WARMUP_TASK_IDS = new Set<TaskId>(["steps", "shake"]);
 const INTENSE_TASK_IDS = new Set<TaskId>(["squats", "pushups"]);
+const RECOVERY_ORDER: readonly TaskId[] = [
+  "window",
+  "water",
+  "shake",
+  "steps",
+  "reaction",
+  "stroop",
+  "cool_wash",
+  "math",
+  "memory",
+  "squats",
+  "pushups",
+];
 
 function allowed(
   taskId: TaskId,
@@ -250,6 +263,58 @@ export function selectTaskSubstitution(input: {
         preservesComparison: selected.preservesComparison,
       }
     : null;
+}
+
+/**
+ * Формирует отдельный короткий раунд после слабого результата. Последние действия primary и все
+ * отклонённые задания не повторяются; стоячее действие получает переход, если пользователь ещё не
+ * вставал в основной сессии.
+ */
+export function selectRecoverySteps(input: {
+  primarySteps: readonly ProtocolStep[];
+  completedTaskIds: readonly TaskId[];
+  rejectedTaskIds: readonly TaskId[];
+  profile: WakeCapabilityProfile;
+  catalog?: WakeTaskCatalogOptions;
+}): ProtocolStep[] {
+  const rejected = new Set(input.rejectedTaskIds);
+  const excludedTail = new Set(input.primarySteps.slice(-2).map(({ taskId }) => taskId));
+  const alreadyStanding = input.completedTaskIds.some(
+    (taskId) => taskId === "sit_edge" || STANDING_TASK_IDS.has(taskId),
+  );
+  const alreadyWarmedUp = input.completedTaskIds.some((taskId) => WARMUP_TASK_IDS.has(taskId));
+  const eligible = new Set(eligibleWakeTasks(input.profile, input.catalog));
+  const ordered = RECOVERY_ORDER.filter(
+    (taskId) =>
+      eligible.has(taskId) &&
+      !rejected.has(taskId) &&
+      !excludedTail.has(taskId) &&
+      (!INTENSE_TASK_IDS.has(taskId) || alreadyWarmedUp),
+  );
+
+  const selected: TaskId[] = [];
+  let totalSeconds = 0;
+  for (const taskId of ordered) {
+    if (selected.includes(taskId)) continue;
+    const needsTransition =
+      STANDING_TASK_IDS.has(taskId) && !alreadyStanding && selected.length === 0;
+    const addition = needsTransition ? (["sit_edge", taskId] as const) : ([taskId] as const);
+    if (selected.length + addition.length > 2) continue;
+    const additionSeconds = addition.reduce(
+      (total, candidate) => total + estimatedTaskSeconds(candidate, 2),
+      0,
+    );
+    if (totalSeconds + additionSeconds > 90) continue;
+    selected.push(...addition);
+    totalSeconds += additionSeconds;
+    if (selected.length === 2) break;
+  }
+
+  return selected.map((taskId, index) => ({
+    index,
+    taskId,
+    category: categoryForTask(taskId),
+  }));
 }
 
 function withStandingTransition(steps: readonly ProtocolStep[]): ProtocolStep[] {

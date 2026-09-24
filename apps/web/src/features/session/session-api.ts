@@ -16,7 +16,7 @@ export class SessionConflictError extends ApiError {
   }
 }
 
-async function sendCommand(
+export async function sendSessionCommand(
   method: "POST" | "PUT",
   path: string,
   body: unknown,
@@ -84,7 +84,7 @@ export function createWakeSession(
   wakeContext: WakeContext,
   durationMinutes: WakeDurationMinutes,
 ): Promise<WakeSessionResponse> {
-  return sendCommand("POST", "/api/v1/sessions", { timezone, wakeContext, durationMinutes });
+  return sendSessionCommand("POST", "/api/v1/sessions", { timezone, wakeContext, durationMinutes });
 }
 
 export function saveBaseline(
@@ -93,7 +93,7 @@ export function saveBaseline(
   value: number,
   soundMode: "off" | "on" = "off",
 ): Promise<WakeSessionResponse> {
-  return sendCommand(
+  return sendSessionCommand(
     "PUT",
     `/api/v1/sessions/${sessionId}/baseline`,
     {
@@ -117,7 +117,7 @@ export function saveTaskResult(
     difficultyLevel?: number;
   },
 ): Promise<WakeSessionResponse> {
-  return sendCommand(
+  return sendSessionCommand(
     "PUT",
     `/api/v1/sessions/${sessionId}/steps/${stepIndex}`,
     result,
@@ -131,7 +131,7 @@ export function substituteWakeTask(
   stepIndex: number,
   reason: "unwilling_now" | "not_helpful" | "cannot_do",
 ): Promise<WakeSessionResponse> {
-  return sendCommand(
+  return sendSessionCommand(
     "PUT",
     `/api/v1/sessions/${sessionId}/steps/${stepIndex}/substitution`,
     { reason },
@@ -144,7 +144,7 @@ export function savePostRating(
   expectedVersion: number,
   value: number,
 ): Promise<WakeSessionResponse> {
-  return sendCommand(
+  return sendSessionCommand(
     "PUT",
     `/api/v1/sessions/${sessionId}/post-rating`,
     { value, clientObservedAt: new Date().toISOString() },
@@ -156,12 +156,12 @@ export function saveFollowUp(
   sessionId: string,
   outcome: "up" | "back" | "drowsy",
 ): Promise<WakeSessionResponse> {
-  return sendCommand("PUT", `/api/v1/sessions/${sessionId}/follow-up`, { outcome });
+  return sendSessionCommand("PUT", `/api/v1/sessions/${sessionId}/follow-up`, { outcome });
 }
 
 export function abandonWakeSession(
   sessionId: string,
   expectedVersion: number,
 ): Promise<WakeSessionResponse> {
-  return sendCommand("POST", `/api/v1/sessions/${sessionId}/abandon`, null, expectedVersion);
+  return sendSessionCommand("POST", `/api/v1/sessions/${sessionId}/abandon`, null, expectedVersion);
 }

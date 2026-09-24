@@ -8,6 +8,7 @@ import {
   SAFE_WAKE_PROFILE,
   selectPersonalizedAssignment,
   selectTaskSubstitution,
+  selectRecoverySteps,
   type ExperimentAssignment,
   type WakeCapabilityProfile,
 } from "../src/index.js";
@@ -517,5 +518,47 @@ describe("персонализация протокола", () => {
     expect(firstStanding).toBeGreaterThan(0);
     expect(taskIds[firstStanding - 1]).toBe("sit_edge");
     expect(taskIds.filter((taskId) => taskId === "sit_edge")).toHaveLength(1);
+  });
+
+  it("формирует recovery не длиннее 90 секунд и не повторяет конец primary", () => {
+    const fullProfile: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: ["water", "bright_light", "floor_space"],
+    };
+    const steps = selectRecoverySteps({
+      primarySteps: [
+        { index: 0, taskId: "math", category: "cognitive" },
+        { index: 1, taskId: "memory", category: "cognitive" },
+        { index: 2, taskId: "reaction", category: "cognitive" },
+      ],
+      completedTaskIds: ["math", "memory", "reaction"],
+      rejectedTaskIds: ["water"],
+      profile: fullProfile,
+    });
+
+    expect(steps.map(({ taskId }) => taskId)).toEqual(["sit_edge", "window"]);
+    expect(plannedProtocolSeconds(steps, 2)).toBeLessThanOrEqual(90);
+    expect(steps).toHaveLength(2);
+  });
+
+  it("не создаёт recovery, когда все разрешённые альтернативы отклонены или были в конце", () => {
+    const restricted: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "none",
+      availableResources: [],
+      excludedTaskIds: ["memory", "stroop"],
+    };
+    const steps = selectRecoverySteps({
+      primarySteps: [
+        { index: 0, taskId: "math", category: "cognitive" },
+        { index: 1, taskId: "reaction", category: "cognitive" },
+      ],
+      completedTaskIds: ["math", "reaction"],
+      rejectedTaskIds: ["memory", "stroop"],
+      profile: restricted,
+    });
+
+    expect(steps).toEqual([]);
   });
 });

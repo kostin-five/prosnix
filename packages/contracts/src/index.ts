@@ -232,6 +232,8 @@ export interface SessionHistoryItemResponse {
   }>;
   wakeContext: "unspecified" | WakeContext;
   durationMinutes: WakeDurationMinutes;
+  sessionKind: SessionKind;
+  parentSessionId: string | null;
 }
 
 export interface SessionTaskSubstitutionResponse {
@@ -255,6 +257,11 @@ export interface WakeSessionEvolutionResponse {
   sessionKind?: SessionKind;
   parentSessionId?: string | null;
   recoveryBaseline?: { sessionId: string; ratingKind: "post_protocol" } | null;
+  recoveryOffer?: {
+    status: "eligible" | "declined" | "accepted";
+    maxDurationSeconds: 90;
+    recoverySessionId: string | null;
+  } | null;
   experience?: WakeExperienceSnapshot;
 }
 

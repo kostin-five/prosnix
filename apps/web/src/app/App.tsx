@@ -14,7 +14,6 @@ import {
   Zap,
   Activity,
   Loader2,
-  AlertCircle,
   Sparkles,
   Settings,
   RefreshCw,
@@ -87,6 +86,9 @@ const TaskSoundToggle = lazy(() => import("../features/tasks/task-sound-toggle.j
 const ProtocolSheet = lazy(() => import("../features/tasks/protocol-sheet.js"));
 const TaskSubstitutionSheet = lazy(() => import("../features/tasks/task-substitution-sheet.js"));
 const ConfirmTask = lazy(() => import("../features/tasks/confirm-task.js"));
+const RecoveryOfferCard = lazy(() => import("../features/session/recovery-offer-card.js"));
+const SavedSessionPrompt = lazy(() => import("../features/session/saved-session-prompt.js"));
+const BootstrapErrorScreen = lazy(() => import("../features/bootstrap/bootstrap-error-screen.js"));
 const MorningExperienceSlot = lazy(
   () => import("../features/personalization/morning-experience-slot.js"),
 );
@@ -156,6 +158,9 @@ interface Session {
   endAlertness: number; // same scale
   followUp: FollowUp;
   totalMs: number;
+  sessionKind?: "primary" | "recovery";
+  parentSessionId?: string | null;
+  recoveryOffer?: WakeSessionResponse["recoveryOffer"];
 }
 
 function resumedServerSession(
@@ -173,6 +178,7 @@ function resumedServerSession(
     sessionKind: resume.session.sessionKind,
     parentSessionId: resume.session.parentSessionId,
     recoveryBaseline: resume.session.recoveryBaseline,
+    recoveryOffer: resume.session.recoveryOffer,
     experience: resume.session.experience,
     assignment: {
       id: resume.session.id,
@@ -1353,6 +1359,9 @@ function ResultsScreen({
   onHome,
   onSettings,
   onFollowUp,
+  onStartRecovery,
+  onDeclineRecovery,
+  recoveryBusy,
   localStorageScope,
   routine,
   demo,
@@ -1363,6 +1372,9 @@ function ResultsScreen({
   onHome: () => void;
   onSettings: () => void;
   onFollowUp: (answer: Exclude<FollowUp, null>) => Promise<void>;
+  onStartRecovery: () => Promise<void>;
+  onDeclineRecovery: () => Promise<void>;
+  recoveryBusy: boolean;
   localStorageScope: string;
   routine: WakeRoutine;
   demo: boolean;
@@ -1435,7 +1447,11 @@ function ResultsScreen({
         <div className="w-16 h-16 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center mx-auto mb-5">
           <Check className="w-8 h-8 text-green-400" strokeWidth={2.5} />
         </div>
-        <h1 className="text-2xl font-bold mb-1">Протокол завершён</h1>
+        <h1 className="text-2xl font-bold mb-1">
+          {session.sessionKind === "recovery"
+            ? "Дополнительный раунд завершён"
+            : "Протокол завершён"}
+        </h1>
         <p className="text-sm text-muted-foreground">
           {new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
         </p>
@@ -1519,64 +1535,76 @@ function ResultsScreen({
         <p className="text-sm text-foreground leading-relaxed">{insightBody}</p>
       </div>
 
+      {session.sessionKind !== "recovery" && session.recoveryOffer?.status === "eligible" && (
+        <Suspense fallback={<div className="mb-5 h-48 rounded-2xl bg-card" />}>
+          <RecoveryOfferCard
+            busy={recoveryBusy}
+            onStart={() => void onStartRecovery()}
+            onDecline={() => void onDeclineRecovery()}
+          />
+        </Suspense>
+      )}
+
       {/* Follow-up */}
-      <div className="bg-card border border-border rounded-2xl p-4 mb-5">
-        {!followUpAns ? (
-          <>
-            <p className="text-sm font-semibold mb-1">Через 15 минут мы проверим</p>
-            <p className="text-xs text-muted-foreground mb-3">
-              Удалось ли тебе окончательно проснуться — это ключевая метрика.
-            </p>
-            {!showFollowUp ? (
-              <button
-                onClick={() => setShowFollowUp(true)}
-                className="text-sm text-accent underline underline-offset-2"
-              >
-                Ответить сейчас
-              </button>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {[
-                  { val: "up" as FollowUp, label: "Да, уже встал" },
-                  { val: "back" as FollowUp, label: "Снова лёг" },
-                  {
-                    val: "drowsy" as FollowUp,
-                    label: "Не лёг, но всё ещё очень сонный",
-                  },
-                ].map((opt) => (
-                  <button
-                    key={String(opt.val)}
-                    onClick={() => opt.val && void answerFollowUp(opt.val)}
-                    disabled={followUpSaving}
-                    className="flex w-full items-center gap-3 rounded-xl border border-border bg-secondary px-4 py-3 text-left text-sm text-foreground transition-transform active:scale-[0.99]"
-                  >
-                    <FollowUpIcon answer={opt.val!} className="h-5 w-5 text-accent" />
-                    {opt.label}
-                  </button>
-                ))}
-                {followUpSaving && (
-                  <p className="text-xs text-muted-foreground">Сохраняем ответ…</p>
-                )}
-                {followUpError && <p className="text-xs text-red-400">{followUpError}</p>}
-              </div>
-            )}
-          </>
-        ) : (
-          <div className={`${followUpAns === "up" ? "text-green-400" : "text-red-400"}`}>
-            <p className="flex items-center gap-2 text-sm font-semibold">
-              <FollowUpIcon answer={followUpAns} className="h-5 w-5" />
-              {followUpAns === "up"
-                ? "Встал и не лёг обратно"
-                : followUpAns === "back"
-                  ? "Вернулся в кровать"
-                  : "Сонный, но не лёг"}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Ответ сохранён и учтён в профиле пробуждения
-            </p>
-          </div>
-        )}
-      </div>
+      {session.recoveryOffer?.status !== "eligible" && (
+        <div className="bg-card border border-border rounded-2xl p-4 mb-5">
+          {!followUpAns ? (
+            <>
+              <p className="text-sm font-semibold mb-1">Через 15 минут мы проверим</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Удалось ли тебе окончательно проснуться — это ключевая метрика.
+              </p>
+              {!showFollowUp ? (
+                <button
+                  onClick={() => setShowFollowUp(true)}
+                  className="text-sm text-accent underline underline-offset-2"
+                >
+                  Ответить сейчас
+                </button>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {[
+                    { val: "up" as FollowUp, label: "Да, уже встал" },
+                    { val: "back" as FollowUp, label: "Снова лёг" },
+                    {
+                      val: "drowsy" as FollowUp,
+                      label: "Не лёг, но всё ещё очень сонный",
+                    },
+                  ].map((opt) => (
+                    <button
+                      key={String(opt.val)}
+                      onClick={() => opt.val && void answerFollowUp(opt.val)}
+                      disabled={followUpSaving}
+                      className="flex w-full items-center gap-3 rounded-xl border border-border bg-secondary px-4 py-3 text-left text-sm text-foreground transition-transform active:scale-[0.99]"
+                    >
+                      <FollowUpIcon answer={opt.val!} className="h-5 w-5 text-accent" />
+                      {opt.label}
+                    </button>
+                  ))}
+                  {followUpSaving && (
+                    <p className="text-xs text-muted-foreground">Сохраняем ответ…</p>
+                  )}
+                  {followUpError && <p className="text-xs text-red-400">{followUpError}</p>}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className={`${followUpAns === "up" ? "text-green-400" : "text-red-400"}`}>
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <FollowUpIcon answer={followUpAns} className="h-5 w-5" />
+                {followUpAns === "up"
+                  ? "Встал и не лёг обратно"
+                  : followUpAns === "back"
+                    ? "Вернулся в кровать"
+                    : "Сонный, но не лёг"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Ответ сохранён и учтён в профиле пробуждения
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       <Suspense fallback={null}>
         <HomeScreenPrompt firstCompletion={evidenceCount === 1} />
@@ -1656,6 +1684,7 @@ function StatsScreen({
   const serverDurations =
     history.status === "ready"
       ? history.items
+          .filter((item) => item.sessionKind !== "recovery")
           .map((item) => item.durationMs)
           .filter((duration): duration is number => duration !== null)
       : [];
@@ -1901,7 +1930,11 @@ function StatsScreen({
             <WakeProfileSummary
               profile={apiProfile}
               evidenceCount={evidenceCount}
-              recentSessions={history.status === "ready" ? history.items : []}
+              recentSessions={
+                history.status === "ready"
+                  ? history.items.filter((item) => item.sessionKind !== "recovery")
+                  : []
+              }
             />
           </Suspense>
         ) : sortedCats.length === 0 ? (
@@ -2042,6 +2075,11 @@ function StatsScreen({
                         minute: "2-digit",
                       })}
                     </p>
+                    {item.sessionKind === "recovery" && (
+                      <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                        Дополнительный раунд
+                      </p>
+                    )}
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {item.baseline} → {item.postRating} · {taskCountLabel(item.tasks.length)}
                       {item.followUp === "up"
@@ -2464,12 +2502,14 @@ function PrototypeApp({
   async function handleEndRating(endAlertness: number) {
     setSyncError(null);
     let confirmedTasks = taskResults;
+    let confirmedServerSession = serverSession;
     if (!demo) {
       if (!serverSession) return;
       setSyncing(true);
       try {
         const updated = await savePostRating(serverSession.id, serverSession.version, endAlertness);
         setServerSession(updated);
+        confirmedServerSession = updated;
         confirmedTasks = updated.tasks
           .filter(({ taskId }) => taskId in TASK_META)
           .map((task) => ({
@@ -2498,10 +2538,57 @@ function PrototypeApp({
       endAlertness,
       followUp: null,
       totalMs: Date.now() - sessionStartRef.current,
+      sessionKind: confirmedServerSession?.sessionKind ?? "primary",
+      parentSessionId: confirmedServerSession?.parentSessionId ?? null,
+      recoveryOffer: confirmedServerSession?.recoveryOffer ?? null,
     };
     setCompletedSession(session);
     setSessions((prev) => [...prev, session]);
     setScreen("results");
+  }
+
+  async function handleStartRecovery(): Promise<void> {
+    if (demo || !serverSession || serverSession.recoveryOffer?.status !== "eligible") return;
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const { startRecoverySession } = await import("../features/session/recovery-api.js");
+      const recovery = await startRecoverySession(serverSession.id, serverSession.version);
+      const recoveryTaskIds = (recovery.effectiveSteps ?? recovery.assignment.steps)
+        .map(({ taskId }) => taskId)
+        .filter((taskId): taskId is TaskId => taskId in TASK_META);
+      setServerSession(recovery);
+      setTaskIds(recoveryTaskIds);
+      setTaskIndex(recovery.currentStepIndex);
+      setTaskResults([]);
+      setStartAlertness(recovery.baseline ?? serverSession.postRating ?? 1);
+      setCompletedSession(null);
+      sessionStartRef.current = Date.now();
+      taskSubmissionGateRef.current.reset();
+      setScreen("tasks");
+    } catch (error) {
+      applyConflict(error);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function handleDeclineRecovery(): Promise<void> {
+    if (demo || !serverSession || serverSession.recoveryOffer?.status !== "eligible") return;
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const { declineRecoverySession } = await import("../features/session/recovery-api.js");
+      const updated = await declineRecoverySession(serverSession.id, serverSession.version);
+      setServerSession(updated);
+      setCompletedSession((current) =>
+        current ? { ...current, recoveryOffer: updated.recoveryOffer ?? null } : current,
+      );
+    } catch (error) {
+      applyConflict(error);
+    } finally {
+      setSyncing(false);
+    }
   }
 
   async function handleFollowUp(answer: Exclude<FollowUp, null>) {
@@ -2798,6 +2885,9 @@ function PrototypeApp({
             onHome={() => handleNavTab("home")}
             onSettings={() => handleNavTab("settings")}
             onFollowUp={handleFollowUp}
+            onStartRecovery={handleStartRecovery}
+            onDeclineRecovery={handleDeclineRecovery}
+            recoveryBusy={syncing}
             localStorageScope={localStorageScope}
             routine={wakeRoutine}
             demo={demo}
@@ -2835,32 +2925,13 @@ export default function App() {
 
   if (bootstrap.status === "error") {
     return (
-      <div
-        role="alert"
-        className="min-h-screen bg-background text-foreground flex items-center justify-center p-6"
-      >
-        <div className="max-w-sm text-center">
-          <AlertCircle className="w-10 h-10 text-primary mx-auto mb-4" />
-          <h1 className="text-xl font-bold">
-            {bootstrap.reason === "timeout"
-              ? "Сервер ещё запускается"
-              : "Не удалось безопасно войти"}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-2">{bootstrap.message}</p>
-          <a
-            href="/privacy"
-            className="mt-4 block text-sm text-muted-foreground underline underline-offset-4"
-          >
-            Политика конфиденциальности
-          </a>
-          <button
-            onClick={bootstrap.retry}
-            className="mt-6 w-full rounded-2xl bg-primary py-3 font-bold text-white"
-          >
-            Повторить
-          </button>
-        </div>
-      </div>
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <BootstrapErrorScreen
+          timedOut={"reason" in bootstrap && bootstrap.reason === "timeout"}
+          message={bootstrap.message}
+          onRetry={bootstrap.retry}
+        />
+      </Suspense>
     );
   }
 
@@ -2888,44 +2959,17 @@ export default function App() {
       }
     }
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
-        <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            Сессия сохранена
-          </p>
-          <h1 className="mt-2 text-2xl font-bold">Продолжить пробуждение?</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Подтверждено шагов: {active.session.currentStepIndex} из {active.protocol.steps.length}.
-            Мы продолжим с последней сохранённой точки.
-          </p>
-          <button
-            disabled={discarding}
-            onClick={() => setResumeAccepted(true)}
-            className="mt-6 w-full rounded-2xl bg-primary py-3 font-bold text-white"
-          >
-            Продолжить
-          </button>
-          <button
-            disabled={discarding}
-            onClick={() => void discardActiveSession()}
-            className="mt-2 w-full rounded-2xl bg-secondary py-3 font-semibold text-foreground"
-          >
-            {discarding ? "Закрываем старую сессию…" : "Начать заново"}
-          </button>
-          <button
-            disabled={discarding}
-            onClick={() => void discardActiveSession()}
-            className="mt-2 min-h-11 w-full rounded-xl text-sm font-semibold text-muted-foreground disabled:opacity-60"
-          >
-            Закрыть
-          </button>
-          {discardError && (
-            <p role="alert" className="mt-3 text-sm text-red-400">
-              {discardError}
-            </p>
-          )}
-        </div>
-      </div>
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <SavedSessionPrompt
+          sessionKind={active.session.sessionKind ?? "primary"}
+          currentStepIndex={active.session.currentStepIndex}
+          stepCount={active.protocol.steps.length}
+          discarding={discarding}
+          error={discardError}
+          onContinue={() => setResumeAccepted(true)}
+          onDiscard={() => void discardActiveSession()}
+        />
+      </Suspense>
     );
   }
 

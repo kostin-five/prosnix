@@ -31,6 +31,7 @@ const app = await createApp(config, {
   bootstrapRepository: new PostgresBootstrapRepository(database.db),
   sessionCommands: new PostgresSessionCommandRepository(database.db, {
     wakeTaskCatalogV9Enabled: config.wakeTaskCatalogV9Enabled,
+    wakeLowEffectRecoveryEnabled: config.wakeLowEffectRecoveryEnabled,
   }),
   analyticsRepository: new PostgresAnalyticsRepository(database.db),
   coachInsightRepository: new PostgresCoachInsightRepository(database.db),

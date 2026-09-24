@@ -2,14 +2,18 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import {
   connectDatabase,
+  PostgresAnalyticsRepository,
   PostgresBootstrapRepository,
   PostgresSessionCommandRepository,
+  PostgresSessionHistoryRepository,
   PostgresSessionTaskSubstitutionRepository,
   PostgresUserDeletionRepository,
   sessionTaskSubstitutions,
   sql,
+  users,
+  wakeSessions,
 } from "@awc/db";
-import type { TaskId } from "@awc/domain";
+import { estimatedTaskSeconds, taskSuccessTarget, type TaskId } from "@awc/domain";
 
 const databaseUrl = process.env.DATABASE_URL;
 const localDatabase = databaseUrl
@@ -23,6 +27,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
     const telegramUserId = 910000009101n;
     const otherTelegramUserId = 910000009102n;
     const replacementTelegramUserId = 910000009103n;
+    const recoveryTelegramUserId = 910000009104n;
 
     afterAll(async () => {
       const deletion = new PostgresUserDeletionRepository(database.db);
@@ -31,6 +36,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           users.findByTelegramId(telegramUserId),
           users.findByTelegramId(otherTelegramUserId),
           users.findByTelegramId(replacementTelegramUserId),
+          users.findByTelegramId(recoveryTelegramUserId),
         ]),
       );
       await Promise.all(
@@ -213,6 +219,209 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
       );
       expect(orphaned).toEqual([]);
       await deletion.deleteUser(otherUser.id, "wake-engagement-other-user");
+    });
+
+    it("сохраняет recovery как отдельный раунд и оставляет аналитику основного результата", async () => {
+      const deletion = new PostgresUserDeletionRepository(database.db);
+      const previous = await database.unitOfWork.transaction(({ users: userRepository }) =>
+        userRepository.findByTelegramId(recoveryTelegramUserId),
+      );
+      if (previous) await deletion.deleteUser(previous.id, "wake-recovery-reset");
+      const user = await database.unitOfWork.transaction(({ users: userRepository }) =>
+        userRepository.createFromTelegram({ telegramUserId: recoveryTelegramUserId, locale: "ru" }),
+      );
+      const commands = new PostgresSessionCommandRepository(database.db, {
+        wakeLowEffectRecoveryEnabled: true,
+      });
+      let current = (
+        await commands.execute({
+          userId: user.id,
+          operationId: "recovery-create-0001",
+          requestHash: "recovery-create-hash",
+          observedAt: new Date("2026-09-24T06:00:00.000Z"),
+          command: {
+            type: "create",
+            timezone: "Europe/Moscow",
+            wakeContext: "night_sleep",
+            durationMinutes: 2,
+          },
+        })
+      ).session;
+      current = (
+        await commands.execute({
+          userId: user.id,
+          operationId: "recovery-baseline-0001",
+          requestHash: "recovery-baseline-hash",
+          observedAt: new Date("2026-09-24T06:00:05.000Z"),
+          command: {
+            type: "baseline",
+            sessionId: current.id,
+            expectedVersion: current.version,
+            value: 3,
+          },
+        })
+      ).session;
+      for (const step of current.effectiveSteps ?? current.assignment.steps) {
+        const target = taskSuccessTarget(step.taskId, current.durationMinutes);
+        current = (
+          await commands.execute({
+            userId: user.id,
+            operationId: `recovery-primary-task-${step.index}`,
+            requestHash: `recovery-primary-task-hash-${step.index}`,
+            observedAt: new Date(`2026-09-24T06:00:${10 + step.index}.000Z`),
+            command: {
+              type: "task",
+              sessionId: current.id,
+              expectedVersion: current.version,
+              stepIndex: step.index,
+              taskId: step.taskId,
+              correct: target,
+              total: target,
+              durationMs: 1_000,
+            },
+          })
+        ).session;
+      }
+      const primary = (
+        await commands.execute({
+          userId: user.id,
+          operationId: "recovery-primary-post-0001",
+          requestHash: "recovery-primary-post-hash",
+          observedAt: new Date("2026-09-24T06:01:00.000Z"),
+          command: {
+            type: "post_rating",
+            sessionId: current.id,
+            expectedVersion: current.version,
+            value: 4,
+          },
+        })
+      ).session;
+      expect(primary.recoveryOffer).toEqual({
+        status: "eligible",
+        maxDurationSeconds: 90,
+        recoverySessionId: null,
+      });
+
+      const startEnvelope = {
+        userId: user.id,
+        operationId: "recovery-start-0001",
+        requestHash: "recovery-start-hash",
+        observedAt: new Date("2026-09-24T06:01:05.000Z"),
+        command: {
+          type: "start_recovery" as const,
+          sessionId: primary.id,
+          expectedVersion: primary.version,
+        },
+      };
+      const started = await commands.execute(startEnvelope);
+      expect(started.responseStatus).toBe(201);
+      expect((await commands.execute(startEnvelope)).session.id).toBe(started.session.id);
+      expect(started.session).toMatchObject({
+        sessionKind: "recovery",
+        parentSessionId: primary.id,
+        baseline: 4,
+        recoveryBaseline: { sessionId: primary.id, ratingKind: "post_protocol" },
+      });
+      const recoverySteps = started.session.effectiveSteps ?? started.session.assignment.steps;
+      expect(recoverySteps.length).toBeGreaterThan(0);
+      expect(recoverySteps.length).toBeLessThanOrEqual(2);
+      expect(
+        recoverySteps.reduce((total, step) => total + estimatedTaskSeconds(step.taskId, 2), 0),
+      ).toBeLessThanOrEqual(90);
+
+      const resumed = await new PostgresBootstrapRepository(database.db).load(user.id);
+      expect(resumed?.activeSession?.session).toMatchObject({
+        id: started.session.id,
+        sessionKind: "recovery",
+        parentSessionId: primary.id,
+      });
+      expect(resumed?.activeSession?.baseline).toBe(4);
+
+      current = started.session;
+      for (const step of recoverySteps) {
+        const target = taskSuccessTarget(step.taskId, 2);
+        current = (
+          await commands.execute({
+            userId: user.id,
+            operationId: `recovery-child-task-${step.index}`,
+            requestHash: `recovery-child-task-hash-${step.index}`,
+            observedAt: new Date(`2026-09-24T06:01:${10 + step.index}.000Z`),
+            command: {
+              type: "task",
+              sessionId: current.id,
+              expectedVersion: current.version,
+              stepIndex: step.index,
+              taskId: step.taskId,
+              correct: target,
+              total: target,
+              durationMs: 1_000,
+            },
+          })
+        ).session;
+      }
+      const completedRecovery = (
+        await commands.execute({
+          userId: user.id,
+          operationId: "recovery-child-post-0001",
+          requestHash: "recovery-child-post-hash",
+          observedAt: new Date("2026-09-24T06:01:30.000Z"),
+          command: {
+            type: "post_rating",
+            sessionId: current.id,
+            expectedVersion: current.version,
+            value: 6,
+          },
+        })
+      ).session;
+      expect(completedRecovery.followUpDueAt).not.toBeNull();
+
+      const [primaryRow, recoveryRow, userRow] = await Promise.all([
+        database.db
+          .select({ followUpDueAt: wakeSessions.followUpDueAt })
+          .from(wakeSessions)
+          .where(sql`${wakeSessions.id} = ${primary.id}::uuid`)
+          .limit(1),
+        database.db
+          .select({ followUpDueAt: wakeSessions.followUpDueAt })
+          .from(wakeSessions)
+          .where(sql`${wakeSessions.id} = ${completedRecovery.id}::uuid`)
+          .limit(1),
+        database.db
+          .select({ learningSessionCount: users.learningSessionCount })
+          .from(users)
+          .where(sql`${users.id} = ${user.id}::uuid`)
+          .limit(1),
+      ]);
+      expect(primaryRow[0]?.followUpDueAt).toBeNull();
+      expect(recoveryRow[0]?.followUpDueAt).not.toBeNull();
+      expect(userRow[0]?.learningSessionCount).toBe(1);
+
+      const history = await new PostgresSessionHistoryRepository(database.db).listCompleted(
+        user.id,
+        20,
+      );
+      expect(history).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: primary.id,
+            sessionKind: "primary",
+            parentSessionId: null,
+            baseline: 3,
+            postRating: 4,
+          }),
+          expect.objectContaining({
+            id: completedRecovery.id,
+            sessionKind: "recovery",
+            parentSessionId: primary.id,
+            baseline: 4,
+            postRating: 6,
+          }),
+        ]),
+      );
+      const profile = await new PostgresAnalyticsRepository(database.db).recompute(user.id);
+      expect(profile.averageDelta).toMatchObject({ value: 1, evidenceCount: 1 });
+
+      await deletion.deleteUser(user.id, "wake-recovery-cleanup");
     });
   },
 );

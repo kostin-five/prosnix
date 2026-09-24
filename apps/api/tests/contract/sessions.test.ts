@@ -10,6 +10,134 @@ import {
 } from "../helpers.js";
 
 describe("контракт команд wake-сессии", () => {
+  it("создаёт отдельный идемпотентный recovery после слабого результата", async () => {
+    const dependencies = createMemoryDependencies();
+    const app = await createApp(
+      { ...testConfig, wakeLowEffectRecoveryEnabled: true },
+      {
+        ...dependencies,
+        sessionCommands: createMemorySessionCommands(dependencies.user.id),
+        now: () => testNow,
+      },
+    );
+    const cookie = await authenticateTestUser(app);
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/sessions",
+      headers: { cookie, "idempotency-key": "recovery-create-1" },
+      payload: { timezone: "Europe/Moscow", wakeContext: "night_sleep", durationMinutes: 5 },
+    });
+    const primaryId = created.json().id as string;
+    await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${primaryId}/baseline`,
+      headers: { cookie, "idempotency-key": "recovery-baseline-1", "if-match": "1" },
+      payload: { value: 3 },
+    });
+    await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${primaryId}/steps/0`,
+      headers: { cookie, "idempotency-key": "recovery-task-0001", "if-match": "2" },
+      payload: { taskId: "math", correct: 1, total: 1, durationMs: 1000 },
+    });
+    await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${primaryId}/steps/1`,
+      headers: { cookie, "idempotency-key": "recovery-task-0002", "if-match": "3" },
+      payload: { taskId: "memory", correct: 1, total: 1, durationMs: 1000 },
+    });
+    const primary = await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${primaryId}/post-rating`,
+      headers: { cookie, "idempotency-key": "recovery-rating-1", "if-match": "4" },
+      payload: { value: 4 },
+    });
+    expect(primary.json()).toMatchObject({
+      recoveryOffer: { status: "eligible", maxDurationSeconds: 90 },
+    });
+
+    const recoveryHeaders = {
+      cookie,
+      "idempotency-key": "recovery-start-1",
+      "if-match": "5",
+    };
+    const recovery = await app.inject({
+      method: "POST",
+      url: `/api/v1/sessions/${primaryId}/recovery`,
+      headers: recoveryHeaders,
+    });
+    const replay = await app.inject({
+      method: "POST",
+      url: `/api/v1/sessions/${primaryId}/recovery`,
+      headers: recoveryHeaders,
+    });
+    expect(recovery.statusCode).toBe(201);
+    expect(recovery.json()).toMatchObject({
+      sessionKind: "recovery",
+      parentSessionId: primaryId,
+      baseline: 4,
+      status: "in_progress",
+      assignment: { steps: [{ taskId: "reaction" }] },
+    });
+    expect(replay.json()).toEqual(recovery.json());
+    await app.close();
+  });
+
+  it("сохраняет явный отказ и больше не предлагает recovery", async () => {
+    const dependencies = createMemoryDependencies();
+    const app = await createApp(
+      { ...testConfig, wakeLowEffectRecoveryEnabled: true },
+      {
+        ...dependencies,
+        sessionCommands: createMemorySessionCommands(dependencies.user.id),
+        now: () => testNow,
+      },
+    );
+    const cookie = await authenticateTestUser(app);
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/sessions",
+      headers: { cookie, "idempotency-key": "decline-create-1" },
+      payload: { timezone: "Europe/Moscow", wakeContext: "night_sleep", durationMinutes: 5 },
+    });
+    const sessionId = created.json().id as string;
+    await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${sessionId}/baseline`,
+      headers: { cookie, "idempotency-key": "decline-baseline-1", "if-match": "1" },
+      payload: { value: 3 },
+    });
+    for (const [index, taskId] of ["math", "memory"].entries()) {
+      await app.inject({
+        method: "PUT",
+        url: `/api/v1/sessions/${sessionId}/steps/${index}`,
+        headers: {
+          cookie,
+          "idempotency-key": `decline-task-000${index}`,
+          "if-match": String(index + 2),
+        },
+        payload: { taskId, correct: 1, total: 1, durationMs: 1000 },
+      });
+    }
+    await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${sessionId}/post-rating`,
+      headers: { cookie, "idempotency-key": "decline-rating-1", "if-match": "4" },
+      payload: { value: 4 },
+    });
+    const declined = await app.inject({
+      method: "POST",
+      url: `/api/v1/sessions/${sessionId}/recovery/decline`,
+      headers: { cookie, "idempotency-key": "decline-recovery-1", "if-match": "5" },
+    });
+
+    expect(declined.json()).toMatchObject({
+      version: 6,
+      recoveryOffer: { status: "declined", recoverySessionId: null },
+    });
+    await app.close();
+  });
+
   it("идемпотентно заменяет текущий шаг и возвращает effectiveSteps", async () => {
     const dependencies = createMemoryDependencies();
     const app = await createApp(

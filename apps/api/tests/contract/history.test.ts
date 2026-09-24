@@ -15,6 +15,8 @@ describe("session history contract", () => {
           return [
             {
               id: "session-1",
+              sessionKind: "primary",
+              parentSessionId: null,
               completedAt: testNow,
               baseline: 3,
               postRating: 7,
@@ -37,7 +39,16 @@ describe("session history contract", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      sessions: [{ id: "session-1", baseline: 3, postRating: 7, followUp: "up" }],
+      sessions: [
+        {
+          id: "session-1",
+          sessionKind: "primary",
+          parentSessionId: null,
+          baseline: 3,
+          postRating: 7,
+          followUp: "up",
+        },
+      ],
     });
     await app.close();
   });

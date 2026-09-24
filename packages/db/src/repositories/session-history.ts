@@ -40,6 +40,8 @@ export class PostgresSessionHistoryRepository implements SessionHistoryRepositor
         completedAt: wakeSessions.protocolCompletedAt,
         wakeContext: wakeSessions.wakeContext,
         durationMinutes: wakeSessions.durationBudgetMinutes,
+        sessionKind: wakeSessions.sessionKind,
+        parentSessionId: wakeSessions.parentSessionId,
       })
       .from(wakeSessions)
       .where(and(eq(wakeSessions.userId, userId), eq(wakeSessions.status, "protocol_completed")))
@@ -50,8 +52,14 @@ export class PostgresSessionHistoryRepository implements SessionHistoryRepositor
     );
     if (completed.length === 0) return [];
     const ids = completed.map(({ id }) => id);
+    const ratingSessionIds = [
+      ...new Set([...ids, ...completed.flatMap(({ parentSessionId }) => parentSessionId ?? [])]),
+    ];
     const [ratings, tasks, followUps] = await Promise.all([
-      this.db.select().from(ratingObservations).where(inArray(ratingObservations.sessionId, ids)),
+      this.db
+        .select()
+        .from(ratingObservations)
+        .where(inArray(ratingObservations.sessionId, ratingSessionIds)),
       this.db
         .select()
         .from(taskObservations)
@@ -64,7 +72,10 @@ export class PostgresSessionHistoryRepository implements SessionHistoryRepositor
     ]);
     return completed.flatMap((session) => {
       const baseline = ratings.find(
-        (rating) => rating.sessionId === session.id && rating.kind === "baseline",
+        (rating) =>
+          rating.sessionId ===
+            (session.sessionKind === "recovery" ? session.parentSessionId : session.id) &&
+          rating.kind === (session.sessionKind === "recovery" ? "post_protocol" : "baseline"),
       )?.value;
       const postRating = ratings.find(
         (rating) => rating.sessionId === session.id && rating.kind === "post_protocol",
@@ -87,6 +98,8 @@ export class PostgresSessionHistoryRepository implements SessionHistoryRepositor
             .map((task) => ({ taskId: task.taskId, category: task.category })),
           wakeContext: session.wakeContext,
           durationMinutes: session.durationMinutes as 2 | 5 | 10,
+          sessionKind: session.sessionKind,
+          parentSessionId: session.parentSessionId,
         },
       ];
     });

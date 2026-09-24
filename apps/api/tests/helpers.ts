@@ -262,6 +262,76 @@ export function createMemorySessionCommands(
               ],
               version: session.version + 1,
             };
+          } else if (command.type === "start_recovery") {
+            if (
+              session.version !== command.expectedVersion ||
+              session.status !== "protocol_completed" ||
+              session.baseline === null ||
+              session.postRating === null ||
+              session.postRating - session.baseline > 1 ||
+              session.sessionKind === "recovery"
+            ) {
+              throw new SessionCommandConflict(
+                "recovery_unavailable",
+                "Recovery недоступен",
+                session,
+              );
+            }
+            const primary = session;
+            session = {
+              ...primary,
+              id: "00000000-0000-4000-8000-000000000102",
+              assignment: {
+                ...primary.assignment,
+                id: "00000000-0000-4000-8000-000000000103",
+                protocolKey: "recovery-reaction",
+                strategyVersion: "recovery-v1",
+                phase: "fallback",
+                hypothesis: "Короткое продолжение",
+                steps: [{ index: 0, taskId: "reaction", category: "cognitive" }],
+              },
+              effectiveSteps: [{ index: 0, taskId: "reaction", category: "cognitive" }],
+              substitutions: [],
+              sessionKind: "recovery",
+              parentSessionId: primary.id,
+              recoveryBaseline: { sessionId: primary.id, ratingKind: "post_protocol" },
+              recoveryOffer: null,
+              status: "in_progress",
+              currentStepIndex: 0,
+              version: 1,
+              baseline: primary.postRating,
+              tasks: [],
+              postRating: null,
+              followUp: null,
+              startedAt: observedAt,
+              protocolCompletedAt: null,
+              followUpDueAt: null,
+              abandonedAt: null,
+            };
+          } else if (command.type === "decline_recovery") {
+            if (
+              session.version !== command.expectedVersion ||
+              session.status !== "protocol_completed" ||
+              session.baseline === null ||
+              session.postRating === null ||
+              session.postRating - session.baseline > 1 ||
+              session.sessionKind === "recovery"
+            ) {
+              throw new SessionCommandConflict(
+                "recovery_unavailable",
+                "Recovery недоступен",
+                session,
+              );
+            }
+            session = {
+              ...session,
+              version: session.version + 1,
+              recoveryOffer: {
+                status: "declined",
+                maxDurationSeconds: 90,
+                recoverySessionId: null,
+              },
+            };
           } else if (command.type === "post_rating") {
             session = acceptPostRating(session, {
               expectedVersion: command.expectedVersion,
@@ -269,6 +339,20 @@ export function createMemorySessionCommands(
               observedAt,
               followUpDelayMinutes: 15,
             });
+            if (
+              session.sessionKind !== "recovery" &&
+              session.baseline !== null &&
+              command.value - session.baseline <= 1
+            ) {
+              session = {
+                ...session,
+                recoveryOffer: {
+                  status: "eligible",
+                  maxDurationSeconds: 90,
+                  recoverySessionId: null,
+                },
+              };
+            }
           } else if (command.type === "follow_up") {
             session = acceptFollowUp(session, {
               expectedVersion: command.expectedVersion ?? session.version,
@@ -295,7 +379,10 @@ export function createMemorySessionCommands(
       if (!session) throw new Error("Memory session command produced no session");
       const result = {
         session,
-        responseStatus: envelope.command.type === "create" ? (201 as const) : (200 as const),
+        responseStatus:
+          envelope.command.type === "create" || envelope.command.type === "start_recovery"
+            ? (201 as const)
+            : (200 as const),
         replayed: false,
       };
       results.set(`${envelope.userId}:${envelope.operationId}`, {
