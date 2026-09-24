@@ -240,20 +240,24 @@ async function expectSuccess(response: Response): Promise<Response> {
   throw new ApiError(response.status, `Сервер вернул ошибку ${response.status}`);
 }
 
-export async function authenticateTelegram(initData: string): Promise<void> {
+export async function authenticateTelegram(initData: string, signal?: AbortSignal): Promise<void> {
   await expectSuccess(
     await fetch("/api/v1/auth/telegram", {
       method: "POST",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ initData }),
+      ...(signal ? { signal } : {}),
     }),
   );
 }
 
-export async function loadBootstrap(): Promise<BootstrapResponse> {
+export async function loadBootstrap(signal?: AbortSignal): Promise<BootstrapResponse> {
   const response = await expectSuccess(
-    await fetch("/api/v1/bootstrap", { credentials: "same-origin" }),
+    await fetch("/api/v1/bootstrap", {
+      credentials: "same-origin",
+      ...(signal ? { signal } : {}),
+    }),
   );
   return (await response.json()) as BootstrapResponse;
 }
@@ -318,9 +322,12 @@ export interface LegalStatusResponse {
   acceptedAt: string | null;
 }
 
-export async function loadLegalStatus(): Promise<LegalStatusResponse> {
+export async function loadLegalStatus(signal?: AbortSignal): Promise<LegalStatusResponse> {
   const response = await expectSuccess(
-    await fetch("/api/v1/legal/status", { credentials: "same-origin" }),
+    await fetch("/api/v1/legal/status", {
+      credentials: "same-origin",
+      ...(signal ? { signal } : {}),
+    }),
   );
   return (await response.json()) as LegalStatusResponse;
 }
