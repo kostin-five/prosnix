@@ -52,6 +52,7 @@ test("владелец видит агрегированную админ-пан
         },
         retention: {
           d1: { eligible: 10, retained: 4, rate: 0.4 },
+          d3: { eligible: 8, retained: 3, rate: 0.375 },
           d7: { eligible: 6, retained: 2, rate: 0.3333 },
           secondSessionWithin7Days: {
             cohort: 9,

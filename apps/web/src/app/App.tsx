@@ -1724,6 +1724,7 @@ function StatsScreen({
   const bestSequenceTasks = bestSequence
     ? bestSequence.key
         .replace(/^sequence:/, "")
+        .split("|", 1)[0]!
         .split(">")
         .filter((taskId): taskId is TaskId => taskId in TASK_META)
     : [];
@@ -1745,7 +1746,7 @@ function StatsScreen({
       : coachExperiment
         ? coachExperiment
         : bestSequence
-          ? `Ближайшая полезная проверка — повторить порядок «${bestSequenceTasks.map((taskId) => TASK_META[taskId].title).join(" → ")}» после похожего сна и с тем же запасом времени. Ответ через 15 минут покажет, повторяется ли результат.`
+          ? `Ближайшая полезная проверка — повторить порядок «${bestSequenceTasks.map((taskId) => TASK_META[taskId].title).join(" → ")}» после похожего сна и с тем же запасом времени. Он наблюдался в ${bestSequence.evidenceCount} сопоставимых сессиях; это рабочая гипотеза, а не доказанная причина результата.`
           : "Пройди следующий назначенный протокол после похожего сна и обязательно ответь через 15 минут. Так появится первое честное сравнение последовательностей.";
 
   return (

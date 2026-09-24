@@ -16,6 +16,8 @@ function evidence(
     baseline,
     postRating,
     followUp: null,
+    wakeContext: "night_sleep",
+    durationMinutes: 5,
     ...overrides,
   };
 }
@@ -49,7 +51,7 @@ describe("analytics v1", () => {
     });
   });
 
-  it("calculates an effect for each exact task sequence without inferring causation", () => {
+  it("publishes only a repeated task sequence in the same context and budget", () => {
     const profile = computeAnalyticsProfile([
       evidence("s1", 2, 5, { sequenceKey: "water>memory" }),
       evidence("s2", 3, 7, { sequenceKey: "water>memory" }),
@@ -58,18 +60,28 @@ describe("analytics v1", () => {
 
     expect(profile.sequenceEffects).toEqual([
       expect.objectContaining({
-        key: "sequence:math",
-        value: 1,
-        evidenceCount: 1,
-        confidence: "insufficient",
-      }),
-      expect.objectContaining({
-        key: "sequence:water>memory",
+        key: "sequence:water>memory|context:night_sleep|budget:5m",
         value: 3.5,
         evidenceCount: 2,
         confidence: "insufficient",
       }),
     ]);
+  });
+
+  it("does not combine the same order across different contexts or budgets", () => {
+    const profile = computeAnalyticsProfile([
+      evidence("night-5", 2, 6, { sequenceKey: "water>memory" }),
+      evidence("nap-5", 2, 7, {
+        sequenceKey: "water>memory",
+        wakeContext: "short_nap",
+      }),
+      evidence("night-10", 2, 8, {
+        sequenceKey: "water>memory",
+        durationMinutes: 10,
+      }),
+    ]);
+
+    expect(profile.sequenceEffects).toEqual([]);
   });
 
   it("does not infer a factor effect from mixed protocols without comparison metadata", () => {

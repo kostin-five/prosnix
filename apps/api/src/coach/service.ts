@@ -76,6 +76,7 @@ const TASK_LABELS: Record<string, string> = {
 function sequenceLabel(key: string): string {
   return key
     .replace(/^sequence:/, "")
+    .split("|", 1)[0]!
     .split(">")
     .map((taskId) => TASK_LABELS[taskId] ?? taskId)
     .join(" → ");
@@ -207,6 +208,9 @@ export class CoachService {
     private readonly analytics: AnalyticsRepository,
     private readonly cache: CoachInsightRepository,
     private readonly gateway: CoachGateway | null,
+    private readonly options: { combinationAnalyticsEnabled: boolean } = {
+      combinationAnalyticsEnabled: true,
+    },
   ) {}
 
   async getInsight(
@@ -234,7 +238,10 @@ export class CoachService {
   ): Promise<CoachInsightResponse> {
     const timezone = safeTimezone((await this.cache.findTimezoneByUserId?.(userId)) ?? "UTC");
     const refreshAvailableAt = nextLocalMidnight(now, timezone);
-    const profile = await this.analytics.recompute(userId, now);
+    const computedProfile = await this.analytics.recompute(userId, now);
+    const profile = this.options.combinationAnalyticsEnabled
+      ? computedProfile
+      : { ...computedProfile, sequenceEffects: [] };
     const evidenceCount = profile.averageDelta.evidenceCount;
     const payload = coachPayload(profile);
     const evidenceFingerprint = fingerprint(payload);

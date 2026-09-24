@@ -30,6 +30,16 @@ function mean(values: readonly number[]): number | null {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+const MIN_COMPARABLE_SEQUENCE_REPEATS = 2;
+
+function sequenceMetricKey(
+  sequenceKey: string,
+  wakeContext: CompletedSessionEvidence["wakeContext"],
+  durationMinutes: CompletedSessionEvidence["durationMinutes"],
+): string {
+  return `sequence:${sequenceKey}|context:${wakeContext ?? "unknown"}|budget:${durationMinutes ?? "unknown"}m`;
+}
+
 export function confidenceFor(evidenceCount: number): Confidence {
   if (evidenceCount < 3) return "insufficient";
   if (evidenceCount < 6) return "low";
@@ -135,18 +145,37 @@ export function computeAnalyticsProfile(
       };
     });
 
-  const sequenceGroups = new Map<string, CompletedSessionEvidence[]>();
+  const sequenceGroups = new Map<
+    string,
+    {
+      sequenceKey: string;
+      wakeContext: CompletedSessionEvidence["wakeContext"];
+      durationMinutes: CompletedSessionEvidence["durationMinutes"];
+      evidence: CompletedSessionEvidence[];
+    }
+  >();
   for (const item of evidence) {
     if (!item.sequenceKey) continue;
-    const group = sequenceGroups.get(item.sequenceKey) ?? [];
-    group.push(item);
-    sequenceGroups.set(item.sequenceKey, group);
+    const scopeKey = `${item.sequenceKey}\u001f${item.wakeContext ?? "unknown"}\u001f${item.durationMinutes ?? "unknown"}`;
+    const group = sequenceGroups.get(scopeKey) ?? {
+      sequenceKey: item.sequenceKey,
+      wakeContext: item.wakeContext,
+      durationMinutes: item.durationMinutes,
+      evidence: [],
+    };
+    group.evidence.push(item);
+    sequenceGroups.set(scopeKey, group);
   }
-  const sequenceEffects = [...sequenceGroups.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, group]) =>
+  const sequenceEffects = [...sequenceGroups.values()]
+    .filter(({ evidence: group }) => group.length >= MIN_COMPARABLE_SEQUENCE_REPEATS)
+    .sort((left, right) =>
+      sequenceMetricKey(left.sequenceKey, left.wakeContext, left.durationMinutes).localeCompare(
+        sequenceMetricKey(right.sequenceKey, right.wakeContext, right.durationMinutes),
+      ),
+    )
+    .map(({ sequenceKey, wakeContext, durationMinutes, evidence: group }) =>
       metric(
-        `sequence:${key}`,
+        sequenceMetricKey(sequenceKey, wakeContext, durationMinutes),
         mean(group.map(({ baseline, postRating }) => postRating - baseline)),
         group,
       ),

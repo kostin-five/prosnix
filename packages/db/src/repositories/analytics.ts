@@ -8,6 +8,7 @@ import {
   type CompletedSessionEvidence,
   type ExperimentAssignment,
   type Metric,
+  type WakeDurationMinutes,
 } from "@awc/domain";
 import {
   analyticsProjections,
@@ -154,6 +155,8 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
               followUp:
                 followUps.find(({ sessionId }) => sessionId === session.sessionId)?.outcome ?? null,
               sequenceKey: sessionTasks.map((task) => task.taskId).join(">"),
+              wakeContext: session.wakeContext,
+              durationMinutes: session.durationMinutes as WakeDurationMinutes,
               ...(session.completedAt ? { completedAt: session.completedAt.toISOString() } : {}),
               ...(comparison ? { comparison } : {}),
             },

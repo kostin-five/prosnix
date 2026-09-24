@@ -31,7 +31,15 @@ const profile: AnalyticsProfile = {
       confidence: "low",
     },
   ],
-  sequenceEffects: [],
+  sequenceEffects: [
+    {
+      key: "sequence:water>memory|context:night_sleep|budget:5m",
+      value: 2,
+      evidenceCount: 2,
+      evidenceIds: ["s1", "s2"],
+      confidence: "insufficient",
+    },
+  ],
 };
 
 describe("контракт профиля аналитики", () => {
@@ -51,6 +59,28 @@ describe("контракт профиля аналитики", () => {
       url: "/api/v1/analytics/profile",
       headers: { cookie },
     });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ ...profile, sequenceEffects: [] });
+    await app.close();
+  });
+
+  it("возвращает сопоставимые повторы только при включённом пилотном флаге", async () => {
+    const dependencies = createMemoryDependencies();
+    const app = await createApp(
+      { ...testConfig, wakeCombinationAnalyticsEnabled: true },
+      {
+        ...dependencies,
+        analyticsRepository: { recompute: async () => profile },
+        now: () => testNow,
+      },
+    );
+    const cookie = await authenticateTestUser(app);
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/analytics/profile",
+      headers: { cookie },
+    });
+
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual(profile);
     await app.close();

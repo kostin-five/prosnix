@@ -191,6 +191,7 @@ export async function createApp(
           dependencies.analyticsRepository,
           dependencies.coachInsightRepository,
           dependencies.coachGateway ?? null,
+          { combinationAnalyticsEnabled: config.wakeCombinationAnalyticsEnabled },
         ),
         ...(dependencies.now ? { now: dependencies.now } : {}),
       });

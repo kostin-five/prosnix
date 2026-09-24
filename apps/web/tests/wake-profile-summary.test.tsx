@@ -48,7 +48,7 @@ const profile: AnalyticsProfileResponse = {
   ],
   sequenceEffects: [
     {
-      key: "sequence:steps>reaction>memory",
+      key: "sequence:steps>reaction>memory|context:night_sleep|budget:5m",
       value: 2.5,
       evidenceCount: 2,
       evidenceIds: [],
@@ -116,6 +116,9 @@ describe("профиль пробуждения", () => {
     expect(container.querySelector('[aria-label="Эффект 2 последних пробуждений"]')).not.toBeNull();
     expect(container.textContent).toContain("+3");
     expect(container.textContent).toContain("-1");
+    expect(container.textContent).toContain("Повторяемое сочетание");
+    expect(container.textContent).toContain("2 сессиях");
+    expect(container.textContent).toContain("не доказывает");
   });
 
   it("показывает фактическую долю устойчивого подъёма", () => {

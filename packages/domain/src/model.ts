@@ -157,6 +157,9 @@ export interface CompletedSessionEvidence {
   followUp: FollowUpOutcome | null;
   /** Точный порядок фактически выполненных заданий; не содержит пользовательских данных. */
   sequenceKey?: string;
+  /** Контекст и бюджет образуют границу сопоставимости порядка заданий. */
+  wakeContext?: WakeContext;
+  durationMinutes?: WakeDurationMinutes;
   completedAt?: string;
   comparison?: ExperimentAssignment["comparison"];
 }

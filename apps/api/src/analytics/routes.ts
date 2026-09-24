@@ -18,6 +18,9 @@ export async function registerAnalyticsRoutes(
     if (!userId) {
       return reply.status(401).send({ code: "authentication_required" });
     }
-    return options.repository.recompute(userId, now);
+    const profile = await options.repository.recompute(userId, now);
+    return options.config.wakeCombinationAnalyticsEnabled
+      ? profile
+      : { ...profile, sequenceEffects: [] };
   });
 }

@@ -31,6 +31,12 @@ function observationMaturity(confidence: AnalyticsProfileResponse["averageDelta"
   return "Пока мало повторов для устойчивого вывода.";
 }
 
+function formatDelta(value: number | null) {
+  if (value === null) return "нет оценки";
+  const rounded = Math.round(value * 10) / 10;
+  return `${rounded > 0 ? "+" : ""}${rounded}`;
+}
+
 function RecentEffectChart({ sessions }: { sessions: SessionHistoryItemResponse[] }) {
   const points = sessions
     .slice(0, 7)
@@ -126,6 +132,12 @@ export function WakeProfileSummary({
     const current = progressByFactor.get(item.factorKey);
     if (!current || item.pairCount > current.pairCount) progressByFactor.set(item.factorKey, item);
   }
+  const repeatedSequence = profile.sequenceEffects
+    .filter(({ value, evidenceCount: count }) => value !== null && count >= 2)
+    .sort(
+      (left, right) =>
+        (right.value ?? 0) - (left.value ?? 0) || right.evidenceCount - left.evidenceCount,
+    )[0];
 
   return (
     <div className="space-y-3">
@@ -136,6 +148,21 @@ export function WakeProfileSummary({
       </div>
 
       <RecentEffectChart sessions={recentSessions} />
+
+      {repeatedSequence && (
+        <div className="rounded-xl bg-secondary/60 p-3">
+          <p className="text-sm font-semibold">Повторяемое сочетание</p>
+          <p className="mt-1 text-sm leading-relaxed">
+            Один и тот же порядок в одинаковом контексте и режиме повторился в{" "}
+            {repeatedSequence.evidenceCount} сессиях. Среднее наблюдаемое изменение —{" "}
+            {formatDelta(repeatedSequence.value)}.
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            Это личная рабочая гипотеза: результат не доказывает, что именно эти задания стали его
+            причиной.
+          </p>
+        </div>
+      )}
 
       <p className="text-xs leading-relaxed text-muted-foreground">
         {observationMaturity(profile.averageDelta.confidence)} Основано на {evidenceCount}{" "}

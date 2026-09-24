@@ -141,8 +141,8 @@ test("пользователь может закрыть сохранённую 
   });
 
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Начать заново" })).toBeVisible();
-  await page.getByRole("button", { name: "Закрыть", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Закрыть сохранённую сессию" })).toBeVisible();
+  await page.getByRole("button", { name: "Закрыть сохранённую сессию" }).click();
   await expect(page.getByRole("heading", { name: "Prosnix" })).toBeVisible();
   await expect(page.locator("html")).not.toHaveAttribute("data-telegram-closed", "true");
 });

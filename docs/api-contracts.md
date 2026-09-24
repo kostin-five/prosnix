@@ -102,12 +102,16 @@ limit и не меняет analytics или session state. Перед кажды
 содержит свежий evidence count и детерминированный расчёт; второй внешний AI-вызов до следующего
 локального дня не выполняется.
 
-Профиль `analytics-v2` включает `sequenceEffects`: наблюдаемый результат точного порядка выполненных
-task IDs, с `n` и confidence. Это описательная метрика, не причинный вывод. `comparisonProgress`
-отдельно возвращает для каждого доступного factor group поля `withCount`, `withoutCount`, `pairCount`,
-`targetPairs` и `status`. Готовность общего профиля после семи сессий не зависит от достижения трёх
-factor pairs. Factor comparison и adaptive selector не смешивают разные контексты сна и бюджеты
-времени; клиент временно принимает `analytics-v1` для совместимого rollout.
+Профиль `analytics-v2` может включать `sequenceEffects`: наблюдаемый результат точного порядка
+выполненных task IDs с контекстом, бюджетом, `n` и confidence. Метрика публикуется только после двух
+повторов в одинаковом контексте и режиме времени; единичный запуск не становится рекомендацией.
+Это описательная рабочая гипотеза, не причинный вывод. Пока
+`WAKE_COMBINATION_ANALYTICS_ENABLED=false`, API и Coach возвращают пустой список sequence-гипотез,
+хотя канонические наблюдения продолжают сохраняться. `comparisonProgress` отдельно возвращает для
+каждого доступного factor group поля `withCount`, `withoutCount`, `pairCount`, `targetPairs` и
+`status`. Готовность общего профиля после семи сессий не зависит от достижения трёх factor pairs.
+Factor comparison и adaptive selector не смешивают разные контексты сна и бюджеты времени; клиент
+временно принимает `analytics-v1` для совместимого rollout.
 
 ## Feedback эксперимента
 

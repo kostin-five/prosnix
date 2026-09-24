@@ -47,7 +47,11 @@ function profile(evidenceCount: number): AnalyticsProfile {
   };
 }
 
-function setup(evidenceCount: number, makeProfile: (count: number) => AnalyticsProfile = profile) {
+function setup(
+  evidenceCount: number,
+  makeProfile: (count: number) => AnalyticsProfile = profile,
+  combinationAnalyticsEnabled = true,
+) {
   let currentEvidenceCount = evidenceCount;
   let saved: CoachInsightRecord | null = null;
   const analytics: AnalyticsRepository = {
@@ -69,7 +73,7 @@ function setup(evidenceCount: number, makeProfile: (count: number) => AnalyticsP
   });
   const gateway = { generate: vi.fn(generate) };
   return {
-    service: new CoachService(analytics, cache, gateway),
+    service: new CoachService(analytics, cache, gateway, { combinationAnalyticsEnabled }),
     cache,
     gateway,
     setEvidenceCount: (value: number) => {
@@ -143,6 +147,15 @@ describe("CoachService", () => {
     });
     await service.getInsight("user-1", new Date("2026-09-05T10:00:00.000Z"));
     expect(gateway.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not send sequence hypotheses to AI while the pilot flag is disabled", async () => {
+    const { service, gateway } = setup(4, profile, false);
+
+    await service.getInsight("user-1");
+
+    expect(gateway.generate).toHaveBeenCalledOnce();
+    expect(gateway.generate.mock.calls[0]?.[0].sequenceEffects).toEqual([]);
   });
 
   it("does not describe one observed day as a stable result between days", async () => {

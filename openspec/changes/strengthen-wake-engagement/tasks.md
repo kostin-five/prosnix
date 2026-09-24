@@ -65,8 +65,8 @@
 
 ## 9. Анализ сочетаний и выпуск
 
-- [ ] 9.1 Рассчитывать личные результаты порядка/сочетаний только по повторам в сопоставимом контексте и бюджете, с размером выборки и без причинных утверждений
-- [ ] 9.2 Проверить format, typecheck, unit/contract tests, build, bundle и production boundaries командой `pnpm verify:release`
-- [ ] 9.3 Прогнать `pnpm verify:release:full` на отдельной тестовой БД и mobile E2E основного, заменённого и recovery-сценария
-- [ ] 9.4 Обновить architecture, testing, roadmap, release checklist и датированный handoff только фактическим включённым поведением
+- [x] 9.1 Рассчитывать личные результаты порядка/сочетаний только по повторам в сопоставимом контексте и бюджете, с размером выборки и без причинных утверждений
+- [x] 9.2 Проверить format, typecheck, unit/contract tests, build, bundle и production boundaries командой `pnpm verify:release`
+- [x] 9.3 Прогнать `pnpm verify:release:full` на отдельной тестовой БД и mobile E2E основного, заменённого и recovery-сценария
+- [x] 9.4 Обновить architecture, testing, roadmap, release checklist и датированный handoff только фактическим включённым поведением
 - [ ] 9.5 До production migration/flags получить отдельное разрешение владельца, проверить backup/restore readiness и записать SHA выпуска
