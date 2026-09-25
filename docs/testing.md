@@ -197,8 +197,10 @@ Integration tests должны выполняться на disposable database. 
 Устройства: Telegram iOS, Android и Desktop. Сейчас Android остаётся ручным пробелом; mobile Chromium
 покрывает layout/flow, но не заменяет Telegram Android WebView.
 
-Последний подтверждённый прогон описан в validation-файле актуальной спецификации, на которую
-указывает `.specify/feature.json`.
+Последний подтверждённый прогон ищите в актуальном handoff из
+[`handoffs/CURRENT.md`](handoffs/CURRENT.md). `.specify/feature.json` указывает на завершённый
+Spec Kit feature 017: его `validation.md` подтверждает только тот исторический этап, а не текущий
+OpenSpec change и не production deploy.
 
 Полный ручной прогон режимов 2/5/10 минут, контекстов, семи контрольных сессий, удаления профиля,
 Telegram-сообщений и реального личного цикла описан в

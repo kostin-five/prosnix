@@ -8,8 +8,9 @@
 - Docker Desktop для локальной PostgreSQL 17;
 - Chromium для E2E: `pnpm exec playwright install chromium`.
 
-Перед работой прочитайте [`../../AGENTS.md`](../../AGENTS.md) и
-[`CURRENT.md`](CURRENT.md).
+Перед работой прочитайте документы в порядке из [`../../AGENTS.md`](../../AGENTS.md) и
+[`NEW_CHAT_PROMPT.md`](NEW_CHAT_PROMPT.md). Актуальное состояние всегда определяется
+[`CURRENT.md`](CURRENT.md), указанным в нём handoff и текущим Git, а не старым SHA в инструкции.
 
 Для нового AI-чата скопируйте [`NEW_CHAT_PROMPT.md`](NEW_CHAT_PROMPT.md). Первый ответ нового агента
 должен быть read-only аудитом; до подтверждения владельца он не меняет код, ветки и внешние сервисы.
@@ -18,7 +19,7 @@
 
 ```bash
 git clone <repository-url>
-cd wake-coach
+cd prosnix
 pnpm install --frozen-lockfile
 cp .env.example .env
 ```
@@ -110,7 +111,9 @@ pnpm verify:release:full
   `notification dispatch`, `readiness_failed`;
 - browser errors — Telegram WebView/DevTools или обычный browser в demo;
 - E2E artifacts — `playwright-report/` и `test-results/`;
-- remote API — Render service Logs; DB activity — Neon Dashboard.
+- remote API — Render service Logs; DB activity — панель фактически подключённого PostgreSQL
+  provider, который необходимо подтвердить по актуальной конфигурации у владельца, не читая
+  production connection string.
 
 Не публикуйте строку запроса целиком, cookie, `initData`, Telegram update body или пользовательские
 ответы.
@@ -122,7 +125,7 @@ pnpm verify:release:full
 | `pnpm: command not found` | активировать Corepack и pnpm 11.19.0                                           |
 | порт 5432 занят           | изменить `POSTGRES_PORT` и порт в local `DATABASE_URL`                         |
 | web-порт занят            | Vite выберет другой; Telegram/`WEB_ORIGIN` должны использовать фактический URL |
-| `/ready` = 503            | контейнер/Neon, `DATABASE_URL`, migration и timeout                            |
+| `/ready` = 503            | состояние PostgreSQL, наличие `DATABASE_URL`, migration и timeout              |
 | Telegram auth = 401       | token относится к другому боту, initData устарел или URL открыт не из Telegram |
 | session write = 400       | отсутствует `Idempotency-Key` или для transition — `If-Match`                  |
 | session write = 409       | клиентская версия устарела; загрузить canonical session/bootstrap              |
@@ -133,17 +136,20 @@ pnpm verify:release:full
 ## 9. Безопасный первый вклад
 
 1. Выберите небольшой docs/UI/test bug без migration или production config.
-2. Создайте `codex/<short-topic>` от актуального `dev`.
+2. После read-only аудита и согласия владельца создайте `codex/<short-topic>` от актуального `dev`.
 3. Добавьте regression test, если меняется поведение.
 4. Не перестраивайте архитектуру и не обновляйте зависимости «заодно».
 5. Выполните `pnpm verify:release`.
 6. В PR опишите пользовательский эффект, проверки, риски и отсутствие migration/secrets.
 
-Для material feature начните со Spec Kit, а не с кода.
+Для material feature начните с существующего подходящего OpenSpec change. Если задача имеет другой
+scope, подготовьте новый change по правилам [`../../AGENTS.md`](../../AGENTS.md), а не начинайте с
+кода.
 
 ## 10. Текущая точка продолжения
 
-Этап `010-beta-mvp-finish` находится в commit `74d61fe` ветки `dev`. Он прошёл полный локальный gate
-на отдельной PostgreSQL: 115 unit/contract/component, 13 integration и 13 mobile Chromium E2E
-тестов. Это не подтверждает состояние Render: точный deploy SHA, CI и Telegram smoke-test всегда
-проверяются отдельно по [`CURRENT.md`](CURRENT.md) и release checklist.
+Откройте [`CURRENT.md`](CURRENT.md) и актуальный handoff. Там разделены завершённая локальная
+разработка, ручные проверки и разрешение на production release. После чтения выполните только
+read-only Git-аудит, перечисленный в стартовом промпте; не делайте вывод о production deploy из
+наличия commit в `dev`. Точный SHA, зелёный CI, ручной Telegram smoke-test и решение владельца
+проверяются отдельно по [`../release-checklist.md`](../release-checklist.md).
