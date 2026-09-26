@@ -1,6 +1,6 @@
 import { LegalBack } from "./legal-back.js";
 
-const UPDATED_AT = "7 сентября 2026 года";
+const UPDATED_AT = "26 сентября 2026 года";
 const OPERATOR_NAME = import.meta.env.VITE_LEGAL_OPERATOR_NAME || "разработчик разработчик Денисович";
 const OPERATOR_CONTACT = import.meta.env.VITE_LEGAL_CONTACT || "@prosnix_support";
 const OPERATOR_CONTACT_URL = `https://t.me/${OPERATOR_CONTACT.replace(/^@/, "")}`;
@@ -47,6 +47,7 @@ export function PrivacyPolicy() {
             </li>
             <li>Назначенные задания, факт выполнения, длительность и результат.</li>
             <li>Настроенная личная рутина и отмеченные выполненными пункты.</li>
+            <li>Жизненная цель, только если пользователь явно сохранил её в настройках.</li>
             <li>Ответ follow-up о том, удалось ли окончательно встать.</li>
             <li>Версии протоколов, время событий и источники расчёта аналитики.</li>
             <li>
@@ -80,6 +81,11 @@ export function PrivacyPolicy() {
           <p className="text-sm leading-relaxed text-muted-foreground">
             Анкета возможностей только исключает неподходящие задания. Пункты личной рутины не
             входят в расчёт эффективности экспериментального протокола.
+          </p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Сохранённая жизненная цель показывается перед протоколом и передаётся Telegram только в
+            тексте личного утреннего сообщения бота. Цель не используется для аналитики и не
+            передаётся AI. Существующая цель на устройстве не переносится на сервер автоматически.
           </p>
         </section>
 

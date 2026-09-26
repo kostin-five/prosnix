@@ -1,4 +1,4 @@
-import { TaskIcon, type TaskId } from "./task-icon.js";
+import type { TaskId } from "./task-icon.js";
 import { Check } from "lucide-react";
 
 export function TaskTimerVisual({
@@ -23,7 +23,7 @@ export function TaskTimerVisual({
 
   return (
     <div
-      className="relative grid h-40 w-40 place-items-center"
+      className="pointer-events-none relative grid h-40 w-40 place-items-center"
       role="timer"
       aria-label={complete ? "Таймер завершён" : `Осталось ${remaining} секунд`}
       data-testid="task-timer-visual"
@@ -67,10 +67,6 @@ export function TaskTimerVisual({
       <div
         className={`relative flex flex-col items-center ${complete ? "text-green-400" : "text-primary"}`}
       >
-        <TaskIcon
-          taskId={taskId}
-          className={`mb-1 h-8 w-8 ${complete ? "" : "motion-safe:animate-[pulse_1.8s_ease-in-out_infinite]"}`}
-        />
         {complete ? (
           <Check className="h-9 w-9" strokeWidth={2.5} />
         ) : (

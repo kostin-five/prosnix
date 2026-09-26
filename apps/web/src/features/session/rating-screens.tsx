@@ -73,6 +73,7 @@ export function StartRatingScreen({
   guidedExperience?: boolean;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
+  const [goalReady, setGoalReady] = useState(!goalCalibrationEnabled || !localStorageScope);
   return (
     <div className="flex flex-1 flex-col justify-center p-6">
       <div className="mb-10 text-center">
@@ -82,7 +83,11 @@ export function StartRatingScreen({
       </div>
       {goalCalibrationEnabled && localStorageScope && (
         <Suspense fallback={null}>
-          <MorningExperienceSlot mode="goal" storageScope={localStorageScope} />
+          <MorningExperienceSlot
+            mode="goal"
+            storageScope={localStorageScope}
+            onLoaded={setGoalReady}
+          />
         </Suspense>
       )}
       {guidedExperience && (
@@ -98,10 +103,10 @@ export function StartRatingScreen({
       <button
         type="button"
         onClick={() => selected && onDone(selected)}
-        disabled={!selected || !ready || busy}
+        disabled={!selected || !ready || !goalReady || busy}
         className={`w-full rounded-2xl py-4 text-lg font-bold transition-all ${selected && ready && !busy ? "text-white active:scale-[0.98]" : "bg-secondary text-muted-foreground"}`}
         style={
-          selected && ready && !busy
+          selected && ready && goalReady && !busy
             ? {
                 background: "linear-gradient(135deg,#F97316,#EA580C)",
                 boxShadow: "0 8px 32px rgba(249,115,22,.25)",
@@ -109,7 +114,13 @@ export function StartRatingScreen({
             : {}
         }
       >
-        {!ready ? "Подготавливаем протокол…" : busy ? "Сохраняем…" : "Начать протокол →"}
+        {!ready
+          ? "Подготавливаем протокол…"
+          : !goalReady
+            ? "Загружаем цель…"
+            : busy
+              ? "Сохраняем…"
+              : "Начать протокол →"}
       </button>
       {!ready && !busy && onRetry && (
         <button

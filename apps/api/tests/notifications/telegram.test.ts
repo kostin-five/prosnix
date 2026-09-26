@@ -13,6 +13,7 @@ describe("Telegram notification gateway", () => {
     await expect(
       gateway.send({
         kind: "wake",
+        lifeGoal: "Построить своё дело",
         chatId: 42n,
         attempt: 1,
         now: new Date("2026-08-29T04:00:00Z"),
@@ -23,11 +24,13 @@ describe("Telegram notification gateway", () => {
       sentAt: new Date("2026-08-29T04:00:00Z"),
     });
     const body = JSON.parse(String(capturedRequest?.body)) as {
+      text: string;
       reply_markup: { inline_keyboard: Array<Array<{ web_app: { url: string } }>> };
     };
     expect(body.reply_markup.inline_keyboard[0]?.[0]?.web_app.url).toBe(
       "https://example.com/?source=wake",
     );
+    expect(body.text).toContain("Твоя жизненная цель: Построить своё дело");
   });
 
   it("retries an explicit rate limit only once", async () => {

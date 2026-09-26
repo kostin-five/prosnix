@@ -84,6 +84,9 @@ test("полный wake-up цикл подтверждается серверо�
       wakeRoutine: { enabled: false, items: [], revision: 0 },
     }),
   );
+  await page.route("**/api/v1/me/life-goal", (route) =>
+    json(route, { text: "Построить своё дело", revision: 1 }),
+  );
   await page.route("**/api/v1/sessions", async (route, request) => {
     expect(request.headers()["idempotency-key"]).toBeTruthy();
     await json(route, baseSession, 201);
@@ -176,9 +179,31 @@ test("полный wake-up цикл подтверждается серверо�
   await page.getByRole("button", { name: "После ночного сна" }).click();
   await page.getByRole("button", { name: "5 мин" }).click();
   await page.getByRole("button", { name: "Начать пробуждение" }).click();
+  await expect(page.getByText("Построить своё дело")).toBeVisible();
   await page.getByRole("button", { name: "3", exact: true }).click();
   await page.getByRole("button", { name: "Начать протокол →" }).click();
   await expect(page.getByRole("heading", { name: "Яркий свет" })).toBeVisible();
+  const taskLayout = await page
+    .getByRole("button", { name: "Начать", exact: true })
+    .evaluate((button) => {
+      const screen = document.scrollingElement;
+      const taskScreen = document.querySelector(
+        '[data-testid="task-experience-shell"]',
+      )?.parentElement;
+      return {
+        buttonBottom: button.getBoundingClientRect().bottom,
+        viewportHeight: window.innerHeight,
+        pageScrollHeight: screen?.scrollHeight ?? 0,
+        taskScrollHeight: taskScreen?.scrollHeight ?? 0,
+        taskClientHeight: taskScreen?.clientHeight ?? 0,
+      };
+    });
+  expect(taskLayout.buttonBottom).toBeLessThanOrEqual(taskLayout.viewportHeight);
+  expect(taskLayout.pageScrollHeight).toBeLessThanOrEqual(taskLayout.viewportHeight);
+  expect(taskLayout.taskScrollHeight).toBeLessThanOrEqual(taskLayout.taskClientHeight);
+  await page.addStyleTag({ content: "html { font-size: 24px !important; }" });
+  await page.getByRole("button", { name: "Начать", exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole("button", { name: "Начать", exact: true })).toBeInViewport();
   await expect(page.locator('[data-task-icon="window"]').first()).toBeVisible();
   await page.getByRole("button", { name: "Начать", exact: true }).click();
   await expect(page.getByRole("timer", { name: "Осталось 30 секунд" })).toBeVisible();
@@ -189,6 +214,7 @@ test("полный wake-up цикл подтверждается серверо�
   await page.getByRole("button", { name: "7", exact: true }).click();
   await page.getByRole("button", { name: "Сохранить результат" }).click();
   await expect(page.getByRole("heading", { name: "Протокол завершён" })).toBeVisible();
+  await expect(page.getByText("Пикс", { exact: true })).toHaveCount(0);
   await expect(page.getByText(/Ещё 6 пробуждений/)).toBeVisible();
   await expect(page.getByText("Вечером проверь настройки")).toBeVisible();
   await expect(page.getByText(/дополнительного утреннего уведомления не будет/)).toBeVisible();
@@ -196,4 +222,68 @@ test("полный wake-up цикл подтверждается серверо�
   await page.getByRole("button", { name: /Да, уже встал/ }).click();
   await expect(page.getByText("Встал и не лёг обратно")).toBeVisible();
   await expect(page.getByText("Ответ сохранён и учтён в профиле пробуждения")).toBeVisible();
+});
+
+test("сохранённая version 10 показывает шесть шагов и длинный таймер", async ({ page }) => {
+  await installTelegram(page);
+  await page.clock.install();
+  await page.route("**/api/v1/auth/telegram", (route) => route.fulfill({ status: 204 }));
+  await page.route("**/api/v1/legal/status", (route) =>
+    json(route, {
+      privacyVersion: "2026-08-31",
+      termsVersion: "2026-08-31",
+      accepted: true,
+      acceptedAt: "2026-08-31T00:00:00.000Z",
+    }),
+  );
+  const steps = ["water", "math", "memory", "stroop", "reaction", "window"].map(
+    (taskId, index) => ({
+      index,
+      taskId,
+      category:
+        taskId === "water" ? "behavioral" : taskId === "window" ? "environment" : "cognitive",
+    }),
+  );
+  await page.route("**/api/v1/bootstrap", (route) =>
+    json(route, {
+      user: { id: baseSession.userId, locale: "ru", timezone: "Europe/Moscow" },
+      activeSession: {
+        session: {
+          id: baseSession.id,
+          status: "in_progress",
+          currentStepIndex: 0,
+          version: 2,
+          durationMinutes: 5,
+        },
+        protocol: { key: "compact-v10", version: 10, title: "Пятиминутный протокол", steps },
+        assignment: {
+          strategyVersion: "learning-v6",
+          phase: "learning",
+          hypothesis: "Пробуждение",
+        },
+        baseline: 3,
+        postRating: null,
+      },
+      dueFollowUpSessionId: null,
+      wakeProfile: {
+        movementLevel: "none",
+        availableResources: ["water"],
+        excludedTaskIds: [],
+        defaultDurationMinutes: 5,
+        onboardingCompleted: true,
+        revision: 1,
+      },
+      wakeRoutine: { enabled: false, items: [], revision: 0 },
+    }),
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  await expect(page.getByText("Шаг 1 из 6", { exact: false })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Стакан воды" })).toBeVisible();
+  await page.getByRole("button", { name: "Начать", exact: true }).click();
+  await expect(page.getByRole("timer", { name: "Осталось 25 секунд" })).toBeVisible();
+  await page.clock.runFor(24_000);
+  await expect(page.getByRole("button", { name: "Выпил" })).toBeDisabled();
+  await page.clock.runFor(1_000);
+  await expect(page.getByRole("button", { name: "Выпил" })).toBeEnabled();
 });

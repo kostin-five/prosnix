@@ -847,6 +847,7 @@ async function mutateSession(
         ]),
         profile,
         durationMinutes: current.durationMinutes,
+        protocolVersion: current.assignment.protocolVersion,
         ...(current.assignment.comparison?.factorKey
           ? { comparisonFactorKey: current.assignment.comparison.factorKey }
           : {}),

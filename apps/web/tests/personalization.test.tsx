@@ -210,7 +210,8 @@ describe("персонализация пробуждения", () => {
     expect(container.textContent).not.toContain("Шторы");
   });
 
-  it("показывает Пикса только как необязательного проводника первой настройки", () => {
+  it("проводит первую настройку по страницам и сохраняет выбор только в конце", async () => {
+    const onSave = vi.fn(async () => undefined);
     const profile = {
       movementLevel: "light" as const,
       availableResources: ["water" as const],
@@ -225,25 +226,38 @@ describe("персонализация пробуждения", () => {
         <CapabilityOnboardingScreen
           profile={profile}
           saving={false}
-          onSave={async () => undefined}
-          onCompleted={() => undefined}
-          showPix
-        />,
-      ),
-    );
-    expect(container.querySelector('[data-testid="pix-avatar"]')).not.toBeNull();
-    expect(container.textContent).toContain("Поможет настроить безопасное пробуждение");
-
-    act(() =>
-      root.render(
-        <CapabilityOnboardingScreen
-          profile={profile}
-          saving={false}
-          onSave={async () => undefined}
+          onSave={onSave}
           onCompleted={() => undefined}
         />,
       ),
     );
     expect(container.querySelector('[data-testid="pix-avatar"]')).toBeNull();
+    expect(container.textContent).toContain("Шаг 1 из 4");
+    expect(container.textContent).not.toContain("Какие упражнения можно предлагать?");
+    expect(findButton(container, "Далее").disabled).toBe(true);
+    act(() => findButton(container, "Только лёгкое движение").click());
+    act(() => findButton(container, "Далее").click());
+    expect(container.textContent).toContain("Шаг 2 из 4");
+    expect(container.textContent).toContain("Какие упражнения можно предлагать?");
+    act(() => findButton(container, "Пройтись").click());
+    act(() => findButton(container, "Далее").click());
+    expect(container.textContent).toContain("Шаг 3 из 4");
+    act(() => findButton(container, "Назад").click());
+    expect(findButton(container, "Пройтись").getAttribute("aria-pressed")).toBe("false");
+    expect(onSave).not.toHaveBeenCalled();
+    act(() => findButton(container, "Далее").click());
+    act(() => findButton(container, "Далее").click());
+    expect(container.textContent).toContain("Шаг 4 из 4");
+    act(() => findButton(container, "10 мин").click());
+    await act(async () => findButton(container, "Сохранить возможности").click());
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        movementLevel: "light",
+        excludedTaskIds: ["steps"],
+        defaultDurationMinutes: 10,
+        onboardingCompleted: true,
+      }),
+    );
   });
 });

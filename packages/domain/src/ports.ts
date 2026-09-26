@@ -485,6 +485,14 @@ export interface BillingRepository {
 }
 
 export interface WakePersonalizationRepository {
+  loadLifeGoal(userId: string): Promise<{ text: string; revision: number }>;
+  saveLifeGoal(input: {
+    userId: string;
+    expectedRevision: number;
+    operationId: string;
+    text: string;
+    now: Date;
+  }): Promise<{ text: string; revision: number }>;
   loadProfile(userId: string): Promise<WakeCapabilityProfile>;
   saveProfile(input: {
     userId: string;

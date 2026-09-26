@@ -140,6 +140,12 @@ export const WakeProfileInputSchema = Type.Object(
   { additionalProperties: false },
 );
 
+export const LifeGoalInputSchema = Type.Object(
+  { text: Type.String({ maxLength: 120 }) },
+  { additionalProperties: false },
+);
+export type LifeGoalInput = Static<typeof LifeGoalInputSchema>;
+
 export const WakeRoutineItemSchema = Type.Object(
   {
     id: Type.String({ minLength: 1, maxLength: 64 }),

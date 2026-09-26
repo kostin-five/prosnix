@@ -38,13 +38,22 @@ export function TaskMotionVisual({ taskId }: { taskId: TaskId }) {
   const light = taskId === "window" || taskId === "curtains";
   const movement =
     taskId === "steps" || taskId === "squats" || taskId === "shake" || taskId === "pushups";
-  const water = taskId === "water" || taskId === "cool_wash";
-  const seated = taskId === "sit_edge";
-  const reaction = taskId === "reaction";
+  const motionClass =
+    taskId === "steps"
+      ? "task-motion-walk"
+      : taskId === "squats" || taskId === "pushups"
+        ? "task-motion-reps"
+        : taskId === "shake"
+          ? "task-motion-shake"
+          : taskId === "water" || taskId === "cool_wash"
+            ? "task-motion-water"
+            : taskId === "window" || taskId === "curtains"
+              ? "task-motion-light"
+              : "task-motion-settle";
 
   return (
     <figure
-      className="relative grid h-28 w-full place-items-center overflow-hidden rounded-3xl border border-primary/15 bg-gradient-to-b from-primary/10 to-card"
+      className="relative grid h-20 w-full place-items-center overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-b from-primary/10 to-card"
       aria-label={MOTION_LABELS[taskId]}
       data-testid="task-motion-visual"
       data-task-motion={taskId}
@@ -52,27 +61,18 @@ export function TaskMotionVisual({ taskId }: { taskId: TaskId }) {
     >
       {light && (
         <span
-          className={`absolute h-20 w-20 rounded-full bg-amber-300/25 blur-xl ${reduced ? "" : "animate-pulse"}`}
+          className={`absolute h-20 w-20 rounded-full bg-amber-300/25 blur-xl ${reduced ? "" : "task-motion-glow"}`}
           aria-hidden="true"
         />
       )}
       {movement && (
-        <span
-          className={`absolute h-16 w-16 rounded-full border border-primary/30 ${reduced ? "" : "animate-ping"}`}
-          aria-hidden="true"
-        />
-      )}
-      {reaction && (
-        <span
-          className={`absolute h-16 w-16 rounded-full bg-green-400/15 ${reduced ? "" : "animate-pulse"}`}
-          aria-hidden="true"
-        />
+        <span className="absolute bottom-3 h-px w-28 bg-primary/25" aria-hidden="true" />
       )}
       <div
-        className={`relative grid h-16 w-16 place-items-center rounded-2xl border border-primary/25 bg-background/80 text-primary shadow-[0_10px_35px_rgba(249,115,22,.14)] ${reduced ? "" : movement || seated ? "animate-bounce" : water ? "animate-pulse" : ""}`}
+        className={`relative grid h-12 w-12 place-items-center rounded-xl border border-primary/25 bg-background/80 text-primary shadow-[0_10px_35px_rgba(249,115,22,.14)] ${reduced ? "" : motionClass}`}
         aria-hidden="true"
       >
-        <TaskIcon taskId={taskId} className="h-8 w-8" />
+        <TaskIcon taskId={taskId} className="h-6 w-6" />
       </div>
       <figcaption className="sr-only">{MOTION_LABELS[taskId]}</figcaption>
     </figure>

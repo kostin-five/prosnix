@@ -12,6 +12,7 @@ export interface TelegramNotificationGateway {
   send(input: {
     kind: "wake" | "follow_up";
     chatId: bigint;
+    lifeGoal?: string | undefined;
     attempt: number;
     now: Date;
   }): Promise<NotificationResult>;
@@ -27,6 +28,7 @@ export class TelegramBotGateway implements TelegramNotificationGateway {
   async send(input: {
     kind: "wake" | "follow_up";
     chatId: bigint;
+    lifeGoal?: string | undefined;
     attempt: number;
     now: Date;
   }): Promise<NotificationResult> {
@@ -41,7 +43,7 @@ export class TelegramBotGateway implements TelegramNotificationGateway {
           chat_id: input.chatId.toString(),
           text:
             input.kind === "wake"
-              ? "Доброе утро! Пора запустить твой протокол пробуждения ☀️"
+              ? `Доброе утро! Пора запустить твой протокол пробуждения ☀️${input.lifeGoal ? `\n\nТвоя жизненная цель: ${input.lifeGoal}` : ""}`
               : "Как ты себя чувствуешь спустя 15 минут? Ответ поможет улучшить твой следующий протокол.",
           reply_markup: {
             inline_keyboard: [

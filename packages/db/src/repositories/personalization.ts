@@ -15,6 +15,7 @@ import {
 } from "@awc/domain";
 import {
   idempotencyRecords,
+  userLifeGoals,
   wakeCapabilityProfiles,
   wakeRoutineRuns,
   wakeRoutines,
@@ -140,6 +141,60 @@ async function remember(
 
 export class PostgresWakePersonalizationRepository implements WakePersonalizationRepository {
   constructor(private readonly db: Database) {}
+
+  async loadLifeGoal(userId: string): Promise<{ text: string; revision: number }> {
+    const [row] = await this.db
+      .select({ text: userLifeGoals.text, revision: userLifeGoals.revision })
+      .from(userLifeGoals)
+      .where(eq(userLifeGoals.userId, userId))
+      .limit(1);
+    return row ?? { text: "", revision: 0 };
+  }
+
+  saveLifeGoal(
+    input: Parameters<WakePersonalizationRepository["saveLifeGoal"]>[0],
+  ): Promise<{ text: string; revision: number }> {
+    return this.db.transaction(async (transaction) => {
+      const db = transaction as Database;
+      await db.execute(sql`select pg_advisory_xact_lock(hashtextextended(${input.userId}, 0))`);
+      const requestHash = hash({
+        type: "life_goal",
+        text: input.text,
+        expectedRevision: input.expectedRevision,
+      });
+      const replayed = await replay<{ text: string; revision: number }>(
+        db,
+        input.userId,
+        input.operationId,
+        requestHash,
+      );
+      if (replayed) return replayed;
+      const [current] = await db
+        .select({ revision: userLifeGoals.revision })
+        .from(userLifeGoals)
+        .where(eq(userLifeGoals.userId, input.userId))
+        .limit(1);
+      if ((current?.revision ?? 0) !== input.expectedRevision)
+        throw new PersonalizationConflict("stale_version", "Цель уже изменена");
+      const revision = input.expectedRevision + 1;
+      const [saved] = await db
+        .insert(userLifeGoals)
+        .values({ userId: input.userId, text: input.text, revision, updatedAt: input.now })
+        .onConflictDoUpdate({
+          target: userLifeGoals.userId,
+          set: { text: input.text, revision, updatedAt: input.now },
+        })
+        .returning({ text: userLifeGoals.text, revision: userLifeGoals.revision });
+      if (!saved) throw new Error("Life goal save returned no row");
+      await remember(db, {
+        ...input,
+        commandType: "life_goal",
+        requestHash,
+        responseBody: saved,
+      });
+      return saved;
+    });
+  }
 
   async loadProfile(userId: string): Promise<WakeCapabilityProfile> {
     const [row] = await this.db

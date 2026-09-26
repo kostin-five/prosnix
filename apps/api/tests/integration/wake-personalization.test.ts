@@ -118,7 +118,11 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
         })
       ).session;
       for (const step of session.assignment.steps) {
-        const target = taskSuccessTarget(step.taskId, session.durationMinutes);
+        const target = taskSuccessTarget(
+          step.taskId,
+          session.durationMinutes,
+          session.assignment.protocolVersion,
+        );
         session = (
           await commands.execute({
             userId: user.id,
@@ -250,7 +254,11 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           })
         ).session;
         for (const step of session.assignment.steps) {
-          const target = taskSuccessTarget(step.taskId, session.durationMinutes);
+          const target = taskSuccessTarget(
+            step.taskId,
+            session.durationMinutes,
+            session.assignment.protocolVersion,
+          );
           session = (
             await commands.execute({
               userId: user.id,
@@ -446,7 +454,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
             type: "create",
             timezone: "Europe/Moscow",
             wakeContext: "night_sleep",
-            durationMinutes: 5,
+            durationMinutes: 10,
           },
         })
       ).session;

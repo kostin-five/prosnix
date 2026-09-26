@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   MorningGoalBanner,
@@ -31,10 +31,11 @@ describe("личная утренняя цель", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    vi.unstubAllGlobals();
   });
 
-  it("сохраняет цель клавишей Enter и позволяет удалить её", () => {
-    act(() => root.render(<MorningGoalCard storageScope="user-a" />));
+  it("в demo сохраняет цель клавишей Enter и позволяет удалить её", async () => {
+    act(() => root.render(<MorningGoalCard storageScope="demo" />));
     act(() => findButton(container, "Добавить цель").click());
     const input = container.querySelector<HTMLInputElement>("#morning-goal");
     if (!input) throw new Error("Morning goal input not found");
@@ -45,15 +46,15 @@ describe("личная утренняя цель", () => {
       setter?.call(input, "Закончить проект");
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    act(() => {
+    await act(async () => {
       input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     });
-    expect(readMorningGoal("user-a")).toBe("Закончить проект");
+    expect(readMorningGoal("demo")).toBe("Закончить проект");
 
-    act(() => root.render(<MorningGoalCard storageScope="user-a" />));
+    act(() => root.render(<MorningGoalCard storageScope="demo" />));
     act(() => findButton(container, "Изменить цель").click());
-    act(() => findButton(container, "Удалить цель").click());
-    expect(readMorningGoal("user-a")).toBe("");
+    await act(async () => findButton(container, "Удалить цель").click());
+    expect(readMorningGoal("demo")).toBe("");
   });
 
   it("показывает утром только непустую личную фразу", () => {
@@ -65,11 +66,43 @@ describe("личная утренняя цель", () => {
     expect(container.textContent).toBe("");
   });
 
-  it("позволяет оставить цель пустой без блокировки", () => {
-    act(() => root.render(<MorningGoalCard storageScope="user-a" />));
+  it("позволяет оставить цель пустой без блокировки", async () => {
+    act(() => root.render(<MorningGoalCard storageScope="demo" />));
     act(() => findButton(container, "Добавить цель").click());
-    act(() => findButton(container, "Не указывать").click());
-    expect(readMorningGoal("user-a")).toBe("");
+    await act(async () => findButton(container, "Не указывать").click());
+    expect(readMorningGoal("demo")).toBe("");
     expect(container.textContent).toContain("Цель не указана");
+  });
+
+  it("не отправляет прежнюю локальную цель без явного сохранения", async () => {
+    window.localStorage.setItem(
+      "prosnix.morning-preferences.v1:user-a",
+      JSON.stringify({ goal: "Построить своё дело", reviews: [] }),
+    );
+    let serverGoal = { text: "", revision: 0 };
+    const fetcher = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        const body = JSON.parse(String(init.body)) as { text: string };
+        serverGoal = { text: body.text, revision: serverGoal.revision + 1 };
+      }
+      return Response.json(serverGoal);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    await act(async () => root.render(<MorningGoalCard storageScope="user-a" />));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/v1/me/life-goal");
+    expect(container.textContent).toContain("Цель не указана");
+    act(() => findButton(container, "Добавить цель").click());
+    expect(container.querySelector<HTMLInputElement>("#morning-goal")?.value).toBe(
+      "Построить своё дело",
+    );
+    await act(async () => findButton(container, "Сохранить").click());
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(serverGoal.text).toBe("Построить своё дело");
+    expect(readMorningGoal("user-a")).toBe("");
+    act(() => findButton(container, "Изменить цель").click());
+    await act(async () => findButton(container, "Удалить цель").click());
+    expect(serverGoal.text).toBe("");
+    expect(readMorningGoal("user-a")).toBe("");
   });
 });

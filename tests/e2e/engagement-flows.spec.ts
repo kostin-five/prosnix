@@ -56,6 +56,56 @@ function bootstrap(activeSession: unknown) {
   };
 }
 
+test("первая анкета идёт по страницам без горизонтального скролла и сохраняется один раз", async ({
+  page,
+}) => {
+  await installTelegram(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.route("**/api/v1/bootstrap", (route) =>
+    json(route, {
+      ...bootstrap(null),
+      wakeProfile: {
+        ...wakeProfile,
+        movementLevel: "none",
+        onboardingCompleted: false,
+        revision: 0,
+      },
+    }),
+  );
+  let saves = 0;
+  await page.route("**/api/v1/me/wake-profile", async (route, request) => {
+    saves += 1;
+    expect(request.headers()["idempotency-key"]).toBeTruthy();
+    expect(request.headers()["if-match"]).toBe("0");
+    const input = request.postDataJSON();
+    expect(input.onboardingCompleted).toBe(true);
+    expect(input.excludedTaskIds).toContain("steps");
+    await json(route, { ...input, revision: 1 });
+  });
+
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Подберём безопасные задания" })).toBeVisible();
+  expect(
+    await page
+      .locator('[class*="onboarding-step-in"]')
+      .first()
+      .evaluate((element) => getComputedStyle(element).animationName),
+  ).toBe("none");
+  for (const label of ["Только лёгкое движение", "Пройтись", "Есть вода", "5 мин"]) {
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      .toBe(true);
+    await page.getByRole("button", { name: label }).click();
+    if (label !== "5 мин") await page.getByRole("button", { name: "Далее" }).click();
+  }
+  expect(saves).toBe(0);
+  await page.getByRole("button", { name: "Сохранить возможности" }).click();
+  await expect(page.getByRole("button", { name: "Начать пробуждение" })).toBeVisible();
+  expect(saves).toBe(1);
+  await expect(page.locator('[data-testid="pix-avatar"]')).toHaveCount(0);
+});
+
 test("mobile user заменяет текущий шаг с причиной и видит серверную альтернативу", async ({
   page,
 }) => {

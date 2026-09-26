@@ -1,6 +1,5 @@
 import type { WakeProfile } from "../../shared/api/client.js";
 import { ProsnixBrand } from "../brand/prosnix-brand.js";
-import { PixGuide } from "../brand/pix-guide.js";
 import { CapabilityProfileCard } from "./capability-profile-card.js";
 
 export function CapabilityOnboardingScreen({
@@ -8,16 +7,14 @@ export function CapabilityOnboardingScreen({
   saving,
   onSave,
   onCompleted,
-  showPix = false,
 }: {
   profile: WakeProfile;
   saving: boolean;
   onSave: (profile: Omit<WakeProfile, "revision">) => Promise<void>;
   onCompleted: () => void;
-  showPix?: boolean;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-8 pt-8">
+    <div className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-x-hidden overflow-y-auto px-5 pb-8 pt-8">
       <ProsnixBrand />
       <p className="mt-8 text-xs font-semibold uppercase tracking-wider text-primary">
         Первая настройка
@@ -27,17 +24,13 @@ export function CapabilityOnboardingScreen({
         Сначала укажи, что тебе подходит. Prosnix будет пробовать разные разрешённые комбинации и
         сравнивать твой результат — единого протокола для всех нет.
       </p>
-      {showPix && (
-        <div className="mb-4">
-          <PixGuide variant="onboarding" />
-        </div>
-      )}
       <CapabilityProfileCard
         profile={profile}
         saving={saving}
         onSave={onSave}
         onCompleted={onCompleted}
         initiallyEditing
+        wizard
       />
     </div>
   );

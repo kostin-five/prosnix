@@ -121,7 +121,15 @@ describe("персонализация протокола", () => {
         }),
       );
       const selected = selectPersonalizedAssignment(candidates, fullProfile, 5).assignment;
-      expect(selected.protocolVersion).toBe(8);
+      expect(selected.protocolVersion).toBe(10);
+      expect(selected.steps.length).toBeGreaterThanOrEqual(6);
+      expect(selected.steps.length).toBeLessThanOrEqual(7);
+      expect(
+        plannedProtocolSeconds(selected.steps, 5, selected.protocolVersion),
+      ).toBeGreaterThanOrEqual(270);
+      expect(
+        plannedProtocolSeconds(selected.steps, 5, selected.protocolVersion),
+      ).toBeLessThanOrEqual(330);
       expect(selected.strategyVersion).toBe("learning-v6");
       return selected.steps.map(({ taskId }) => taskId);
     });
@@ -266,8 +274,12 @@ describe("персонализация протокола", () => {
     expect(taskIds).not.toContain("squats");
     expect(taskIds).not.toContain("window");
     expect(taskIds.indexOf("sit_edge")).toBeLessThan(taskIds.indexOf("steps"));
-    expect(plannedProtocolSeconds(result.assignment.steps, 5)).toBeGreaterThanOrEqual(270);
-    expect(plannedProtocolSeconds(result.assignment.steps, 5)).toBeLessThanOrEqual(330);
+    expect(
+      plannedProtocolSeconds(result.assignment.steps, 5, result.assignment.protocolVersion),
+    ).toBeGreaterThanOrEqual(270);
+    expect(
+      plannedProtocolSeconds(result.assignment.steps, 5, result.assignment.protocolVersion),
+    ).toBeLessThanOrEqual(330);
     expect(result.assignment.comparison).toBeUndefined();
     expect(result.snapshot).toMatchObject({
       profileRevision: 3,
@@ -297,7 +309,9 @@ describe("персонализация протокола", () => {
     expect(taskIds.some((taskId) => ["steps", "shake", "water", "window"].includes(taskId))).toBe(
       true,
     );
-    expect(plannedProtocolSeconds(result.assignment.steps, 5)).toBeGreaterThanOrEqual(270);
+    expect(
+      plannedProtocolSeconds(result.assignment.steps, 5, result.assignment.protocolVersion),
+    ).toBeGreaterThanOrEqual(270);
   });
 
   it("дополняет десятиминутный протокол до семи уникальных разрешённых заданий", () => {

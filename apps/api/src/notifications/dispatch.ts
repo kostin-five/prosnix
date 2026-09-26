@@ -53,6 +53,7 @@ export async function dispatchWakeNotifications(
         const result = await gateway.send({
           kind: "wake",
           chatId: notification.telegramChatId,
+          lifeGoal: notification.lifeGoal,
           attempt: notification.attempt,
           now: new Date(),
         });

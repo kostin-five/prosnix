@@ -4,6 +4,34 @@ import type { ClaimedWakeNotification, WakeNotificationRepository } from "@awc/d
 import { dispatchWakeNotifications } from "../../src/notifications/dispatch.js";
 
 describe("notification dispatcher", () => {
+  it("передаёт жизненную цель только в выбранное утреннее уведомление", async () => {
+    const notification: ClaimedWakeNotification = {
+      deliveryId: "goal-delivery",
+      userId: "goal-owner",
+      telegramChatId: 42n,
+      lifeGoal: "Построить своё дело",
+      scheduledFor: new Date("2026-09-26T06:00:00Z"),
+      attempt: 1,
+    };
+    const gateway = {
+      send: vi.fn(async () => ({
+        status: "sent" as const,
+        telegramMessageId: 1n,
+        sentAt: new Date("2026-09-26T06:00:01Z"),
+      })),
+    };
+    await dispatchWakeNotifications(
+      {
+        claimDue: async () => ({ notifications: [notification], skipped: 0, maxLagMs: 0 }),
+        complete: async () => undefined,
+      },
+      gateway,
+    );
+    expect(gateway.send).toHaveBeenCalledWith(
+      expect.objectContaining({ chatId: 42n, lifeGoal: notification.lifeGoal }),
+    );
+  });
+
   it("respects the configured concurrency while completing the whole claimed batch", async () => {
     const notifications: ClaimedWakeNotification[] = Array.from({ length: 10 }, (_, index) => ({
       deliveryId: `delivery-${index}`,

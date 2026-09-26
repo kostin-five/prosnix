@@ -262,7 +262,11 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
         })
       ).session;
       for (const step of current.effectiveSteps ?? current.assignment.steps) {
-        const target = taskSuccessTarget(step.taskId, current.durationMinutes);
+        const target = taskSuccessTarget(
+          step.taskId,
+          current.durationMinutes,
+          current.assignment.protocolVersion,
+        );
         current = (
           await commands.execute({
             userId: user.id,

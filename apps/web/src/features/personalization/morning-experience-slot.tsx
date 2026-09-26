@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { EarlyCalibrationCard } from "./early-calibration-card.js";
 import { MorningGoalBanner } from "./morning-goal-card.js";
+import { loadLifeGoal } from "./personalization-api.js";
 import {
   handleEarlyCalibration,
   readMorningGoal,
@@ -11,7 +12,7 @@ import {
 } from "./morning-preferences.js";
 
 type MorningExperienceSlotProps =
-  | { mode: "goal"; storageScope: string }
+  | { mode: "goal"; storageScope: string; onLoaded?: (ready: boolean) => void }
   | { mode: "due"; storageScope: string; onOpenSettings: () => void }
   | {
       mode: "scheduled";
@@ -24,11 +25,31 @@ export function MorningExperienceSlot(props: MorningExperienceSlotProps) {
   const [goal, setGoal] = useState("");
   const [review, setReview] = useState<EarlyCalibrationReview | null>(null);
   const scheduledSessionNumber = props.mode === "scheduled" ? props.sessionNumber : null;
+  const onGoalLoaded = props.mode === "goal" ? props.onLoaded : undefined;
 
   useEffect(() => {
     if (props.mode !== "goal") return;
-    setGoal(readMorningGoal(props.storageScope));
-  }, [props.mode, props.storageScope]);
+    if (props.storageScope === "demo") {
+      setGoal(readMorningGoal(props.storageScope));
+      onGoalLoaded?.(true);
+      return;
+    }
+    let active = true;
+    setGoal("");
+    void loadLifeGoal()
+      .then((saved) => {
+        if (active) {
+          setGoal(saved.text);
+          onGoalLoaded?.(true);
+        }
+      })
+      .catch(() => {
+        if (active) onGoalLoaded?.(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [props.mode, props.storageScope, onGoalLoaded]);
 
   useEffect(() => {
     if (props.mode !== "due") return;

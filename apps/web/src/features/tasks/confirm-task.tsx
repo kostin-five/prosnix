@@ -110,6 +110,50 @@ const TEN_MINUTE_OVERRIDES: Partial<Record<ConfirmTaskId, (typeof CONFIG)[Confir
   },
 };
 
+const COMPACT_FIVE_MINUTE_OVERRIDES: Partial<
+  Record<ConfirmTaskId, (typeof CONFIG)[ConfirmTaskId]>
+> = {
+  steps: {
+    instruction:
+      "Пройдись по комнате или коридору 40 секунд в спокойном темпе. Отметь выполнение после таймера.",
+    countdown: 40,
+    cta: "Прошёл",
+  },
+  squats: {
+    instruction: "Сделай до 8 спокойных приседаний. Остановись, если движение некомфортно.",
+    countdown: 35,
+    cta: "Сделал",
+  },
+  shake: {
+    instruction: "Мягко разминай руки, плечи и шею 30 секунд, без резких движений.",
+    countdown: 30,
+    cta: "Готово",
+  },
+  water: {
+    instruction: "Налей воду и сделай несколько глотков в удобном темпе.",
+    countdown: 25,
+    cta: "Выпил",
+  },
+  window: {
+    instruction:
+      "Открой шторы или включи яркий свет и побудь при нём 45 секунд. Не смотри прямо на солнце.",
+    countdown: 45,
+    cta: "Готово",
+  },
+  cool_wash: {
+    instruction:
+      "Умой лицо комфортно прохладной водой. Не спеши: подтвердить можно через 30 секунд.",
+    countdown: 30,
+    cta: "Умылся",
+  },
+  pushups: {
+    instruction:
+      "Сделай несколько отжиманий под свой уровень от пола или с колен. Остановись при дискомфорте.",
+    countdown: 35,
+    cta: "Сделал",
+  },
+};
+
 const CATEGORY: Record<ConfirmTaskId, "movement" | "behavioral" | "environment"> = {
   steps: "movement",
   squats: "movement",
@@ -140,18 +184,22 @@ export interface ConfirmTaskResult {
 export function ConfirmTask({
   taskId,
   durationMinutes,
+  protocolVersion = 8,
   onDone,
   soundMode = "off",
 }: {
   taskId: ConfirmTaskId;
   durationMinutes: WakeDurationMinutes;
+  protocolVersion?: number;
   onDone: (result: ConfirmTaskResult) => void;
   soundMode?: WakeSoundMode;
 }) {
   const cfg =
-    durationMinutes === 10 && TEN_MINUTE_OVERRIDES[taskId]
-      ? TEN_MINUTE_OVERRIDES[taskId]!
-      : CONFIG[taskId];
+    durationMinutes === 5 && protocolVersion >= 10 && COMPACT_FIVE_MINUTE_OVERRIDES[taskId]
+      ? COMPACT_FIVE_MINUTE_OVERRIDES[taskId]!
+      : durationMinutes === 10 && TEN_MINUTE_OVERRIDES[taskId]
+        ? TEN_MINUTE_OVERRIDES[taskId]!
+        : CONFIG[taskId];
   const [started, setStarted] = useState(false);
   const [remaining, setRemaining] = useState(cfg.countdown);
   const [done, setDone] = useState(false);
@@ -181,7 +229,7 @@ export function ConfirmTask({
 
   if (done) {
     return (
-      <div className="flex flex-col items-center gap-6">
+      <div className="flex flex-col items-center gap-3">
         <div className="flex h-20 w-20 items-center justify-center rounded-full border border-green-500/30 bg-green-500/20">
           <Check className="h-10 w-10 text-green-400" strokeWidth={2.5} />
         </div>
@@ -191,11 +239,11 @@ export function ConfirmTask({
   }
 
   return (
-    <div className="grid min-h-[320px] grid-rows-[64px_minmax(160px,1fr)_64px] gap-4">
+    <div className="flex min-h-full flex-col gap-2">
       <p className="self-center text-center text-sm leading-relaxed text-muted-foreground">
         {cfg.instruction}
       </p>
-      <div className="grid min-h-40 place-items-center">
+      <div className="flex min-h-40 flex-1 items-center justify-center">
         {cfg.countdown > 0 && started ? (
           <Suspense
             fallback={
@@ -219,7 +267,7 @@ export function ConfirmTask({
             startedAt.current = Date.now();
             signalStart(soundMode);
           }}
-          className="w-full rounded-2xl py-4 text-lg font-bold text-white transition-transform active:scale-[0.98]"
+          className="min-h-12 w-full shrink-0 rounded-2xl py-3 text-base font-bold text-white transition-transform active:scale-[0.98]"
           style={{
             background: "linear-gradient(135deg,#F97316,#EA580C)",
             boxShadow: "0 8px 32px rgba(249,115,22,.25)",
@@ -231,7 +279,7 @@ export function ConfirmTask({
         <button
           onClick={confirm}
           disabled={cfg.countdown > 0 && remaining > 0}
-          className={`w-full rounded-2xl py-4 text-lg font-bold transition-all ${cfg.countdown > 0 && remaining > 0 ? "bg-secondary text-muted-foreground" : "text-white active:scale-[0.98]"}`}
+          className={`min-h-12 w-full shrink-0 rounded-2xl py-3 text-base font-bold transition-all ${cfg.countdown > 0 && remaining > 0 ? "bg-secondary text-muted-foreground" : "text-white active:scale-[0.98]"}`}
           style={
             cfg.countdown === 0 || remaining === 0
               ? {

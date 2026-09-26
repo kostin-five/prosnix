@@ -109,7 +109,11 @@ export function acceptTaskResult(session: WakeSession, command: TaskResultComman
     throw new SessionCommandError("invalid_task_result", "Task result values are invalid");
   }
   if (session.assignment.protocolVersion >= STRICT_TASK_PROTOCOL_VERSION) {
-    const target = taskSuccessTarget(command.taskId, session.durationMinutes);
+    const target = taskSuccessTarget(
+      command.taskId,
+      session.durationMinutes,
+      session.assignment.protocolVersion,
+    );
     if (command.correct < target) {
       throw new SessionCommandError(
         "invalid_task_result",

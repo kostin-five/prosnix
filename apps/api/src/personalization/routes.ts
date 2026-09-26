@@ -1,9 +1,11 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   WakeProfileInputSchema,
+  LifeGoalInputSchema,
   WakeRoutineInputSchema,
   WakeRoutineProgressInputSchema,
   type WakeProfileInput,
+  type LifeGoalInput,
   type WakeRoutineInput,
   type WakeRoutineProgressInput,
 } from "@awc/contracts";
@@ -38,6 +40,37 @@ export async function registerPersonalizationRoutes(
 ): Promise<void> {
   const now = options.now ?? (() => new Date());
   const owner = (request: FastifyRequest) => authenticatedUserId(request, options.config, now());
+
+  app.get("/api/v1/me/life-goal", async (request, reply) => {
+    const userId = owner(request);
+    if (!userId) return reply.status(401).send({ code: "authentication_required" });
+    return options.repository.loadLifeGoal(userId);
+  });
+  app.put<{ Body: LifeGoalInput }>(
+    "/api/v1/me/life-goal",
+    { schema: { body: LifeGoalInputSchema } },
+    async (request, reply) => {
+      const userId = owner(request);
+      if (!userId) return reply.status(401).send({ code: "authentication_required" });
+      const key = operationId(request);
+      const expectedRevision = revision(request);
+      if (!key) return reply.status(400).send({ code: "idempotency_key_required" });
+      if (expectedRevision === null)
+        return reply.status(400).send({ code: "expected_version_required" });
+      const text = request.body.text.replace(/\s+/g, " ").trim();
+      try {
+        return await options.repository.saveLifeGoal({
+          userId,
+          expectedRevision,
+          operationId: key,
+          text,
+          now: now(),
+        });
+      } catch (error) {
+        return conflict(error, reply);
+      }
+    },
+  );
 
   app.get("/api/v1/me/wake-profile", async (request, reply) => {
     const userId = owner(request);

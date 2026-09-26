@@ -44,6 +44,16 @@ export function saveWakeProfile(
   return save("/api/v1/me/wake-profile", profile, revision);
 }
 
+export type LifeGoal = { text: string; revision: number };
+
+export async function loadLifeGoal(): Promise<LifeGoal> {
+  return expectJson<LifeGoal>(await fetch("/api/v1/me/life-goal", { credentials: "same-origin" }));
+}
+
+export function saveLifeGoal(text: string, revision: number): Promise<LifeGoal> {
+  return save("/api/v1/me/life-goal", { text }, revision);
+}
+
 export function saveWakeRoutine(
   routine: Omit<WakeRoutine, "revision">,
   revision: number,

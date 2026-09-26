@@ -82,14 +82,19 @@ describe("утренний вход и компактный shell", () => {
     });
 
     expect(container.textContent).not.toContain("Почему этот протокол");
-    expect(container.textContent).toContain("Дальше");
+    expect(container.textContent).toContain("Следующий шаг:");
     expect(container.textContent).toContain("Стакан воды");
+    expect(
+      [...container.querySelectorAll("button")].some((button) =>
+        button.textContent?.includes("Следующий шаг"),
+      ),
+    ).toBe(false);
     expect(container.textContent).toContain("осталось");
     expect(container.querySelector('[role="dialog"]')).toBeNull();
     expect(container.querySelector('[data-testid="task-experience-shell"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="task-motion-region"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="task-motion-region"]')).toBeNull();
     expect(container.querySelector('[data-testid="task-interaction-region"]')).not.toBeNull();
-    expect(container.textContent).toContain("Переход произойдёт после подтверждения");
+    expect(container.querySelector('[data-testid="task-submit-region"]')).toBeNull();
 
     const protocolButton = [...container.querySelectorAll("button")].find(
       (button) => button.textContent?.trim() === "Протокол",

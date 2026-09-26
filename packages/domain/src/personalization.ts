@@ -9,7 +9,7 @@ import type {
   WakePersonalizationSnapshot,
   WakeContext,
 } from "./model.js";
-import { estimatedTaskSeconds } from "./task-policy.js";
+import { COMPACT_FIVE_MINUTE_PROTOCOL_VERSION, estimatedTaskSeconds } from "./task-policy.js";
 
 export const SAFE_WAKE_PROFILE: WakeCapabilityProfile = {
   movementLevel: "none",
@@ -200,6 +200,7 @@ export function selectTaskSubstitution(input: {
   rejectedTaskIds: readonly TaskId[];
   profile: WakeCapabilityProfile;
   durationMinutes: WakeDurationMinutes;
+  protocolVersion?: number;
   comparisonFactorKey?: string;
   catalog?: WakeTaskCatalogOptions;
   reason: TaskSubstitutionReason;
@@ -220,8 +221,16 @@ export function selectTaskSubstitution(input: {
     ...input.steps.map(({ taskId }) => taskId),
   ]);
   unavailable.delete(target.taskId);
-  const originalSeconds = estimatedTaskSeconds(target.taskId, input.durationMinutes);
-  const plannedSeconds = plannedProtocolSeconds(input.steps, input.durationMinutes);
+  const originalSeconds = estimatedTaskSeconds(
+    target.taskId,
+    input.durationMinutes,
+    input.protocolVersion,
+  );
+  const plannedSeconds = plannedProtocolSeconds(
+    input.steps,
+    input.durationMinutes,
+    input.protocolVersion,
+  );
   const maximumSeconds = input.durationMinutes * 60 * 1.1;
   const originalFactor = factorPresence(target.taskId, input.comparisonFactorKey);
 
@@ -230,7 +239,9 @@ export function selectTaskSubstitution(input: {
     .filter((taskId) => keepsSafeOrder(input.steps, input.targetIndex, taskId))
     .filter(
       (taskId) =>
-        plannedSeconds - originalSeconds + estimatedTaskSeconds(taskId, input.durationMinutes) <=
+        plannedSeconds -
+          originalSeconds +
+          estimatedTaskSeconds(taskId, input.durationMinutes, input.protocolVersion) <=
         maximumSeconds,
     )
     .map((taskId, order) => {
@@ -244,7 +255,8 @@ export function selectTaskSubstitution(input: {
         preservesComparison,
         sameCategory: categoryForTask(taskId) === target.category,
         durationDistance: Math.abs(
-          estimatedTaskSeconds(taskId, input.durationMinutes) - originalSeconds,
+          estimatedTaskSeconds(taskId, input.durationMinutes, input.protocolVersion) -
+            originalSeconds,
         ),
       };
     })
@@ -337,9 +349,10 @@ function withStandingTransition(steps: readonly ProtocolStep[]): ProtocolStep[] 
 export function plannedProtocolSeconds(
   steps: readonly ProtocolStep[],
   durationMinutes: WakeDurationMinutes,
+  protocolVersion = 8,
 ): number {
   return steps.reduce(
-    (total, { taskId }) => total + estimatedTaskSeconds(taskId, durationMinutes),
+    (total, { taskId }) => total + estimatedTaskSeconds(taskId, durationMinutes, protocolVersion),
     0,
   );
 }
@@ -351,6 +364,8 @@ function planForDuration(
   rotationSeed = 0,
   options: WakeTaskCatalogOptions = {},
 ): { steps: ProtocolStep[]; belowMinimum: boolean } {
+  const protocolVersion = durationMinutes === 5 ? COMPACT_FIVE_MINUTE_PROTOCOL_VERSION : 8;
+  const maximumSteps = durationMinutes === 5 ? 7 : Number.POSITIVE_INFINITY;
   const minimumSeconds = durationMinutes * 60 * 0.9;
   const maximumSeconds = durationMinutes * 60 * 1.1;
   let selected: ProtocolStep[] = [];
@@ -377,14 +392,22 @@ function planForDuration(
         { index: selected.length, taskId: warmup, category: "movement" },
         step,
       ]);
-      if (plannedProtocolSeconds(candidate, durationMinutes) > maximumSeconds) return false;
+      if (
+        candidate.length > maximumSteps ||
+        plannedProtocolSeconds(candidate, durationMinutes, protocolVersion) > maximumSeconds
+      )
+        return false;
       selected = candidate;
       used.add(warmup);
       used.add(step.taskId);
       return true;
     }
     const candidate = withStandingTransition([...selected, step]);
-    if (plannedProtocolSeconds(candidate, durationMinutes) > maximumSeconds) return false;
+    if (
+      candidate.length > maximumSteps ||
+      plannedProtocolSeconds(candidate, durationMinutes, protocolVersion) > maximumSeconds
+    )
+      return false;
     selected = candidate;
     used.add(step.taskId);
     return true;
@@ -395,14 +418,15 @@ function planForDuration(
   const rotation = rotationSeed % catalogOrder.length;
   const expansionOrder = [...catalogOrder.slice(rotation), ...catalogOrder.slice(0, rotation)];
   for (const taskId of expansionOrder) {
-    if (plannedProtocolSeconds(selected, durationMinutes) >= minimumSeconds) break;
+    if (plannedProtocolSeconds(selected, durationMinutes, protocolVersion) >= minimumSeconds) break;
     tryAppend({ index: selected.length, taskId, category: categoryForTask(taskId) });
   }
 
   selected = withStandingTransition(selected);
   return {
     steps: selected,
-    belowMinimum: plannedProtocolSeconds(selected, durationMinutes) < minimumSeconds,
+    belowMinimum:
+      plannedProtocolSeconds(selected, durationMinutes, protocolVersion) < minimumSeconds,
   };
 }
 
@@ -489,7 +513,10 @@ export function personalizeAssignment(
   return {
     assignment: {
       ...baseAssignment,
-      protocolVersion: Math.max(options.v9Enabled ? 9 : 8, assignment.protocolVersion),
+      protocolVersion: Math.max(
+        durationMinutes === 5 ? COMPACT_FIVE_MINUTE_PROTOCOL_VERSION : options.v9Enabled ? 9 : 8,
+        assignment.protocolVersion,
+      ),
       protocolKey: `${assignment.protocolKey}:${durationMinutes}m:${suffix}`,
       steps,
       ...(preserveComparison ? { comparison } : {}),

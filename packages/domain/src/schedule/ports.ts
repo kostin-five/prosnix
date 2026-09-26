@@ -28,6 +28,7 @@ export interface ClaimedWakeNotification {
   deliveryId: string;
   userId: string;
   telegramChatId: bigint;
+  lifeGoal?: string | undefined;
   scheduledFor: Date;
   attempt: number;
 }

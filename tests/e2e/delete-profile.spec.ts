@@ -69,28 +69,33 @@ test("пользователь подтверждает удаление и на
       }),
     }),
   );
-  await page.route("**/api/v1/me", (route) => route.fulfill({ status: 204 }));
+  let lifeGoal = { text: "", revision: 0 };
+  await page.route("**/api/v1/me/life-goal", (route) => {
+    if (route.request().method() === "PUT") {
+      const body = route.request().postDataJSON() as { text: string };
+      lifeGoal = { text: body.text, revision: lifeGoal.revision + 1 };
+    }
+    return route.fulfill({ json: lifeGoal });
+  });
+  await page.route("**/api/v1/me", (route) => {
+    lifeGoal = { text: "", revision: 0 };
+    return route.fulfill({ status: 204 });
+  });
 
   await page.goto("/");
   await page.getByRole("button", { name: "Настройки" }).click();
   await page.getByRole("button", { name: "Добавить цель" }).click();
-  await page.getByLabel("Моя причина встать утром").fill("Личная цель для удаления");
+  await page.getByLabel("Моя жизненная цель").fill("Личная цель для удаления");
   await page.getByRole("button", { name: "Сохранить", exact: true }).last().click();
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        Object.keys(window.localStorage).some((key) =>
-          key.startsWith("prosnix.morning-preferences.v1:"),
-        ),
-      ),
-    )
-    .toBe(true);
+  await expect(page.getByText("Личная цель для удаления")).toBeVisible();
+  expect(lifeGoal.text).toBe("Личная цель для удаления");
   await page.getByRole("button", { name: "Удалить мой профиль" }).click();
   const deletion = page.waitForRequest(
     (request) => request.url().includes("/api/v1/me") && request.method() === "DELETE",
   );
   await page.getByRole("button", { name: "Да, удалить всё" }).click();
   await deletion;
+  expect(lifeGoal.text).toBe("");
   await expect(page.getByRole("heading", { name: "Prosnix" })).toBeVisible();
   await expect(page.getByText(/0 из 7 экспериментов/)).toBeVisible();
   await expect

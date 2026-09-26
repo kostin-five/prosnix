@@ -11,3 +11,4 @@ pnpm-lock.yaml
 apps/web/src/app/components/
 apps/web/src/imports/
 packages/db/migrations/meta/
+artifacts/presentations/.moscow-build/

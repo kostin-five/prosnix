@@ -310,6 +310,22 @@ export const wakeCapabilityProfiles = pgTable(
   ],
 );
 
+export const userLifeGoals = pgTable(
+  "user_life_goals",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    text: text().notNull().default(""),
+    revision: integer().notNull().default(1),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("user_life_goals_revision_positive", sql`${table.revision} > 0`),
+    check("user_life_goals_text_length", sql`char_length(${table.text}) <= 120`),
+  ],
+);
+
 export const wakeRoutines = pgTable(
   "wake_routines",
   {

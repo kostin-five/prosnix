@@ -146,6 +146,35 @@ describe("wake session transitions", () => {
     ).toBe(1);
   });
 
+  it("требует четыре успеха только в новой пятиминутной версии", () => {
+    const session = acceptBaseline(
+      { ...assignedSession(), assignment: { ...assignment, protocolVersion: 10 } },
+      { expectedVersion: 1, value: 3, observedAt: "2026-09-26T04:00:00.000Z" },
+    );
+    expect(() =>
+      acceptTaskResult(session, {
+        expectedVersion: 2,
+        stepIndex: 0,
+        taskId: "math",
+        correct: 3,
+        total: 3,
+        durationMs: 30_000,
+        observedAt: "2026-09-26T04:00:30.000Z",
+      }),
+    ).toThrowError(/4 successful/i);
+    expect(
+      acceptTaskResult(session, {
+        expectedVersion: 2,
+        stepIndex: 0,
+        taskId: "math",
+        correct: 4,
+        total: 4,
+        durationMs: 40_000,
+        observedAt: "2026-09-26T04:00:40.000Z",
+      }).currentStepIndex,
+    ).toBe(1);
+  });
+
   it("завершает сохранённый световой шаг curtains старого протокола", () => {
     const session = acceptBaseline(
       {

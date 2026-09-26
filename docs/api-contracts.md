@@ -34,6 +34,12 @@
 
 Auth ограничен отдельным per-IP rate limit. Browser не передаёт Telegram user ID как identity.
 
+Жизненная цель доступна отдельно через `GET /api/v1/me/life-goal` → `{ text, revision }` и
+`PUT /api/v1/me/life-goal` с телом `{ text }`, `Idempotency-Key` и `If-Match` (начальная версия 0).
+Текст до 120 символов, сервер убирает лишние пробелы; пустой текст удаляет цель из будущих
+уведомлений. Доступ разрешён только владельцу через cookie. Локальная цель автоматически не
+загружается.
+
 ## Wake-сессии
 
 | Метод | Маршрут                                          | Дополнительные требования                      |
@@ -154,6 +160,8 @@ cron-job.org не получает DB credentials или bot token.
 | ----- | ------------------------------ | ---------------------------------------------- |
 | GET   | `/api/v1/me/wake-profile`      | текущие возможности и ограничения              |
 | PUT   | `/api/v1/me/wake-profile`      | профиль; `Idempotency-Key`, `If-Match`         |
+| GET   | `/api/v1/me/life-goal`         | сохранённая жизненная цель и revision          |
+| PUT   | `/api/v1/me/life-goal`         | текст до 120 символов; idempotency, `If-Match` |
 | GET   | `/api/v1/me/wake-routine`      | текущая личная рутина                          |
 | PUT   | `/api/v1/me/wake-routine`      | максимум пять пунктов; idempotency, `If-Match` |
 | GET   | `/api/v1/sessions/:id/routine` | сохранённый прогресс рутины завершённой сессии |

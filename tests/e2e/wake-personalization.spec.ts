@@ -6,6 +6,7 @@ test("пользователь настраивает возможности, к
 
   await page.getByRole("button", { name: "Настройки" }).click();
   await expect(page.getByRole("heading", { name: "Настройки" })).toBeVisible();
+  await expect(page.getByText(/персональном отчёте/i)).toHaveCount(0);
   await page
     .locator("section")
     .filter({ has: page.getByRole("heading", { name: "Что тебе подходит" }) })
@@ -31,7 +32,7 @@ test("пользователь настраивает возможности, к
   await page.getByRole("button", { name: "Сохранить рутину" }).click();
 
   await page.getByRole("button", { name: "Добавить цель" }).click();
-  const goalInput = page.getByLabel("Моя причина встать утром");
+  const goalInput = page.getByLabel("Моя жизненная цель");
   await expect(goalInput).toHaveAttribute("enterkeyhint", "done");
   await expect(goalInput).toHaveAttribute("maxlength", "120");
   await goalInput.fill("Закончить важный проект");

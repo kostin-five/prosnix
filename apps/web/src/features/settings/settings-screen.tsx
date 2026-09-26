@@ -1,4 +1,4 @@
-import { ExternalLink, LockKeyhole, Settings2, Sparkles } from "lucide-react";
+import { ExternalLink, LockKeyhole, Settings2 } from "lucide-react";
 
 import { DeleteProfile } from "../profile/delete-profile.js";
 import type { WakeSchedule } from "../schedule/schedule-api.js";
@@ -70,18 +70,6 @@ export default function SettingsScreen({
       />
 
       {!demo && <ProCard />}
-
-      <section className="mb-4 rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-accent" />
-          <p className="text-sm font-semibold">Персональный отчёт</p>
-        </div>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          Он по твоему запросу ищет устойчивость результата, сравнивает доступные протоколы и
-          предлагает следующий эксперимент. Отчёт не меняет оценки и не управляет протоколом.
-          Бесплатно создаётся один новый отчёт в день; повторное открытие показывает сохранённый.
-        </p>
-      </section>
 
       <section className="rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center gap-2">

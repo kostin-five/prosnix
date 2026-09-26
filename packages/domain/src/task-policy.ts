@@ -1,6 +1,7 @@
 import type { TaskId, WakeDurationMinutes } from "./model.js";
 
 export const STRICT_TASK_PROTOCOL_VERSION = 3;
+export const COMPACT_FIVE_MINUTE_PROTOCOL_VERSION = 10;
 
 const BASE_ESTIMATED_SECONDS: Record<TaskId, number> = {
   math: 60,
@@ -34,7 +35,31 @@ const TEN_MINUTE_ESTIMATED_SECONDS: Record<TaskId, number> = {
   pushups: 30,
 };
 
-export function taskSuccessTarget(taskId: TaskId, durationMinutes: WakeDurationMinutes): number {
+const COMPACT_FIVE_MINUTE_ESTIMATED_SECONDS: Record<TaskId, number> = {
+  math: 70,
+  memory: 70,
+  stroop: 60,
+  reaction: 50,
+  steps: 45,
+  squats: 45,
+  shake: 35,
+  water: 50,
+  window: 50,
+  curtains: 30,
+  sit_edge: 10,
+  cool_wash: 40,
+  pushups: 40,
+};
+
+export function taskSuccessTarget(
+  taskId: TaskId,
+  durationMinutes: WakeDurationMinutes,
+  protocolVersion = 8,
+): number {
+  if (durationMinutes === 5 && protocolVersion >= COMPACT_FIVE_MINUTE_PROTOCOL_VERSION) {
+    if (taskId === "memory") return 3;
+    if (taskId === "math" || taskId === "stroop" || taskId === "reaction") return 4;
+  }
   if (taskId === "memory") return durationMinutes === 10 ? 3 : 2;
   if (taskId === "math" || taskId === "stroop" || taskId === "reaction") {
     return durationMinutes === 10 ? 5 : 3;
@@ -42,7 +67,14 @@ export function taskSuccessTarget(taskId: TaskId, durationMinutes: WakeDurationM
   return 1;
 }
 
-export function estimatedTaskSeconds(taskId: TaskId, durationMinutes: WakeDurationMinutes): number {
+export function estimatedTaskSeconds(
+  taskId: TaskId,
+  durationMinutes: WakeDurationMinutes,
+  protocolVersion = 8,
+): number {
+  if (durationMinutes === 5 && protocolVersion >= COMPACT_FIVE_MINUTE_PROTOCOL_VERSION) {
+    return COMPACT_FIVE_MINUTE_ESTIMATED_SECONDS[taskId];
+  }
   return durationMinutes === 10
     ? TEN_MINUTE_ESTIMATED_SECONDS[taskId]
     : BASE_ESTIMATED_SECONDS[taskId];

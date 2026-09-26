@@ -8,7 +8,13 @@ import {
   type WakeScheduleRepository,
   type WakeScheduleValue,
 } from "@awc/domain";
-import { idempotencyRecords, notificationDeliveries, users, wakeSchedules } from "../schema.js";
+import {
+  idempotencyRecords,
+  notificationDeliveries,
+  userLifeGoals,
+  users,
+  wakeSchedules,
+} from "../schema.js";
 import type { Database } from "./types.js";
 
 function mapSchedule(row: typeof wakeSchedules.$inferSelect): WakeScheduleValue {
@@ -149,9 +155,14 @@ export class PostgresWakeNotificationRepository implements WakeNotificationRepos
       let skipped = 0;
       let maxLagMs = 0;
       const dueSchedules = await db
-        .select({ schedule: wakeSchedules, telegramChatId: users.telegramUserId })
+        .select({
+          schedule: wakeSchedules,
+          telegramChatId: users.telegramUserId,
+          lifeGoal: userLifeGoals.text,
+        })
         .from(wakeSchedules)
         .innerJoin(users, eq(users.id, wakeSchedules.userId))
+        .leftJoin(userLifeGoals, eq(userLifeGoals.userId, wakeSchedules.userId))
         .where(and(eq(wakeSchedules.enabled, true), lte(wakeSchedules.nextTriggerAt, now)))
         .orderBy(asc(wakeSchedules.nextTriggerAt))
         .limit(limit);
@@ -196,6 +207,7 @@ export class PostgresWakeNotificationRepository implements WakeNotificationRepos
             deliveryId: delivery.id,
             userId: due.schedule.userId,
             telegramChatId: due.telegramChatId,
+            lifeGoal: due.lifeGoal ?? undefined,
             scheduledFor,
             attempt: 1,
           });
@@ -214,9 +226,11 @@ export class PostgresWakeNotificationRepository implements WakeNotificationRepos
           attempts: notificationDeliveries.attempts,
           retryAt: notificationDeliveries.retryAt,
           telegramChatId: users.telegramUserId,
+          lifeGoal: userLifeGoals.text,
         })
         .from(notificationDeliveries)
         .innerJoin(users, eq(users.id, notificationDeliveries.scheduleUserId))
+        .leftJoin(userLifeGoals, eq(userLifeGoals.userId, notificationDeliveries.scheduleUserId))
         .where(
           and(
             eq(notificationDeliveries.status, "retry_wait"),
@@ -250,6 +264,7 @@ export class PostgresWakeNotificationRepository implements WakeNotificationRepos
             deliveryId: retry.id,
             userId: retry.userId,
             telegramChatId: retry.telegramChatId,
+            lifeGoal: retry.lifeGoal ?? undefined,
             scheduledFor: retry.scheduledFor,
             attempt: retry.attempts + 1,
           });

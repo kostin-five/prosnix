@@ -18,7 +18,11 @@ function memoryPersonalization(): WakePersonalizationRepository {
     revision: 0,
   };
   let routine: WakeRoutine = { enabled: false, items: [], revision: 0 };
+  let lifeGoal = { text: "", revision: 0 };
   return {
+    loadLifeGoal: async () => lifeGoal,
+    saveLifeGoal: async (input) =>
+      (lifeGoal = { text: input.text, revision: input.expectedRevision + 1 }),
     loadProfile: async () => profile,
     saveProfile: async (input) =>
       (profile = { ...input.profile, revision: input.expectedRevision + 1 }),
@@ -48,6 +52,19 @@ describe("контракт персонализации", () => {
       401,
     );
     const cookie = await authenticateTestUser(app);
+    const goal = await app.inject({
+      method: "PUT",
+      url: "/api/v1/me/life-goal",
+      headers: { cookie, "idempotency-key": "goal-contract-1", "if-match": "0" },
+      payload: { text: "  Построить своё дело  " },
+    });
+    expect(goal.statusCode).toBe(200);
+    expect(goal.json()).toEqual({ text: "Построить своё дело", revision: 1 });
+    expect(
+      (
+        await app.inject({ method: "GET", url: "/api/v1/me/life-goal", headers: { cookie } })
+      ).json(),
+    ).toEqual(goal.json());
     const profile = await app.inject({
       method: "PUT",
       url: "/api/v1/me/wake-profile",
@@ -85,6 +102,17 @@ describe("контракт персонализации", () => {
       now: () => testNow,
     });
     const cookie = await authenticateTestUser(app);
+    expect((await app.inject({ method: "GET", url: "/api/v1/me/life-goal" })).statusCode).toBe(401);
+    expect(
+      (
+        await app.inject({
+          method: "PUT",
+          url: "/api/v1/me/life-goal",
+          headers: { cookie, "if-match": "0" },
+          payload: { text: "Цель" },
+        })
+      ).statusCode,
+    ).toBe(400);
     const invalid = await app.inject({
       method: "PUT",
       url: "/api/v1/me/wake-profile",

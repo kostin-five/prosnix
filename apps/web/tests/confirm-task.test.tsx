@@ -82,6 +82,30 @@ describe("подтверждаемые задания с таймером", () =
     expect(confirm?.disabled).toBe(false);
   });
 
+  it("в новой пятиминутной версии увеличивает время действия", async () => {
+    const onDone = vi.fn();
+    act(() =>
+      root.render(
+        <ConfirmTask taskId="water" durationMinutes={5} protocolVersion={10} onDone={onDone} />,
+      ),
+    );
+    act(() => {
+      [...container.querySelectorAll<HTMLButtonElement>("button")]
+        .find((item) => item.textContent?.trim() === "Начать")
+        ?.click();
+    });
+    expect(container.textContent).toContain("25");
+    for (let second = 0; second < 24; second += 1) {
+      await act(async () => vi.advanceTimersByTimeAsync(1_000));
+    }
+    const confirm = [...container.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
+      item.textContent?.includes("Выпил"),
+    );
+    expect(confirm?.disabled).toBe(true);
+    await act(async () => vi.advanceTimersByTimeAsync(1_000));
+    expect(confirm?.disabled).toBe(false);
+  });
+
   it.each([
     ["cool_wash", 20, "Умылся"],
     ["pushups", 25, "Сделал"],

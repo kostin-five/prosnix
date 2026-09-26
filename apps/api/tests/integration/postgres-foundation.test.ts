@@ -82,7 +82,11 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL фундаме
       })
     ).session;
     const firstStep = current.assignment.steps[0]!;
-    const firstStepTarget = taskSuccessTarget(firstStep.taskId, current.durationMinutes);
+    const firstStepTarget = taskSuccessTarget(
+      firstStep.taskId,
+      current.durationMinutes,
+      current.assignment.protocolVersion,
+    );
     current = (
       await commands.execute({
         userId: user.id,
@@ -117,7 +121,11 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL фундаме
 
     const resumedCommands = new PostgresSessionCommandRepository(database.db);
     for (const step of current.assignment.steps.slice(1)) {
-      const target = taskSuccessTarget(step.taskId, current.durationMinutes);
+      const target = taskSuccessTarget(
+        step.taskId,
+        current.durationMinutes,
+        current.assignment.protocolVersion,
+      );
       current = (
         await resumedCommands.execute({
           userId: user.id,
