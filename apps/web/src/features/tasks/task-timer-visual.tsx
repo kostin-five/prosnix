@@ -14,12 +14,6 @@ export function TaskTimerVisual({
   const progress = total <= 0 ? 1 : Math.min(1, Math.max(0, (total - remaining) / total));
   const circumference = 2 * Math.PI * 54;
   const lightTask = taskId === "window" || taskId === "curtains";
-  const movementTask =
-    taskId === "steps" ||
-    taskId === "squats" ||
-    taskId === "shake" ||
-    taskId === "sit_edge" ||
-    taskId === "pushups";
 
   return (
     <div
@@ -32,12 +26,6 @@ export function TaskTimerVisual({
         <div
           data-testid="task-timer-light"
           className="absolute inset-4 rounded-full bg-amber-400/15 blur-xl motion-safe:animate-pulse"
-          aria-hidden="true"
-        />
-      )}
-      {movementTask && (
-        <div
-          className="absolute inset-7 rounded-full border border-primary/30 motion-safe:animate-ping"
           aria-hidden="true"
         />
       )}

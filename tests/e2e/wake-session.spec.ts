@@ -183,6 +183,25 @@ test("полный wake-up цикл подтверждается серверо�
   await page.getByRole("button", { name: "3", exact: true }).click();
   await page.getByRole("button", { name: "Начать протокол →" }).click();
   await expect(page.getByRole("heading", { name: "Яркий свет" })).toBeVisible();
+  const headerAlignment = await page.evaluate(() => {
+    const buttons = [...document.querySelectorAll("button")];
+    const protocol = buttons.find((button) => button.textContent?.trim() === "Протокол");
+    const sound = buttons.find((button) => button.getAttribute("aria-label") === "Включить звук");
+    return {
+      protocolCenter: protocol
+        ? protocol.getBoundingClientRect().top + protocol.getBoundingClientRect().height / 2
+        : undefined,
+      soundCenter: sound
+        ? sound.getBoundingClientRect().top + sound.getBoundingClientRect().height / 2
+        : undefined,
+      shellHeight: document
+        .querySelector('[data-testid="task-experience-shell"]')
+        ?.getBoundingClientRect().height,
+    };
+  });
+  expect(headerAlignment.protocolCenter).toBeDefined();
+  expect(headerAlignment.soundCenter).toBe(headerAlignment.protocolCenter);
+  expect(headerAlignment.shellHeight).toBeLessThan(550);
   const taskLayout = await page
     .getByRole("button", { name: "Начать", exact: true })
     .evaluate((button) => {

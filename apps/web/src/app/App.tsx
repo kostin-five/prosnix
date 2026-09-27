@@ -65,7 +65,8 @@ const GOAL_CALIBRATION_ENABLED = import.meta.env.VITE_GOAL_CALIBRATION_ENABLED !
 const GUIDED_TASK_EXPERIENCE_ENABLED =
   import.meta.env.VITE_GUIDED_TASK_EXPERIENCE_ENABLED !== "false";
 const WAKE_TASK_SUBSTITUTION_ENABLED =
-  import.meta.env.VITE_WAKE_TASK_SUBSTITUTION_ENABLED === "true";
+  import.meta.env.VITE_WAKE_TASK_SUBSTITUTION_ENABLED === "true" ||
+  (import.meta.env.DEV && import.meta.env.VITE_WAKE_TASK_SUBSTITUTION_ENABLED !== "false");
 
 const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
 const StartRatingScreen = lazy(async () => ({
@@ -1034,6 +1035,30 @@ export function TasksContainer({
 }) {
   const [protocolOpen, setProtocolOpen] = useState(false);
   const [replacementTarget, setReplacementTarget] = useState<number | null>(null);
+  useEffect(() => {
+    if (soundMode !== "on") return;
+    let active = true;
+    void import("../features/tasks/task-experience-feedback.js").then(
+      ({ startWakeProtocolSound, stopWakeProtocolSound }) => {
+        if (!active) return;
+        startWakeProtocolSound();
+        const onVisibilityChange = () => {
+          if (document.visibilityState === "hidden") stopWakeProtocolSound();
+          else startWakeProtocolSound();
+        };
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        cleanup = () => {
+          document.removeEventListener("visibilitychange", onVisibilityChange);
+          stopWakeProtocolSound();
+        };
+      },
+    );
+    let cleanup = () => undefined;
+    return () => {
+      active = false;
+      cleanup();
+    };
+  }, [soundMode]);
   const id = taskIds[taskIndex];
   const nextId = taskIds[taskIndex + 1];
   const meta = TASK_META[id];
@@ -1063,21 +1088,10 @@ export function TasksContainer({
     >
       <div className="mb-3">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">
+          <span className="min-w-0 text-[11px] text-muted-foreground">
             Шаг {taskIndex + 1} из {taskIds.length} · {remainingLabel}
           </span>
-          <div className="flex items-start gap-2">
-            {substitutionEnabled && onReplace && id !== "sit_edge" && (
-              <button
-                type="button"
-                onClick={() => setReplacementTarget(taskIndex)}
-                disabled={submitting}
-                className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-border bg-card px-2 text-xs font-semibold text-foreground disabled:opacity-50 active:scale-[0.98]"
-              >
-                <RefreshCw className="h-3.5 w-3.5 text-primary" />
-                Заменить
-              </button>
-            )}
+          <div className="flex items-center gap-2">
             <button
               type="button"
               aria-expanded={protocolOpen}
@@ -1087,6 +1101,11 @@ export function TasksContainer({
               Протокол
               <ChevronRight className="h-4 w-4 text-primary" />
             </button>
+            {guidedExperience && (
+              <Suspense fallback={<div className="h-9 w-20 rounded-xl bg-card" />}>
+                <TaskSoundToggle compact mode={soundMode} onChange={onSoundModeChange} />
+              </Suspense>
+            )}
           </div>
         </div>
         <div className="h-1 bg-muted rounded-full overflow-hidden">
@@ -1095,13 +1114,6 @@ export function TasksContainer({
             style={{ width: `${progress}%` }}
           />
         </div>
-        {guidedExperience && (
-          <div className="mt-2 flex justify-end">
-            <Suspense fallback={<div className="h-10 w-24 rounded-xl bg-card" />}>
-              <TaskSoundToggle compact mode={soundMode} onChange={onSoundModeChange} />
-            </Suspense>
-          </div>
-        )}
         {protocolOpen && (
           <Suspense fallback={null}>
             <ProtocolSheet
@@ -1129,12 +1141,23 @@ export function TasksContainer({
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/20 text-primary">
           <TaskIcon taskId={id} className="h-5 w-5" />
         </div>
-        <div>
+        <div className="min-w-0 flex-1">
           <h2 className="text-base font-bold">{meta.title}</h2>
           <p className="text-xs text-muted-foreground">
             {taskTargetLabel(id, durationMinutes, protocolVersion) ?? meta.subtitle}
           </p>
         </div>
+        {substitutionEnabled && onReplace && id !== "sit_edge" && (
+          <button
+            type="button"
+            onClick={() => setReplacementTarget(taskIndex)}
+            disabled={submitting}
+            className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl border border-border bg-card px-2 text-xs font-semibold text-foreground disabled:opacity-50 active:scale-[0.98]"
+          >
+            <RefreshCw className="h-3.5 w-3.5 text-primary" />
+            Заменить
+          </button>
+        )}
       </div>
       <div className="mb-2">
         {nextId && (
@@ -1157,17 +1180,17 @@ export function TasksContainer({
         )}
       </div>
       <div
-        className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border/80 bg-card/35 p-3"
+        className="flex flex-col rounded-2xl border border-border/80 bg-card/35 p-3"
         data-testid="task-experience-shell"
       >
         {guidedExperience && !["math", "memory", "stroop", "reaction"].includes(id) && (
-          <div className="mb-2 h-20 shrink-0" data-testid="task-motion-region">
-            <Suspense fallback={<div className="h-20 rounded-2xl bg-secondary/40" />}>
+          <div className="mb-2 h-24 shrink-0" data-testid="task-motion-region">
+            <Suspense fallback={<div className="h-24 rounded-2xl bg-secondary/40" />}>
               <TaskMotionVisual taskId={id} />
             </Suspense>
           </div>
         )}
-        <div className="min-h-0 flex-1" data-testid="task-interaction-region">
+        <div data-testid="task-interaction-region">
           {id === "math" && (
             <MathTask
               key={`${id}-${taskIndex}`}
@@ -1662,14 +1685,15 @@ function StatsScreen({
   routine: WakeRoutine;
 }) {
   const analytics = useAnalyticsProfile(!demo, sessions.length);
-  const { state: coach, requestInsight, resetInsight } = useCoachInsight(!demo);
+  const { state: coach, requestInsight } = useCoachInsight(!demo);
   const history = useSessionHistory(!demo, sessions.length);
   const [openHistoryIds, setOpenHistoryIds] = useState<Set<string>>(() => new Set());
   const [showAllHistory, setShowAllHistory] = useState(false);
   const apiProfile = analytics.status === "ready" ? analytics.profile : null;
   const valid = sessions.filter((s) => s.endAlertness > 0);
   const evidenceCount = demo ? valid.length : (apiProfile?.averageDelta.evidenceCount ?? 0);
-  const isLearning = evidenceCount < 7;
+  const progressKnown = demo || analytics.status === "ready";
+  const isLearning = progressKnown && evidenceCount < 7;
 
   // Key metrics
   const avgGain = demo
@@ -1735,23 +1759,28 @@ function StatsScreen({
 
   // Next plan
   const nextPlan = computeNextPlan(sessions);
-  const nextTaskMeta = nextPlan.taskIds.map((id) => ({ id, ...TASK_META[id] }));
   const coachExperiment =
     coach.status === "ready" && coach.insight.insight ? coach.insight.insight.nextExperiment : null;
   const nextExperimentTasks = demo
-    ? nextTaskMeta.map(({ id }) => id)
-    : isLearning
+    ? nextPlan.taskIds
+    : !progressKnown || isLearning
       ? []
       : bestSequenceTasks;
   const nextExperimentText = demo
     ? nextPlan.rationale
-    : isLearning
-      ? `Следующая сессия проверит новый допустимый порядок заданий в том же контексте и режиме. До первого профиля осталось ${7 - evidenceCount}; повтор перспективного порядка начнётся после калибровки.`
-      : coachExperiment
-        ? coachExperiment
-        : bestSequence
-          ? `Ближайшая полезная проверка — повторить порядок «${bestSequenceTasks.map((taskId) => TASK_META[taskId].title).join(" → ")}» после похожего сна и с тем же запасом времени. Он наблюдался в ${bestSequence.evidenceCount} сопоставимых сессиях; это рабочая гипотеза, а не доказанная причина результата.`
-          : "Пройди следующий назначенный протокол после похожего сна и обязательно ответь через 15 минут. Так появится первое честное сравнение последовательностей.";
+    : !progressKnown
+      ? analytics.status === "error"
+        ? "Статистика временно недоступна. Следующее пробуждение можно пройти как обычно."
+        : "Проверяем сохранённые пробуждения и готовим следующий шаг…"
+      : evidenceCount === 0
+        ? "Пройди первый протокол после сна и ответь через 15 минут."
+        : isLearning
+          ? `Повтори пробуждение в похожих условиях. До первого профиля осталось ${7 - evidenceCount}; затем сравним порядки заданий.`
+          : coachExperiment
+            ? coachExperiment
+            : bestSequence
+              ? `Ближайшая полезная проверка — повторить порядок «${bestSequenceTasks.map((taskId) => TASK_META[taskId].title).join(" → ")}» после похожего сна и с тем же запасом времени. Он наблюдался в ${bestSequence.evidenceCount} сопоставимых сессиях; это рабочая гипотеза, а не доказанная причина результата.`
+              : "Пройди следующий назначенный протокол после похожего сна и обязательно ответь через 15 минут. Так появится первое честное сравнение последовательностей.";
 
   return (
     <div className="flex flex-col flex-1 px-5 pt-14 pb-28 overflow-y-auto">
@@ -1790,11 +1819,8 @@ function StatsScreen({
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold">Следующий эксперимент</h2>
+            <h2 className="text-sm font-semibold">Следующий шаг</h2>
           </div>
-          <span className="rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
-            Один следующий шаг
-          </span>
         </div>
         {nextExperimentTasks.length > 0 && (
           <div className="mb-3 flex flex-wrap items-center gap-1.5">
@@ -1809,7 +1835,9 @@ function StatsScreen({
             ))}
           </div>
         )}
-        <p className="text-sm leading-relaxed">{nextExperimentText}</p>
+        <p className="text-sm leading-relaxed" aria-live="polite">
+          {nextExperimentText}
+        </p>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
           Это рабочая проверка, а не доказанный лучший способ. Сравнение станет полезнее после
           повторов в похожих условиях.
@@ -1822,32 +1850,17 @@ function StatsScreen({
             <Sparkles className="h-4 w-4 text-accent" />
             <p className="text-sm font-semibold">Персональный отчёт</p>
           </div>
-          {coach.status === "ready" && coach.insight.status === "confirmation_required" ? (
-            <div className="rounded-xl border border-accent/20 bg-secondary/60 p-3">
-              <p className="text-sm font-semibold">Пока мало данных для устойчивого вывода</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Сохранено {evidenceCount} из 3 рекомендуемых пробуждений. Можно подождать следующую
-                сессию или потратить сегодняшний отчёт сейчас — он будет предварительным.
-              </p>
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={resetInsight}
-                  className="min-h-11 flex-1 rounded-xl bg-secondary px-3 text-sm font-semibold"
-                >
-                  Подождать
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void requestInsight(true);
-                  }}
-                  className="min-h-11 flex-1 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground"
-                >
-                  Создать всё равно
-                </button>
-              </div>
-            </div>
+          {analytics.status !== "ready" ? (
+            <p className="text-sm text-muted-foreground">
+              {analytics.status === "error"
+                ? "Не удалось проверить число завершённых пробуждений. Попробуй позже."
+                : "Проверяем, достаточно ли данных для отчёта…"}
+            </p>
+          ) : evidenceCount < 3 ? (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Пока мало данных для персонального отчёта: {evidenceCount}/3 завершённых пробуждений.
+              До отчёта осталось {3 - evidenceCount}.
+            </p>
           ) : coach.status === "idle" ? (
             <>
               <p className="text-sm leading-relaxed text-muted-foreground">

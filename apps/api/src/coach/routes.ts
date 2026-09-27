@@ -47,7 +47,6 @@ export async function registerCoachRoutes(
           source: result.source,
           limitReached: result.limitReached,
           evidenceCount: result.evidenceCount,
-          earlyConfirmed,
           latencyMs: Date.now() - startedAt,
         },
         "coach insight completed",

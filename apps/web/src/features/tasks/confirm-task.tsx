@@ -239,11 +239,11 @@ export function ConfirmTask({
   }
 
   return (
-    <div className="flex min-h-full flex-col gap-2">
+    <div className="flex flex-col gap-3">
       <p className="self-center text-center text-sm leading-relaxed text-muted-foreground">
         {cfg.instruction}
       </p>
-      <div className="flex min-h-40 flex-1 items-center justify-center">
+      <div className="flex min-h-32 items-center justify-center">
         {cfg.countdown > 0 && started ? (
           <Suspense
             fallback={

@@ -118,6 +118,34 @@
     transform: translateY(4px);
   }
 }
+@keyframes task-pose-first {
+  0%,
+  38%,
+  100% {
+    opacity: 1;
+  }
+  48%,
+  88% {
+    opacity: 0;
+  }
+}
+@keyframes task-pose-second {
+  0%,
+  38%,
+  100% {
+    opacity: 0;
+  }
+  48%,
+  88% {
+    opacity: 1;
+  }
+}
+.task-pose-first {
+  animation: task-pose-first 2.8s ease-in-out infinite;
+}
+.task-pose-second {
+  animation: task-pose-second 2.8s ease-in-out infinite;
+}
 .task-motion-walk {
   animation: task-walk 2.8s ease-in-out infinite;
 }
@@ -148,6 +176,10 @@
   .task-motion-light,
   .task-motion-glow,
   .task-motion-settle {
+    animation: none;
+  }
+  .task-pose-first,
+  .task-pose-second {
     animation: none;
   }
 }

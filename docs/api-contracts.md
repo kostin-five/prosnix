@@ -64,7 +64,7 @@ Baseline body обратно совместимо принимает необя�
 response. Ответ session/bootstrap может дополнительно содержать `effectiveSteps`, `substitutions`,
 `sessionKind`, `parentSessionId`, `recoveryBaseline` и `recoveryOffer`; старые клиенты могут
 игнорировать эти поля. Пока
-`WAKE_TASK_SUBSTITUTION_ENABLED=false` и `WAKE_LOW_EFFECT_RECOVERY_ENABLED=false`, маршруты
+`WAKE_TASK_SUBSTITUTION_ENABLED=false` или `WAKE_LOW_EFFECT_RECOVERY_ENABLED=false`, маршруты
 соответствующего этапа отвечают `404 feature_unavailable`. При включённой замене сервер принимает
 только причины `unwilling_now`, `not_helpful` и `cannot_do`, разрешает менять текущий либо следующий
 невыполненный индекс и возвращает канонические `effectiveSteps`. Повтор с тем же
@@ -94,10 +94,10 @@ response. Ответ session/bootstrap может дополнительно с�
 датам, число сессий и их evidence IDs. Контексты разных типов сна объединяются только в этом обзорном
 ряду; причинные сравнения протоколов по-прежнему разделены по контексту.
 
-`POST /api/v1/coach/insight` принимает JSON `{ "confirmEarly": boolean }`. При числе завершённых
-сессий меньше трёх и отсутствии подтверждения возвращается `confirmation_required` без вызова
-provider. Подтверждённый ранний отчёт проходит тот же серверный cache и лимит одного нового вызова
-за локальный календарный день. AI получает только агрегаты и безопасные сигналы динамики, но не
+`POST /api/v1/coach/insight` принимает прежний необязательный `confirmEarly` для совместимости, но
+он не обходит порог данных. До трёх завершённых сессий сервер возвращает `unavailable` с
+`insight: null` до чтения cache и вызова provider. С третьей сессии действует прежний cache и лимит
+одного нового вызова за локальный календарный день. AI получает только агрегаты и безопасные сигналы динамики, но не
 evidence IDs, точное время, Telegram identity или сырые ответы.
 
 Открытие статистики не вызывает Coach. Пользователь явно нажимает кнопку, после чего сервер создаёт

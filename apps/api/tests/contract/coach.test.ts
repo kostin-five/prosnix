@@ -5,7 +5,7 @@ import { createApp } from "../../src/app/create-app.js";
 import { authenticateTestUser, createMemoryDependencies, testConfig, testNow } from "../helpers.js";
 
 describe("coach insight contract", () => {
-  it("requires auth and asks for confirmation without calling provider", async () => {
+  it("requires auth and blocks reports before three completed sessions", async () => {
     const dependencies = createMemoryDependencies();
     const profile: AnalyticsProfile = {
       methodVersion: "analytics-v1",
@@ -56,7 +56,7 @@ describe("coach insight contract", () => {
       refreshAvailableAt: expect.any(String),
     });
     expect(response.json()).toMatchObject({
-      status: "confirmation_required",
+      status: "unavailable",
       evidenceCount: 2,
       cached: false,
       insight: null,
@@ -69,7 +69,11 @@ describe("coach insight contract", () => {
       payload: { confirmEarly: true },
     });
     expect(confirmed.statusCode).toBe(200);
-    expect(confirmed.json()).toMatchObject({ status: "unavailable", evidenceCount: 2 });
+    expect(confirmed.json()).toMatchObject({
+      status: "unavailable",
+      evidenceCount: 2,
+      insight: null,
+    });
 
     const invalid = await app.inject({
       method: "POST",

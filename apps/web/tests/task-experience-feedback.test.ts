@@ -4,6 +4,8 @@ import {
   enableWakeSoundFromGesture,
   resetWakeSoundForTests,
   signalTaskFeedback,
+  startWakeProtocolSound,
+  stopWakeProtocolSound,
 } from "../src/features/tasks/task-experience-feedback.js";
 
 describe("звук и тактильная обратная связь заданий", () => {
@@ -56,6 +58,23 @@ describe("звук и тактильная обратная связь зада�
     expect(audioConstructor).toHaveBeenCalledOnce();
     expect(createOscillator).toHaveBeenCalledOnce();
     expect(createGain).toHaveBeenCalledOnce();
+  });
+
+  it("повторяет сигнал до остановки протокола", async () => {
+    vi.useFakeTimers();
+    try {
+      expect(startWakeProtocolSound()).toBe(false);
+      await enableWakeSoundFromGesture();
+      expect(startWakeProtocolSound()).toBe(true);
+      expect(createOscillator).toHaveBeenCalledTimes(3);
+      vi.advanceTimersByTime(3_000);
+      expect(createOscillator).toHaveBeenCalledTimes(6);
+      stopWakeProtocolSound();
+      vi.advanceTimersByTime(9_000);
+      expect(createOscillator).toHaveBeenCalledTimes(6);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("продолжает работу без звука, если AudioContext недоступен", async () => {

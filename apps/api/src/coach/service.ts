@@ -216,13 +216,13 @@ export class CoachService {
   async getInsight(
     userId: string,
     now = new Date(),
-    options: { confirmEarly?: boolean } = {},
+    _options: { confirmEarly?: boolean } = {},
   ): Promise<CoachInsightResponse> {
-    const inFlightKey = `${userId}:${options.confirmEarly === true ? "confirmed" : "standard"}`;
+    const inFlightKey = userId;
     const existing = this.inFlightByUser.get(inFlightKey);
     if (existing) return existing;
 
-    const request = this.computeInsight(userId, now, options.confirmEarly === true);
+    const request = this.computeInsight(userId, now);
     this.inFlightByUser.set(inFlightKey, request);
     try {
       return await request;
@@ -231,11 +231,7 @@ export class CoachService {
     }
   }
 
-  private async computeInsight(
-    userId: string,
-    now: Date,
-    confirmEarly: boolean,
-  ): Promise<CoachInsightResponse> {
+  private async computeInsight(userId: string, now: Date): Promise<CoachInsightResponse> {
     const timezone = safeTimezone((await this.cache.findTimezoneByUserId?.(userId)) ?? "UTC");
     const refreshAvailableAt = nextLocalMidnight(now, timezone);
     const computedProfile = await this.analytics.recompute(userId, now);
@@ -243,6 +239,17 @@ export class CoachService {
       ? computedProfile
       : { ...computedProfile, sequenceEffects: [] };
     const evidenceCount = profile.averageDelta.evidenceCount;
+    if (evidenceCount < 3) {
+      return {
+        status: "unavailable",
+        evidenceCount,
+        cached: false,
+        source: "fallback",
+        limitReached: false,
+        refreshAvailableAt,
+        insight: null,
+      };
+    }
     const payload = coachPayload(profile);
     const evidenceFingerprint = fingerprint(payload);
     const cached = await this.cache.findByUserId(userId);
@@ -267,17 +274,6 @@ export class CoachService {
     }
     if (cached && generatedToday) {
       return deterministicFallback(profile, now, refreshAvailableAt, true);
-    }
-    if (evidenceCount < 3 && !confirmEarly) {
-      return {
-        status: "confirmation_required",
-        evidenceCount,
-        cached: false,
-        source: "fallback",
-        limitReached: false,
-        refreshAvailableAt,
-        insight: null,
-      };
     }
     if (!this.gateway) {
       return deterministicFallback(profile, now, refreshAvailableAt);

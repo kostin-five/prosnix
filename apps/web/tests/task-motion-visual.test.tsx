@@ -70,5 +70,13 @@ describe("визуальное сопровождение заданий", () =>
     expect(visual?.getAttribute("data-motion")).toBe("reduced");
     expect(visual?.innerHTML).not.toContain("animate-bounce");
     expect(visual?.innerHTML).not.toContain("animate-ping");
+    expect(visual?.querySelectorAll("svg g")).toHaveLength(1);
+  });
+
+  it("показывает две фазы приседания", () => {
+    act(() => root.render(<TaskMotionVisual taskId="squats" />));
+    expect(container.querySelector(".task-pose-first")).not.toBeNull();
+    expect(container.querySelector(".task-pose-second")).not.toBeNull();
+    expect(container.textContent).toContain("Стоя → присед");
   });
 });

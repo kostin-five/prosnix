@@ -83,40 +83,41 @@ function setup(
 }
 
 describe("CoachService", () => {
-  it("asks for confirmation and does not call AI with insufficient evidence", async () => {
+  it("не вызывает AI до третьего завершённого пробуждения", async () => {
     const { service, gateway } = setup(2);
     await expect(service.getInsight("user-1")).resolves.toMatchObject({
-      status: "confirmation_required",
+      status: "unavailable",
       evidenceCount: 2,
       insight: null,
     });
     expect(gateway.generate).not.toHaveBeenCalled();
   });
 
-  it("creates one preliminary report after explicit early confirmation", async () => {
+  it("не разрешает старому confirmEarly обойти порог", async () => {
     const { service, gateway } = setup(2);
     await expect(
       service.getInsight("user-1", new Date("2026-09-05T08:00:00.000Z"), {
         confirmEarly: true,
       }),
-    ).resolves.toMatchObject({ status: "ready", evidenceCount: 2, source: "provider" });
-    expect(gateway.generate).toHaveBeenCalledOnce();
+    ).resolves.toMatchObject({ status: "unavailable", evidenceCount: 2, insight: null });
+    expect(gateway.generate).not.toHaveBeenCalled();
   });
 
-  it("returns a cached preliminary report without asking for confirmation again", async () => {
-    const { service, gateway } = setup(2);
+  it("не выдаёт старый cache при текущем счётчике ниже трёх", async () => {
+    const { service, cache, gateway, setEvidenceCount } = setup(3);
     const now = new Date("2026-09-05T08:00:00.000Z");
-
-    await expect(service.getInsight("user-1", now, { confirmEarly: true })).resolves.toMatchObject({
+    await expect(service.getInsight("user-1", now)).resolves.toMatchObject({
       status: "ready",
       cached: false,
       source: "provider",
     });
-    await expect(service.getInsight("user-1", now)).resolves.toMatchObject({
-      status: "ready",
-      cached: true,
-      source: "cache",
+    setEvidenceCount(2);
+    await expect(service.getInsight("user-1", now, { confirmEarly: true })).resolves.toMatchObject({
+      status: "unavailable",
+      cached: false,
+      insight: null,
     });
+    expect(cache.findByUserId).toHaveBeenCalledOnce();
     expect(gateway.generate).toHaveBeenCalledOnce();
   });
 

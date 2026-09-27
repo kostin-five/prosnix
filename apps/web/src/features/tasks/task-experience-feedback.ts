@@ -15,6 +15,7 @@ type AudioContextLike = {
 type AudioContextConstructor = new () => AudioContextLike;
 
 let audioContext: AudioContextLike | null = null;
+let protocolInterval: ReturnType<typeof setInterval> | null = null;
 
 function audioContextConstructor(): AudioContextConstructor | undefined {
   const audioWindow = window as typeof window & {
@@ -32,11 +33,53 @@ export async function enableWakeSoundFromGesture(): Promise<boolean> {
     if (!AudioContextClass) return false;
     audioContext ??= new AudioContextClass();
     if (audioContext.state === "suspended") await audioContext.resume?.();
-    return true;
+    return audioContext.state === undefined || audioContext.state === "running";
   } catch {
     audioContext = null;
     return false;
   }
+}
+
+function playProtocolCue(): boolean {
+  if (!audioContext || (audioContext.state && audioContext.state !== "running")) return false;
+  try {
+    const now = audioContext.currentTime;
+    for (const [offset, frequency] of [
+      [0, 440],
+      [0.22, 554],
+      [0.44, 659],
+    ]) {
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, now + offset);
+      gain.gain.setValueAtTime(0.0001, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.045, now + offset + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.18);
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start(now + offset);
+      oscillator.stop(now + offset + 0.19);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function startWakeProtocolSound(): boolean {
+  if (protocolInterval) return true;
+  if (!audioContext || (audioContext.state && audioContext.state !== "running")) return false;
+  if (!playProtocolCue()) return false;
+  protocolInterval = setInterval(() => {
+    if (!playProtocolCue()) stopWakeProtocolSound();
+  }, 3_000);
+  return true;
+}
+
+export function stopWakeProtocolSound(): void {
+  if (protocolInterval) clearInterval(protocolInterval);
+  protocolInterval = null;
 }
 
 function playTone(kind: TaskFeedbackKind): void {
@@ -67,5 +110,6 @@ export function signalTaskFeedback(kind: TaskFeedbackKind, soundMode: WakeSoundM
 }
 
 export function resetWakeSoundForTests(): void {
+  stopWakeProtocolSound();
   audioContext = null;
 }

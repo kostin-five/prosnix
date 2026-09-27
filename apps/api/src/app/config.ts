@@ -78,7 +78,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   );
   const telegramWebhookSecret = env.TELEGRAM_WEBHOOK_SECRET?.trim() ?? "";
   const wakeTaskCatalogV9Enabled = env.WAKE_TASK_CATALOG_V9_ENABLED === "true";
-  const wakeTaskSubstitutionEnabled = env.WAKE_TASK_SUBSTITUTION_ENABLED === "true";
+  const wakeTaskSubstitutionEnabled =
+    env.WAKE_TASK_SUBSTITUTION_ENABLED === "true" ||
+    (nodeEnv !== "production" && env.WAKE_TASK_SUBSTITUTION_ENABLED !== "false");
   const wakeLowEffectRecoveryEnabled = env.WAKE_LOW_EFFECT_RECOVERY_ENABLED === "true";
   const wakeCombinationAnalyticsEnabled = env.WAKE_COMBINATION_ANALYTICS_ENABLED === "true";
   const adminTelegramUserIds = (env.ADMIN_TELEGRAM_USER_IDS ?? "")

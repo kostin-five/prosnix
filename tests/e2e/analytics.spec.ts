@@ -55,6 +55,106 @@ async function openTelegramApp(page: Page) {
   );
 }
 
+test("следующий шаг виден при загрузке и до первого пробуждения", async ({ page }) => {
+  await openTelegramApp(page);
+  let releaseProfile = () => undefined;
+  const heldProfile = new Promise<void>((resolve) => {
+    releaseProfile = resolve;
+  });
+  await page.route("**/api/v1/analytics/profile", async (route) => {
+    await heldProfile;
+    await json(route, {
+      methodVersion: "analytics-v2",
+      computedAt: "2026-09-27T06:00:00.000Z",
+      averageDelta: {
+        key: "average-delta",
+        value: null,
+        evidenceCount: 0,
+        evidenceIds: [],
+        confidence: "insufficient",
+      },
+      riseSuccess: {
+        key: "rise-success",
+        value: null,
+        evidenceCount: 0,
+        evidenceIds: [],
+        confidence: "insufficient",
+      },
+      protocolEffects: [],
+      factorEffects: [],
+      sequenceEffects: [],
+      dailyTrend: [],
+    });
+  });
+  await page.route("**/api/v1/sessions/history?limit=10", (route) => json(route, { sessions: [] }));
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Статистика" }).click();
+  await expect(page.getByRole("heading", { name: "Следующий шаг" })).toBeVisible();
+  await expect(page.getByText(/Проверяем сохранённые пробуждения/)).toBeVisible();
+  await expect(page.getByText("0/7", { exact: false })).toHaveCount(0);
+  releaseProfile();
+  await expect(page.getByText(/Пройди первый протокол после сна/)).toBeVisible();
+  await expect(page.getByText(/ещё 7 до первого профиля/)).toBeVisible();
+});
+
+test("после третьего пробуждения отчёт создаётся по нажатию", async ({ page }) => {
+  await openTelegramApp(page);
+  await page.route("**/api/v1/analytics/profile", (route) =>
+    json(route, {
+      methodVersion: "analytics-v2",
+      computedAt: "2026-09-27T06:00:00.000Z",
+      averageDelta: {
+        key: "average-delta",
+        value: 2,
+        evidenceCount: 3,
+        evidenceIds: [],
+        confidence: "low",
+      },
+      riseSuccess: {
+        key: "rise-success",
+        value: null,
+        evidenceCount: 0,
+        evidenceIds: [],
+        confidence: "insufficient",
+      },
+      protocolEffects: [],
+      factorEffects: [],
+      sequenceEffects: [],
+      dailyTrend: [],
+    }),
+  );
+  await page.route("**/api/v1/sessions/history?limit=10", (route) => json(route, { sessions: [] }));
+  let requests = 0;
+  await page.route("**/api/v1/coach/insight", (route) => {
+    requests += 1;
+    return json(route, {
+      status: "ready",
+      evidenceCount: 3,
+      cached: false,
+      source: "provider",
+      limitReached: true,
+      refreshAvailableAt: "2026-09-28T00:00:00.000Z",
+      insight: {
+        summary: "Первые наблюдения сохранены.",
+        nextExperiment: "Повтори протокол в похожих условиях.",
+        caveat: "Три сессии дают только предварительный вывод.",
+        confidence: "low",
+        generatedAt: "2026-09-27T06:00:00.000Z",
+      },
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Статистика" }).click();
+  const createReport = page.getByRole("button", { name: "Создать персональный отчёт" });
+  await expect(createReport).toBeVisible();
+  expect(requests).toBe(0);
+  await createReport.click();
+  await expect(page.getByText("Первые наблюдения сохранены.")).toBeVisible();
+  expect(requests).toBe(1);
+});
+
 test("профиль показывает только воспроизводимые метрики смешанных протоколов", async ({ page }) => {
   await openTelegramApp(page);
   let coachRequests = 0;
@@ -165,11 +265,9 @@ test("профиль показывает только воспроизводи�
   await expect(page.getByText("1м", { exact: true })).toBeVisible();
   await expect(page.getByText("Как проходит пробуждение")).toBeVisible();
   await expect(page.getByText(/заметно выше/)).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Следующий эксперимент" })).toBeVisible();
-  await expect(page.getByText(/Следующая сессия проверит новый допустимый порядок/)).toBeVisible();
-  await expect(
-    page.getByText(/повтор перспективного порядка начнётся после калибровки/),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Следующий шаг" })).toBeVisible();
+  await expect(page.getByText(/Повтори пробуждение в похожих условиях/)).toBeVisible();
+  await expect(page.getByText(/До первого профиля осталось 1/)).toBeVisible();
   await expect(page.getByText(/Это рабочая проверка, а не доказанный лучший способ/)).toBeVisible();
   await expect(page.getByText("Средний прирост по датам")).toHaveCount(0);
   await page.getByLabel("Открыть эксперимент 1").click();
@@ -268,7 +366,7 @@ test("после 13 сессий общий профиль не зависит �
   await page.getByRole("button", { name: "Статистика" }).click();
   await expect(page.getByText(/Основано на 13 завершённых сессиях/)).toBeVisible();
   await expect(page.getByText("Как проходит пробуждение")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Следующий эксперимент" })).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "Следующий шаг" })).toHaveCount(1);
   await expect(page.getByText("Что попробовать дальше")).toHaveCount(0);
   await expect(page.getByText("Что Prosnix ещё проверяет")).toBeVisible();
   await expect(page.getByRole("img", { name: "Эффект 2 последних пробуждений" })).toBeVisible();
@@ -376,9 +474,7 @@ test("исследование Pro не запускает оплату и ск�
   await expect(page.getByText("Помоги выбрать, что развивать дальше")).toHaveCount(0);
 });
 
-test("ранний отчёт требует явного подтверждения и header помещается на 320 px", async ({
-  page,
-}) => {
+test("до третьего пробуждения отчёт недоступен и header помещается на 320 px", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   await openTelegramApp(page);
   await page.route("**/api/v1/analytics/profile", (route) =>
@@ -409,38 +505,9 @@ test("ранний отчёт требует явного подтвержден
   );
   await page.route("**/api/v1/sessions/history?limit=10", (route) => json(route, { sessions: [] }));
   let endpointRequests = 0;
-  let confirmedRequests = 0;
   await page.route("**/api/v1/coach/insight", async (route) => {
     endpointRequests += 1;
-    const body = route.request().postDataJSON() as { confirmEarly?: boolean };
-    if (!body.confirmEarly) {
-      return json(route, {
-        status: "confirmation_required",
-        evidenceCount: 2,
-        cached: false,
-        source: "fallback",
-        limitReached: false,
-        refreshAvailableAt: "2026-09-06T21:00:00.000Z",
-        insight: null,
-      });
-    }
-    confirmedRequests += 1;
-    return json(route, {
-      status: "ready",
-      evidenceCount: 2,
-      cached: false,
-      source: "provider",
-      limitReached: true,
-      refreshAvailableAt: "2026-09-06T21:00:00.000Z",
-      insight: {
-        summary:
-          "Результат пока меняется между сессиями, но проверка подъёма уже даёт первый сигнал.",
-        nextExperiment: "Повтори назначенный протокол и ответь на проверку через 15 минут.",
-        caveat: "Вывод предварительный и основан на двух сессиях.",
-        confidence: "insufficient",
-        generatedAt: "2026-09-06T08:00:00.000Z",
-      },
-    });
+    return json(route, { status: "unavailable", evidenceCount: 2, insight: null });
   });
 
   await page.goto("/");
@@ -451,12 +518,8 @@ test("ранний отчёт требует явного подтвержден
   expect(brand!.x + brand!.width).toBeLessThanOrEqual(counter!.x);
 
   await page.getByRole("button", { name: "Статистика" }).click();
-  await page.getByRole("button", { name: "Создать персональный отчёт" }).click();
-  await expect(page.getByText("Пока мало данных для устойчивого вывода")).toBeVisible();
-  expect(endpointRequests).toBe(1);
-  expect(confirmedRequests).toBe(0);
-  await page.getByRole("button", { name: "Создать всё равно" }).click();
-  await expect(page.getByText("Главный вывод")).toBeVisible();
-  expect(endpointRequests).toBe(2);
-  expect(confirmedRequests).toBe(1);
+  await expect(page.getByText(/Пока мало данных для персонального отчёта: 2\/3/)).toBeVisible();
+  await expect(page.getByText("До отчёта осталось 1.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Создать персональный отчёт" })).toHaveCount(0);
+  expect(endpointRequests).toBe(0);
 });

@@ -77,6 +77,15 @@ describe("application config", () => {
     });
   });
 
+  it("включает замену локально без флага и позволяет явно её отключить", () => {
+    const local = { ...production, NODE_ENV: "development" };
+    expect(loadConfig(local).wakeTaskSubstitutionEnabled).toBe(true);
+    expect(
+      loadConfig({ ...local, WAKE_TASK_SUBSTITUTION_ENABLED: "false" }).wakeTaskSubstitutionEnabled,
+    ).toBe(false);
+    expect(loadConfig(production).wakeTaskSubstitutionEnabled).toBe(false);
+  });
+
   it("provides bounded readiness, shutdown and sensitive-route limits", () => {
     expect(loadConfig(production)).toMatchObject({
       readinessTimeoutMs: 1_500,

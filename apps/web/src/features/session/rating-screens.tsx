@@ -1,7 +1,10 @@
 import { lazy, Suspense, useState } from "react";
 import { ArrowRight, Sun } from "lucide-react";
 
-import type { WakeSoundMode } from "../tasks/task-experience-feedback.js";
+import {
+  enableWakeSoundFromGesture,
+  type WakeSoundMode,
+} from "../tasks/task-experience-feedback.js";
 
 const MorningExperienceSlot = lazy(() => import("../personalization/morning-experience-slot.js"));
 const TaskSoundToggle = lazy(() => import("../tasks/task-sound-toggle.js"));
@@ -102,7 +105,10 @@ export function StartRatingScreen({
       </div>
       <button
         type="button"
-        onClick={() => selected && onDone(selected)}
+        onClick={() => {
+          if (soundMode === "on") void enableWakeSoundFromGesture();
+          if (selected) onDone(selected);
+        }}
         disabled={!selected || !ready || !goalReady || busy}
         className={`w-full rounded-2xl py-4 text-lg font-bold transition-all ${selected && ready && !busy ? "text-white active:scale-[0.98]" : "bg-secondary text-muted-foreground"}`}
         style={

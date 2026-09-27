@@ -4,6 +4,7 @@ import { Volume2, VolumeX } from "lucide-react";
 import {
   enableWakeSoundFromGesture,
   signalTaskFeedback,
+  stopWakeProtocolSound,
   type WakeSoundMode,
 } from "./task-experience-feedback.js";
 
@@ -41,7 +42,12 @@ export function TaskSoundToggle({
           aria-label={mode === "on" ? "Выключить звук" : "Включить звук"}
           aria-pressed={mode === "on"}
           disabled={busy}
-          onClick={() => (mode === "on" ? onChange("off") : void enable())}
+          onClick={() => {
+            if (mode === "on") {
+              stopWakeProtocolSound();
+              onChange("off");
+            } else void enable();
+          }}
           className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold"
         >
           {mode === "on" ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
@@ -59,7 +65,10 @@ export function TaskSoundToggle({
         <button
           type="button"
           aria-pressed={mode === "off"}
-          onClick={() => onChange("off")}
+          onClick={() => {
+            stopWakeProtocolSound();
+            onChange("off");
+          }}
           className={`min-h-11 rounded-xl px-3 text-sm font-semibold ${mode === "off" ? "bg-primary text-primary-foreground" : "bg-secondary"}`}
         >
           <span className="inline-flex items-center gap-2">
@@ -81,7 +90,7 @@ export function TaskSoundToggle({
       <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
         {unavailable
           ? "Telegram или устройство не разрешили звук. Протокол продолжит работать без него."
-          : "Звук включится только после твоего нажатия и его можно отключить в любой момент."}
+          : "Повторяющийся сигнал будет звучать во время открытого протокола. Его можно отключить в любой момент."}
       </p>
     </section>
   );
