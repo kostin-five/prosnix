@@ -734,7 +734,7 @@ export function MemoryTask({
         <p className="text-muted-foreground text-sm">
           Правильно {correctRounds}/{target} · запомни новую последовательность
         </p>
-        <div className="flex w-full max-w-sm gap-2">
+        <div className="flex w-full max-w-sm justify-center gap-2">
           {seq.map((n, i) => (
             <div
               key={i}
@@ -754,7 +754,7 @@ export function MemoryTask({
       <p className="text-muted-foreground text-sm text-center">
         Введи последовательность · правильно {correctRounds}/{target}
       </p>
-      <div className="flex w-full max-w-sm gap-2">
+      <div className="flex w-full max-w-sm justify-center gap-2">
         {Array.from({ length: seq.length }, (_, i) => (
           <div
             key={i}

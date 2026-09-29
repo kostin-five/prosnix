@@ -624,7 +624,7 @@ body,
   opacity: 0.58;
 }
 
-.ps-task-interaction .ps-confirm-task button:not(:disabled) {
+.ps-task-interaction .ps-confirm-task button.ps-primary-button:not(:disabled) {
   border-color: rgba(255, 204, 128, 0.15);
   background: linear-gradient(135deg, #ffb536, #f47a12) !important;
   color: #211408;

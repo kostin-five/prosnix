@@ -141,6 +141,15 @@ test("mobile user resumes from the next confirmed task", async ({ page }) => {
   await page.getByRole("button", { name: "Продолжить" }).click();
   await expect(page.getByText("Шаг 2 из 2")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Память" })).toBeVisible();
+  const digits = page.locator("[data-memory-digit]");
+  await expect(digits.first()).toBeVisible();
+  const offset = await digits.first().evaluate((first) => {
+    const row = first.parentElement!.getBoundingClientRect();
+    const left = first.getBoundingClientRect().left - row.left;
+    const right = row.right - first.parentElement!.lastElementChild!.getBoundingClientRect().right;
+    return Math.abs(left - right);
+  });
+  expect(offset).toBeLessThan(2);
 });
 
 test("пользователь может закрыть сохранённую сессию и вернуться на главную", async ({ page }) => {

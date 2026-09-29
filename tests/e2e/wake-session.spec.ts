@@ -226,6 +226,11 @@ test("полный wake-up цикл подтверждается серверо�
   await expect(page.locator('[data-task-motion="window"]')).toBeVisible();
   await page.getByRole("button", { name: "Начать", exact: true }).click();
   await expect(page.getByRole("timer", { name: "Осталось 30 секунд" })).toBeVisible();
+  expect(
+    await page
+      .getByRole("button", { name: "Поставить таймер на паузу" })
+      .evaluate((button) => getComputedStyle(button).backgroundImage),
+  ).toBe("none");
   await expect(page.locator('[data-testid="task-timer-light"]')).toBeVisible();
   await page.clock.runFor(31_000);
   await expect(page.getByRole("timer", { name: "Таймер завершён" })).toBeVisible();

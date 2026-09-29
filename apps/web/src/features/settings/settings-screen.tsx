@@ -142,16 +142,14 @@ export default function SettingsScreen({
               () => setSection("privacy"),
             )}
           </div>
-          {!demo && (
-            <button
-              type="button"
-              onClick={() => setSection("delete")}
-              className="ps-surface mt-4 flex min-h-14 items-center gap-3 px-4 text-left text-red-400"
-            >
-              <Trash2 className="h-5 w-5" /> Удалить профиль
-              <ChevronRight className="ml-auto h-5 w-5" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setSection("delete")}
+            className="ps-surface mt-4 flex min-h-14 items-center gap-3 px-4 text-left text-red-400"
+          >
+            <Trash2 className="h-5 w-5" /> Удалить профиль
+            <ChevronRight className="ml-auto h-5 w-5" />
+          </button>
         </>
       ) : (
         <div className="ps-settings-detail">
@@ -248,7 +246,15 @@ export default function SettingsScreen({
               </a>
             </div>
           )}
-          {section === "delete" && !demo && <DeleteProfile localStorageScope={localStorageScope} />}
+          {section === "delete" &&
+            (demo ? (
+              <p className="ps-surface p-4 text-sm text-muted-foreground">
+                В деморежиме профиль не создаётся. Удалить свои данные можно здесь после входа через
+                Telegram.
+              </p>
+            ) : (
+              <DeleteProfile localStorageScope={localStorageScope} />
+            ))}
         </div>
       )}
     </div>

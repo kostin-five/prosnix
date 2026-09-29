@@ -3,9 +3,13 @@ import { expect, test } from "@playwright/test";
 test("пользователь настраивает возможности, контекст и личную рутину", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
   await page.goto("/?demo=1");
+  await expect(page.getByText("Сегодня тоже имеет значение")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Настройки" }).click();
   await expect(page.getByRole("heading", { name: "Настройки" })).toBeVisible();
+  await page.getByRole("button", { name: "Удалить профиль" }).click();
+  await expect(page.getByText(/В деморежиме профиль не создаётся/)).toBeVisible();
+  await page.getByRole("button", { name: "Настройки" }).first().click();
   await expect(page.getByText(/персональном отчёте/i)).toHaveCount(0);
   await page.getByRole("button", { name: /Возможности Движение/ }).click();
   await page.getByRole("button", { name: "Изменить" }).click();

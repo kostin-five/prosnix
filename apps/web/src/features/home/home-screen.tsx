@@ -189,7 +189,6 @@ export default function HomeScreen({
           />
         </Suspense>
       )}
-      <p className="ps-kicker my-7 text-center">Сегодня тоже имеет значение</p>
     </div>
   );
 }
