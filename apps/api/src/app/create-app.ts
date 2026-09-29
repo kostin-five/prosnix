@@ -46,6 +46,7 @@ import type { TelegramStarsGateway } from "../billing/telegram-stars.js";
 import { registerPersonalizationRoutes } from "../personalization/routes.js";
 import { registerExperimentFeedbackRoutes } from "../feedback/routes.js";
 import { registerProInterestRoutes } from "../pro-interest/routes.js";
+import { FollowUpCallbackHandler } from "../notifications/follow-up-callback.js";
 
 export interface AppDependencies {
   unitOfWork: UnitOfWork;
@@ -277,6 +278,21 @@ export async function createApp(
           dependencies.telegramStarsGateway,
           dependencies.now ?? (() => new Date()),
         ),
+        ...(dependencies.sessionCommands &&
+        dependencies.followUpNotificationRepository &&
+        dependencies.notificationGateway
+          ? {
+              followUpCallback: new FollowUpCallbackHandler(
+                dependencies.unitOfWork,
+                dependencies.followUpNotificationRepository,
+                new SessionService(
+                  dependencies.sessionCommands,
+                  dependencies.now ?? (() => new Date()),
+                ),
+                dependencies.notificationGateway,
+              ),
+            }
+          : {}),
         ...(dependencies.now ? { now: dependencies.now } : {}),
       });
     }

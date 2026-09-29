@@ -64,6 +64,7 @@ export interface FollowUpNotificationRepository {
   claimDue(now: Date, limit: number): Promise<NotificationClaimBatch<ClaimedFollowUpNotification>>;
   prepareToSend(deliveryId: string, now: Date): Promise<boolean>;
   complete(deliveryId: string, result: NotificationResult, now: Date): Promise<void>;
+  findSentMessage?(userId: string, sessionId: string, messageId: bigint): Promise<boolean>;
 }
 
 export interface NotificationMaintenanceRepository {

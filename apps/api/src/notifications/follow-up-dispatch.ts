@@ -42,6 +42,7 @@ export async function dispatchFollowUpNotifications(
         const result = await gateway.send({
           kind: "follow_up",
           chatId: notification.telegramChatId,
+          sessionId: notification.sessionId,
           attempt: notification.attempt,
           now: new Date(),
         });

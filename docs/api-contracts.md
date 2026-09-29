@@ -224,14 +224,20 @@ Query-параметр `days` принимает только `7`, `30` или `
 
 ## Billing и Telegram webhook
 
-| Метод | Маршрут                      | Назначение                                             |
-| ----- | ---------------------------- | ------------------------------------------------------ |
-| GET   | `/api/v1/billing/status`     | бесплатный/Pro статус и период                         |
-| POST  | `/api/v1/billing/checkout`   | создать Stars invoice link; rate limited               |
-| POST  | `/internal/telegram/webhook` | commands, pre-checkout, payment и subscription updates |
+| Метод | Маршрут                      | Назначение                                                                |
+| ----- | ---------------------------- | ------------------------------------------------------------------------- |
+| GET   | `/api/v1/billing/status`     | бесплатный/Pro статус и период                                            |
+| POST  | `/api/v1/billing/checkout`   | создать Stars invoice link; rate limited                                  |
+| POST  | `/internal/telegram/webhook` | commands, быстрый follow-up, pre-checkout, payment и subscription updates |
 
 Checkout закрыт при цене `0` и требует актуального legal acceptance. Webhook до чтения update
 проверяет `X-Telegram-Bot-Api-Secret-Token`. Update ID и payment charge ID идемпотентны. Currency
 должна быть `XTR`, а владелец, payload и amount сверяются с server checkout.
 
 Поддерживаемые команды webhook: `/privacy`, `/terms`, `/paysupport <сообщение>`.
+
+При настроенном защищённом webhook follow-up сообщение содержит три callback-кнопки для `up`,
+`back`, `drowsy`. Сервер принимает ответ только от владельца личного чата и только для отправленной
+delivery-записи с совпадающими session и Telegram message ID. Ответ проходит прежнюю команду
+`follow_up`: первое наблюдение сохраняется, повтор не меняет outcome. Без webhook остаётся кнопка
+перехода в Mini App. Ошибка подтверждения Telegram после сохранения не откатывает наблюдение.

@@ -603,6 +603,23 @@ body,
   transform: scale(0.97);
 }
 
+@media (max-height: 720px) {
+  .ps-task-screen {
+    padding-top: 0.5rem;
+  }
+  .ps-task-title {
+    margin-top: 0.35rem;
+    margin-bottom: 0.35rem;
+  }
+  .ps-task-motion {
+    height: 7rem;
+    margin-bottom: 0.4rem;
+  }
+  .ps-task-card {
+    padding: 0.7rem;
+  }
+}
+
 .ps-task-interaction button:disabled {
   opacity: 0.58;
 }

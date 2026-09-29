@@ -223,7 +223,7 @@ test("полный wake-up цикл подтверждается серверо�
   await page.addStyleTag({ content: "html { font-size: 24px !important; }" });
   await page.getByRole("button", { name: "Начать", exact: true }).scrollIntoViewIfNeeded();
   await expect(page.getByRole("button", { name: "Начать", exact: true })).toBeInViewport();
-  await expect(page.locator('[data-task-icon="window"]').first()).toBeVisible();
+  await expect(page.locator('[data-task-motion="window"]')).toBeVisible();
   await page.getByRole("button", { name: "Начать", exact: true }).click();
   await expect(page.getByRole("timer", { name: "Осталось 30 секунд" })).toBeVisible();
   await expect(page.locator('[data-testid="task-timer-light"]')).toBeVisible();

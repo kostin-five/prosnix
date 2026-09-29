@@ -12,10 +12,13 @@ export interface TelegramNotificationGateway {
   send(input: {
     kind: "wake" | "follow_up";
     chatId: bigint;
+    sessionId?: string;
     lifeGoal?: string | undefined;
     attempt: number;
     now: Date;
   }): Promise<NotificationResult>;
+  answerCallbackQuery?(callbackId: string, text: string): Promise<boolean>;
+  removeInlineKeyboard?(chatId: bigint, messageId: number): Promise<boolean>;
 }
 
 export class TelegramBotGateway implements TelegramNotificationGateway {
@@ -23,17 +26,62 @@ export class TelegramBotGateway implements TelegramNotificationGateway {
     private readonly token: string,
     private readonly webAppUrl: string,
     private readonly fetcher: typeof fetch = fetch,
+    private readonly quickFollowUpEnabled = false,
   ) {}
+
+  private async callbackMethod(method: string, body: Record<string, unknown>): Promise<boolean> {
+    try {
+      const response = await this.fetcher(`https://api.telegram.org/bot${this.token}/${method}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(5_000),
+      });
+      const payload = (await response.json()) as TelegramResponse;
+      return response.ok && payload.ok === true;
+    } catch {
+      return false;
+    }
+  }
+
+  answerCallbackQuery(callbackId: string, message: string): Promise<boolean> {
+    return this.callbackMethod("answerCallbackQuery", {
+      callback_query_id: callbackId,
+      text: message,
+      show_alert: false,
+    });
+  }
+
+  removeInlineKeyboard(chatId: bigint, messageId: number): Promise<boolean> {
+    return this.callbackMethod("editMessageReplyMarkup", {
+      chat_id: chatId.toString(),
+      message_id: messageId,
+      reply_markup: { inline_keyboard: [] },
+    });
+  }
 
   async send(input: {
     kind: "wake" | "follow_up";
     chatId: bigint;
+    sessionId?: string;
     lifeGoal?: string | undefined;
     attempt: number;
     now: Date;
   }): Promise<NotificationResult> {
     const appUrl = new URL(this.webAppUrl);
     appUrl.searchParams.set("source", input.kind === "wake" ? "wake" : "follow_up");
+    const quickFollowUp =
+      input.kind === "follow_up" &&
+      this.quickFollowUpEnabled &&
+      typeof input.sessionId === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.sessionId);
+    const quickButtons = quickFollowUp
+      ? [
+          { text: "Встал и не лёг", callback_data: `fu:1:${input.sessionId}:u` },
+          { text: "Снова лёг", callback_data: `fu:1:${input.sessionId}:b` },
+          { text: "Не лёг, но сонный", callback_data: `fu:1:${input.sessionId}:d` },
+        ]
+      : null;
     let response: Response;
     try {
       response = await this.fetcher(`https://api.telegram.org/bot${this.token}/sendMessage`, {
@@ -44,16 +92,18 @@ export class TelegramBotGateway implements TelegramNotificationGateway {
           text:
             input.kind === "wake"
               ? `Доброе утро! Пора запустить твой протокол пробуждения ☀️${input.lifeGoal ? `\n\nТвоя жизненная цель: ${input.lifeGoal}` : ""}`
-              : "Как ты себя чувствуешь спустя 15 минут? Ответ поможет улучшить твой следующий протокол.",
+              : "Что произошло через 15 минут после пробуждения? Ответ поможет подобрать следующий протокол.",
           reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: input.kind === "wake" ? "Начать пробуждение" : "Ответить на follow-up",
-                  web_app: { url: appUrl.toString() },
-                },
-              ],
-            ],
+            inline_keyboard: quickButtons
+              ? quickButtons.map((button) => [button])
+              : [
+                  [
+                    {
+                      text: input.kind === "wake" ? "Начать пробуждение" : "Ответить на follow-up",
+                      web_app: { url: appUrl.toString() },
+                    },
+                  ],
+                ],
           },
         }),
         signal: AbortSignal.timeout(10_000),

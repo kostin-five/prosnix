@@ -97,10 +97,43 @@ describe("Telegram notification gateway", () => {
       text: string;
       reply_markup: { inline_keyboard: Array<Array<{ text: string; web_app: { url: string } }>> };
     };
-    expect(body.text).toContain("спустя 15 минут");
+    expect(body.text).toContain("через 15 минут");
     expect(body.reply_markup.inline_keyboard[0]?.[0]?.text).toBe("Ответить на follow-up");
     expect(body.reply_markup.inline_keyboard[0]?.[0]?.web_app.url).toBe(
       "https://example.com/?source=follow_up",
     );
+  });
+
+  it("shows three quick replies only with a protected callback path and a session", async () => {
+    const requests: Array<{
+      reply_markup: {
+        inline_keyboard: Array<Array<{ callback_data?: string; web_app?: unknown }>>;
+      };
+    }> = [];
+    const fetcher = (async (_input: unknown, request?: RequestInit) => {
+      requests.push(JSON.parse(String(request?.body)));
+      return Response.json({ ok: true, result: { message_id: 322 } });
+    }) as typeof fetch;
+    const sessionId = "00000000-0000-4000-8000-000000000099";
+    const gateway = new TelegramBotGateway("token", "https://example.com/", fetcher, true);
+    await gateway.send({ kind: "follow_up", chatId: 42n, sessionId, attempt: 1, now: new Date() });
+    expect(
+      requests[0]?.reply_markup.inline_keyboard.flat().map((button) => button.callback_data),
+    ).toEqual([`fu:1:${sessionId}:u`, `fu:1:${sessionId}:b`, `fu:1:${sessionId}:d`]);
+    await gateway.send({ kind: "follow_up", chatId: 42n, attempt: 1, now: new Date() });
+    expect(requests[1]?.reply_markup.inline_keyboard[0]?.[0]?.web_app).toBeTruthy();
+  });
+
+  it("confirms a callback and can remove its keyboard without leaking a transport error", async () => {
+    const methods: string[] = [];
+    const fetcher = (async (url: unknown) => {
+      methods.push(String(url).split("/").pop() ?? "");
+      if (methods.length === 2) throw new Error("private transport detail");
+      return Response.json({ ok: true, result: true });
+    }) as typeof fetch;
+    const gateway = new TelegramBotGateway("token", "https://example.com/", fetcher, true);
+    await expect(gateway.answerCallbackQuery("callback-1", "Ответ сохранён")).resolves.toBe(true);
+    await expect(gateway.removeInlineKeyboard(42n, 321)).resolves.toBe(false);
+    expect(methods).toEqual(["answerCallbackQuery", "editMessageReplyMarkup"]);
   });
 });

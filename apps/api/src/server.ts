@@ -47,7 +47,12 @@ const app = await createApp(config, {
   userDeletionRepository: new PostgresUserDeletionRepository(database.db),
   wakeScheduleRepository: new PostgresWakeScheduleRepository(database.db),
   wakeNotificationRepository: new PostgresWakeNotificationRepository(database.db),
-  notificationGateway: new TelegramBotGateway(config.botToken, config.telegramWebAppUrl),
+  notificationGateway: new TelegramBotGateway(
+    config.botToken,
+    config.telegramWebAppUrl,
+    fetch,
+    Boolean(config.telegramWebhookSecret),
+  ),
   followUpNotificationRepository: new PostgresFollowUpNotificationRepository(database.db),
   notificationMaintenanceRepository: new PostgresNotificationMaintenanceRepository(database.db),
   readinessCheck: database.check,

@@ -5,6 +5,10 @@ import type { BillingRepository } from "@awc/domain";
 import type { AppConfig } from "../app/config.js";
 import { authenticatedUserId } from "../auth/require-session.js";
 import type { BillingService } from "./service.js";
+import type {
+  FollowUpCallback,
+  FollowUpCallbackHandler,
+} from "../notifications/follow-up-callback.js";
 
 function sameSecret(actual: string | undefined, expected: string): boolean {
   if (!actual || !expected || actual.length !== expected.length) return false;
@@ -13,6 +17,7 @@ function sameSecret(actual: string | undefined, expected: string): boolean {
 
 interface TelegramUpdate {
   update_id?: number;
+  callback_query?: FollowUpCallback;
   subscription?: {
     user?: { id?: number };
     invoice_payload?: string;
@@ -47,6 +52,7 @@ export async function registerBillingRoutes(
     config: AppConfig;
     service: BillingService;
     repository: BillingRepository;
+    followUpCallback?: FollowUpCallbackHandler;
     now?: () => Date;
   },
 ): Promise<void> {
@@ -88,6 +94,14 @@ export async function registerBillingRoutes(
       return reply.status(401).send({ error: "unauthorized" });
     }
     const update = request.body as TelegramUpdate;
+    if (update.callback_query) {
+      try {
+        await options.followUpCallback?.handle(update.callback_query);
+      } catch {
+        return reply.status(503).send({ error: "callback_unavailable" });
+      }
+      return { ok: true };
+    }
     const messageText = update.message?.text?.trim() ?? "";
     const command = messageText.split(/\s+/, 1)[0]?.split("@", 1)[0];
     const messageChatId = update.message?.chat?.id;

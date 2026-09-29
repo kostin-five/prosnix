@@ -84,6 +84,11 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("follow-up notification co
       { status: "sent", telegramMessageId: 456n, sentAt: now },
       now,
     );
+    expect(await first.findSentMessage(user.id, due.id, 456n)).toBe(true);
+    expect(await first.findSentMessage(user.id, due.id, 457n)).toBe(false);
+    expect(await first.findSentMessage("00000000-0000-4000-8000-000000000000", due.id, 456n)).toBe(
+      false,
+    );
 
     const answered = await completedSession(new Date("2026-08-30T06:19:30.000Z"));
     await database.db.insert(followUpObservations).values({

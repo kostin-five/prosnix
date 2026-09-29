@@ -19,6 +19,22 @@ const MAX_FOLLOW_UP_LAG_MS = 60 * 60_000;
 export class PostgresFollowUpNotificationRepository implements FollowUpNotificationRepository {
   constructor(private readonly db: Database) {}
 
+  async findSentMessage(userId: string, sessionId: string, messageId: bigint): Promise<boolean> {
+    const [delivery] = await this.db
+      .select({ id: followUpNotificationDeliveries.id })
+      .from(followUpNotificationDeliveries)
+      .where(
+        and(
+          eq(followUpNotificationDeliveries.userId, userId),
+          eq(followUpNotificationDeliveries.sessionId, sessionId),
+          eq(followUpNotificationDeliveries.telegramMessageId, messageId),
+          eq(followUpNotificationDeliveries.status, "sent"),
+        ),
+      )
+      .limit(1);
+    return Boolean(delivery);
+  }
+
   async claimDue(now: Date, limit: number) {
     return this.db.transaction(async (transaction) => {
       const db = transaction as Database;
