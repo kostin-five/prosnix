@@ -12,26 +12,28 @@ export function BootstrapErrorScreen({
   return (
     <div
       role="alert"
-      className="min-h-screen bg-background text-foreground flex items-center justify-center p-6"
+      className="ps-start min-h-screen text-foreground flex items-center justify-center p-6"
     >
-      <div className="max-w-sm text-center">
-        <AlertCircle className="w-10 h-10 text-primary mx-auto mb-4" />
-        <h1 className="text-xl font-bold">
-          {timedOut ? "Сервер ещё запускается" : "Не удалось безопасно войти"}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-2">{message}</p>
-        <a
-          href="/privacy"
-          className="mt-4 block text-sm text-muted-foreground underline underline-offset-4"
-        >
-          Политика конфиденциальности
-        </a>
-        <button
-          onClick={onRetry}
-          className="mt-6 w-full rounded-2xl bg-primary py-3 font-bold text-white"
-        >
-          Повторить
-        </button>
+      <div className="w-full max-w-sm text-center">
+        <div className="ps-wordmark mb-14" aria-label="Prosnix">
+          Prosni<span>x</span>
+        </div>
+        <div className="ps-surface p-6">
+          <AlertCircle className="w-10 h-10 text-amber-400 mx-auto mb-5" />
+          <h1 className="ps-flow-title text-2xl">
+            {timedOut ? "Сервер ещё запускается" : "Не удалось безопасно войти"}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-2">{message}</p>
+          <a
+            href="/privacy"
+            className="mt-4 block text-sm text-muted-foreground underline underline-offset-4"
+          >
+            Политика конфиденциальности
+          </a>
+          <button onClick={onRetry} className="ps-primary-button mt-6 w-full">
+            Повторить
+          </button>
+        </div>
       </div>
     </div>
   );

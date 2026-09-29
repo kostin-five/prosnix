@@ -78,7 +78,7 @@ describe("персонализация пробуждения", () => {
     );
     expect(container.textContent).toContain("без упражнений");
     act(() => findButton(container, "После короткого сна").click());
-    act(() => findButton(container, "2 мин").click());
+    act(() => findButton(container, "Короткий").click());
     const startButton = findButton(container, "Начать пробуждение");
     expect(startButton.parentElement?.className).toContain("shrink-0");
     act(() => startButton.click());
@@ -232,24 +232,24 @@ describe("персонализация пробуждения", () => {
       ),
     );
     expect(container.querySelector('[data-testid="pix-avatar"]')).toBeNull();
-    expect(container.textContent).toContain("Шаг 1 из 4");
-    expect(container.textContent).not.toContain("Какие упражнения можно предлагать?");
-    expect(findButton(container, "Далее").disabled).toBe(true);
+    expect(container.querySelector('[aria-label="Шаг 1 из 4"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("Что лучше исключить?");
+    expect(findButton(container, "Продолжить").disabled).toBe(true);
     act(() => findButton(container, "Только лёгкое движение").click());
-    act(() => findButton(container, "Далее").click());
-    expect(container.textContent).toContain("Шаг 2 из 4");
-    expect(container.textContent).toContain("Какие упражнения можно предлагать?");
+    act(() => findButton(container, "Продолжить").click());
+    expect(container.querySelector('[aria-label="Шаг 2 из 4"]')).not.toBeNull();
+    expect(container.textContent).toContain("Что лучше исключить?");
     act(() => findButton(container, "Пройтись").click());
-    act(() => findButton(container, "Далее").click());
-    expect(container.textContent).toContain("Шаг 3 из 4");
+    act(() => findButton(container, "Продолжить").click());
+    expect(container.querySelector('[aria-label="Шаг 3 из 4"]')).not.toBeNull();
     act(() => findButton(container, "Назад").click());
-    expect(findButton(container, "Пройтись").getAttribute("aria-pressed")).toBe("false");
+    expect(findButton(container, "Пройтись").getAttribute("aria-pressed")).toBe("true");
     expect(onSave).not.toHaveBeenCalled();
-    act(() => findButton(container, "Далее").click());
-    act(() => findButton(container, "Далее").click());
-    expect(container.textContent).toContain("Шаг 4 из 4");
+    act(() => findButton(container, "Продолжить").click());
+    act(() => findButton(container, "Продолжить").click());
+    expect(container.querySelector('[aria-label="Шаг 4 из 4"]')).not.toBeNull();
     act(() => findButton(container, "10 мин").click());
-    await act(async () => findButton(container, "Сохранить возможности").click());
+    await act(async () => findButton(container, "Готово").click());
     expect(onSave).toHaveBeenCalledOnce();
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({

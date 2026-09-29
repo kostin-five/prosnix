@@ -62,7 +62,7 @@ export function MorningGoalCard({ storageScope }: { storageScope: string }) {
   };
 
   return (
-    <section className="mb-4 rounded-3xl border border-border bg-card p-4">
+    <section className="ps-surface mb-4 p-4">
       <div className="flex items-center gap-2">
         <Flag className="h-4 w-4 text-primary" aria-hidden="true" />
         <h2 className="text-sm font-semibold">Твоя цель в жизни</h2>
@@ -132,7 +132,7 @@ export function MorningGoalCard({ storageScope }: { storageScope: string }) {
               type="button"
               onClick={() => void save(draft)}
               disabled={saving}
-              className="min-h-11 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground"
+              className="ps-primary-button min-h-11 px-3 text-sm"
             >
               {saving ? "Сохраняем…" : "Сохранить"}
             </button>

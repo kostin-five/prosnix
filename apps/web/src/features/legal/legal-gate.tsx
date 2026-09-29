@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle2, ShieldCheck } from "lucide-react";
+import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
 
 import { acceptLegalDocuments, type LegalStatusResponse } from "../../shared/api/client.js";
 
@@ -32,41 +32,51 @@ export function LegalGate({
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-5 text-foreground">
-      <section className="w-full max-w-sm rounded-3xl border border-border bg-card p-6">
-        <ShieldCheck className="h-9 w-9 text-primary" />
-        <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-primary">Prosnix</p>
-        <h1 className="mt-1 text-2xl font-bold">Сначала — прозрачные правила</h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          Мы сохраняем Telegram ID, оценки бодрости, выполнение протоколов и ответы через 15 минут,
-          чтобы строить личную статистику. Prosnix не является медицинской услугой.
-        </p>
-        <div className="mt-5 flex gap-4 text-sm font-semibold text-primary">
-          <a href="/privacy">Политика</a>
-          <a href="/terms">Соглашение</a>
+    <main className="ps-legal flex min-h-screen items-center justify-center p-5 text-foreground">
+      <section className="w-full max-w-sm">
+        <div className="ps-wordmark mb-12" aria-label="Prosnix">
+          Prosni<span>x</span>
         </div>
-        <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl bg-secondary p-4 text-sm">
-          <input
-            type="checkbox"
-            checked={confirmed}
-            onChange={(event) => setConfirmed(event.target.checked)}
-            className="mt-1 h-4 w-4 accent-orange-500"
-          />
-          <span>Я прочитал документы и принимаю их текущие версии.</span>
-        </label>
-        <button
-          disabled={!confirmed || saving}
-          onClick={() => void accept()}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 font-bold text-white disabled:opacity-40"
-        >
-          <CheckCircle2 className="h-5 w-5" />
-          {saving ? "Сохраняем…" : "Принять и продолжить"}
-        </button>
-        {error && (
-          <p role="alert" className="mt-3 text-sm text-red-400">
-            {error}
+        <div className="ps-surface p-6">
+          <ShieldCheck className="h-10 w-10 text-amber-400" aria-hidden="true" />
+          <p className="ps-kicker mt-6">Перед началом</p>
+          <h1 className="ps-flow-title mt-2">Сначала — прозрачные правила</h1>
+          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+            Мы сохраняем Telegram ID, оценки бодрости, выполнение протоколов и ответы через 15
+            минут, чтобы строить личную статистику. Prosnix не является медицинской услугой.
           </p>
-        )}
+          <div className="mt-6 flex gap-4 text-sm font-semibold text-amber-300">
+            <a href="/privacy" className="underline underline-offset-4">
+              Политика
+            </a>
+            <a href="/terms" className="underline underline-offset-4">
+              Соглашение
+            </a>
+          </div>
+          <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-secondary/40 p-4 text-sm">
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={(event) => setConfirmed(event.target.checked)}
+              className="mt-1 h-4 w-4 accent-orange-500"
+            />
+            <span>Я прочитал документы и принимаю их текущие версии.</span>
+          </label>
+          <button
+            disabled={!confirmed || saving}
+            onClick={() => void accept()}
+            className="ps-primary-button mt-5 flex w-full items-center justify-center gap-2 disabled:opacity-40"
+          >
+            <CheckCircle2 className="h-5 w-5" />
+            {saving ? "Сохраняем…" : "Принять и продолжить"}
+            {!saving && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+          </button>
+          {error && (
+            <p role="alert" className="mt-3 text-sm text-red-400">
+              {error}
+            </p>
+          )}
+        </div>
       </section>
     </main>
   );

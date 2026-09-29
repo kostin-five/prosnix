@@ -83,6 +83,6 @@ test("wake-ссылка сразу открывает исходную оцен�
     }),
   );
   await page.goto("/?source=wake");
-  await expect(page.getByRole("heading", { name: "Перед протоколом" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Насколько ты бодр сейчас?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Отложить на 5 минут" })).toHaveCount(0);
 });

@@ -9,20 +9,6 @@ import {
 const MorningExperienceSlot = lazy(() => import("../personalization/morning-experience-slot.js"));
 const TaskSoundToggle = lazy(() => import("../tasks/task-sound-toggle.js"));
 
-function MoonMark({ className = "h-12 w-12" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path
-        d="M20.2 15.3A8.5 8.5 0 0 1 8.7 3.8 8.5 8.5 0 1 0 20.2 15.3Z"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function RatingGrid({
   selected,
   onSelect,
@@ -31,7 +17,7 @@ function RatingGrid({
   onSelect: (rating: number) => void;
 }) {
   return (
-    <div className="mb-3 grid grid-cols-5 gap-2">
+    <div className="ps-rating-grid mb-3 grid grid-cols-5 gap-2">
       {Array.from({ length: 10 }, (_, index) => index + 1).map((rating) => {
         const color =
           rating <= 3
@@ -44,7 +30,8 @@ function RatingGrid({
             key={rating}
             type="button"
             onClick={() => onSelect(rating)}
-            className={`aspect-square rounded-2xl border text-xl font-bold transition-all duration-150 ${rating === selected ? `${color} scale-110 border-2 shadow-lg` : "border-border bg-secondary text-foreground active:scale-95"}`}
+            aria-pressed={rating === selected}
+            className={`aspect-square rounded-2xl border text-xl font-bold transition-all duration-150 ${rating === selected ? `${color} border-2 shadow-lg` : "border-border bg-secondary text-foreground active:scale-95"}`}
           >
             {rating}
           </button>
@@ -78,11 +65,13 @@ export function StartRatingScreen({
   const [selected, setSelected] = useState<number | null>(null);
   const [goalReady, setGoalReady] = useState(!goalCalibrationEnabled || !localStorageScope);
   return (
-    <div className="flex flex-1 flex-col justify-center p-6">
-      <div className="mb-10 text-center">
-        <MoonMark className="mx-auto mb-5 h-12 w-12 text-accent" />
-        <h1 className="mb-2 text-2xl font-bold">Перед протоколом</h1>
-        <p className="text-muted-foreground">Насколько бодрым ты себя чувствуешь прямо сейчас?</p>
+    <div className="ps-protocol ps-rating-screen flex flex-1 flex-col overflow-y-auto px-5 pb-6 pt-7">
+      <div className="ps-rating-heading mb-7">
+        <p className="ps-eyebrow mb-3">Перед началом</p>
+        <h1 className="ps-flow-title mb-3">Насколько ты бодр сейчас?</h1>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Оцени своё состояние до протокола. Здесь нет правильного ответа.
+        </p>
       </div>
       {goalCalibrationEnabled && localStorageScope && (
         <Suspense fallback={null}>
@@ -98,10 +87,12 @@ export function StartRatingScreen({
           <TaskSoundToggle mode={soundMode} onChange={onSoundModeChange} />
         </Suspense>
       )}
-      <RatingGrid selected={selected} onSelect={setSelected} />
-      <div className="mb-8 flex justify-between px-1 text-xs text-muted-foreground">
-        <span>1 — еле проснулся</span>
-        <span>10 — полностью бодр</span>
+      <div className="ps-rating-panel">
+        <RatingGrid selected={selected} onSelect={setSelected} />
+        <div className="mb-8 flex justify-between px-1 text-xs text-muted-foreground">
+          <span>1 — еле проснулся</span>
+          <span>10 — полностью бодр</span>
+        </div>
       </div>
       <button
         type="button"
@@ -110,7 +101,7 @@ export function StartRatingScreen({
           if (selected) onDone(selected);
         }}
         disabled={!selected || !ready || !goalReady || busy}
-        className={`w-full rounded-2xl py-4 text-lg font-bold transition-all ${selected && ready && !busy ? "text-white active:scale-[0.98]" : "bg-secondary text-muted-foreground"}`}
+        className={`ps-primary-button ps-rating-action mt-auto w-full rounded-2xl py-4 text-lg font-bold transition-all ${selected && ready && !busy ? "text-white active:scale-[0.98]" : "bg-secondary text-muted-foreground"}`}
         style={
           selected && ready && goalReady && !busy
             ? {
@@ -150,13 +141,17 @@ export function EndRatingScreen({
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   return (
-    <div className="flex flex-1 flex-col justify-center p-6">
-      <div className="mb-6 text-center">
-        <Sun className="mx-auto mb-5 h-12 w-12 text-accent" strokeWidth={1.7} />
-        <h1 className="mb-2 text-2xl font-bold">Протокол завершён</h1>
-        <p className="text-muted-foreground">А сейчас насколько бодрым ты себя чувствуешь?</p>
+    <div className="ps-protocol ps-rating-screen flex flex-1 flex-col overflow-y-auto px-5 pb-6 pt-7">
+      <div className="ps-rating-heading mb-6">
+        <p className="ps-eyebrow mb-3">
+          <Sun className="inline h-4 w-4" /> После протокола
+        </p>
+        <h1 className="ps-flow-title mb-3">Как ты чувствуешь себя сейчас?</h1>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Оцени бодрость ещё раз — мы сравним две оценки.
+        </p>
       </div>
-      <div className="mb-8 flex items-center justify-center gap-4">
+      <div className="ps-rating-comparison mb-7 flex items-center justify-center gap-4">
         <div className="text-center">
           <div className="mb-1 text-sm text-muted-foreground">Было</div>
           <div className="text-3xl font-black text-muted-foreground">
@@ -177,7 +172,7 @@ export function EndRatingScreen({
           <>
             <div className="h-8 w-px bg-border" />
             <div className="text-center">
-              <div className="mb-1 text-sm text-muted-foreground">Эффект</div>
+              <div className="mb-1 text-sm text-muted-foreground">Изменение</div>
               <div
                 className={`text-3xl font-black ${selected - startAlertness > 0 ? "text-green-400" : "text-red-400"}`}
               >
@@ -188,16 +183,18 @@ export function EndRatingScreen({
           </>
         )}
       </div>
-      <RatingGrid selected={selected} onSelect={setSelected} />
-      <div className="mb-8 flex justify-between px-1 text-xs text-muted-foreground">
-        <span>1 — еле проснулся</span>
-        <span>10 — полностью бодр</span>
+      <div className="ps-rating-panel">
+        <RatingGrid selected={selected} onSelect={setSelected} />
+        <div className="mb-8 flex justify-between px-1 text-xs text-muted-foreground">
+          <span>1 — еле проснулся</span>
+          <span>10 — полностью бодр</span>
+        </div>
       </div>
       <button
         type="button"
         onClick={() => selected && onDone(selected)}
         disabled={!selected}
-        className={`w-full rounded-2xl py-4 text-lg font-bold transition-all ${selected ? "text-white active:scale-[0.98]" : "bg-secondary text-muted-foreground"}`}
+        className={`ps-primary-button ps-rating-action mt-auto w-full rounded-2xl py-4 text-lg font-bold transition-all ${selected ? "text-white active:scale-[0.98]" : "bg-secondary text-muted-foreground"}`}
         style={
           selected
             ? {

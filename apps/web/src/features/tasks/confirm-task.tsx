@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
 
 import type { WakeDurationMinutes } from "../../shared/api/client.js";
@@ -187,12 +188,14 @@ export function ConfirmTask({
   protocolVersion = 8,
   onDone,
   soundMode = "off",
+  actionContainer,
 }: {
   taskId: ConfirmTaskId;
   durationMinutes: WakeDurationMinutes;
   protocolVersion?: number;
   onDone: (result: ConfirmTaskResult) => void;
   soundMode?: WakeSoundMode;
+  actionContainer?: HTMLElement | null;
 }) {
   const cfg =
     durationMinutes === 5 && protocolVersion >= 10 && COMPACT_FIVE_MINUTE_OVERRIDES[taskId]
@@ -238,13 +241,38 @@ export function ConfirmTask({
     );
   }
 
+  const action = !started ? (
+    <button
+      type="button"
+      onClick={() => {
+        setStarted(true);
+        startedAt.current = Date.now();
+        signalStart(soundMode);
+      }}
+      className="ps-primary-button w-full"
+    >
+      Начать
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={confirm}
+      disabled={cfg.countdown > 0 && remaining > 0}
+      className="ps-primary-button w-full"
+    >
+      <span className="inline-flex items-center justify-center gap-2">
+        {cfg.cta} <Check className="h-5 w-5" />
+      </span>
+    </button>
+  );
+
   return (
-    <div className="flex flex-col gap-3">
+    <div className="ps-confirm-task flex flex-col gap-3">
       <p className="self-center text-center text-sm leading-relaxed text-muted-foreground">
         {cfg.instruction}
       </p>
-      <div className="flex min-h-32 items-center justify-center">
-        {cfg.countdown > 0 && started ? (
+      <div className="ps-confirm-timer flex min-h-32 items-center justify-center">
+        {cfg.countdown > 0 ? (
           <Suspense
             fallback={
               <div className="grid h-40 w-40 place-items-center text-4xl font-black text-primary">
@@ -252,7 +280,12 @@ export function ConfirmTask({
               </div>
             }
           >
-            <TaskTimerVisual taskId={taskId} remaining={remaining} total={cfg.countdown} />
+            <TaskTimerVisual
+              taskId={taskId}
+              remaining={remaining}
+              total={cfg.countdown}
+              waiting={!started}
+            />
           </Suspense>
         ) : (
           <p className="max-w-[240px] text-center text-xs leading-relaxed text-muted-foreground">
@@ -260,40 +293,7 @@ export function ConfirmTask({
           </p>
         )}
       </div>
-      {!started ? (
-        <button
-          onClick={() => {
-            setStarted(true);
-            startedAt.current = Date.now();
-            signalStart(soundMode);
-          }}
-          className="min-h-12 w-full shrink-0 rounded-2xl py-3 text-base font-bold text-white transition-transform active:scale-[0.98]"
-          style={{
-            background: "linear-gradient(135deg,#F97316,#EA580C)",
-            boxShadow: "0 8px 32px rgba(249,115,22,.25)",
-          }}
-        >
-          Начать
-        </button>
-      ) : (
-        <button
-          onClick={confirm}
-          disabled={cfg.countdown > 0 && remaining > 0}
-          className={`min-h-12 w-full shrink-0 rounded-2xl py-3 text-base font-bold transition-all ${cfg.countdown > 0 && remaining > 0 ? "bg-secondary text-muted-foreground" : "text-white active:scale-[0.98]"}`}
-          style={
-            cfg.countdown === 0 || remaining === 0
-              ? {
-                  background: "linear-gradient(135deg,#F97316,#EA580C)",
-                  boxShadow: "0 8px 32px rgba(249,115,22,.25)",
-                }
-              : {}
-          }
-        >
-          <span className="inline-flex items-center justify-center gap-2">
-            {cfg.cta} <Check className="h-5 w-5" />
-          </span>
-        </button>
-      )}
+      {actionContainer ? createPortal(action, actionContainer) : action}
     </div>
   );
 }

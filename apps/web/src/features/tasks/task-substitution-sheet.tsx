@@ -40,12 +40,15 @@ export function TaskSubstitutionSheet({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[70] flex items-end bg-black/65 p-4" onClick={onClose}>
+    <div
+      className="ps-substitution-sheet fixed inset-0 z-[70] flex items-end bg-black/65 p-4"
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"
         aria-label={`Заменить задание ${taskTitle}`}
-        className="mx-auto w-full max-w-[358px] rounded-3xl border border-border bg-card p-5 shadow-2xl"
+        className="ps-substitution-dialog mx-auto w-full max-w-[358px] rounded-3xl border border-border bg-card p-5 shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">Замена шага</p>

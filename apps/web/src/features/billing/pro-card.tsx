@@ -49,7 +49,7 @@ export function ProCard() {
     ["active", "canceled", "past_due"].includes(status?.entitlement.status ?? "") &&
     new Date(status!.entitlement.currentPeriodEnd!).getTime() > Date.now();
   return (
-    <section className="mb-4 rounded-2xl border border-primary/30 bg-card p-4">
+    <section className="ps-surface mb-4 border-primary/30 p-4">
       <div className="flex items-center gap-2">
         <Crown className="h-4 w-4 text-primary" />
         <p className="text-sm font-semibold">Prosnix Pro</p>
@@ -67,8 +67,8 @@ export function ProCard() {
       ) : status?.enabled ? (
         <>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            Расширенная история, персональные отчёты и будущие Pro-возможности.{" "}
-            {status.plan.priceStars} Stars за 30 дней с автопродлением.
+            Расширенная история и будущие Pro-возможности. {status.plan.priceStars} Stars за 30 дней
+            с автопродлением.
           </p>
           <button
             disabled={busy}

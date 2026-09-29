@@ -59,8 +59,8 @@ export function WakeContextSheet({
   const [context, setContext] = React.useState<WakeContext>("night_sleep");
   const [duration, setDuration] = React.useState<WakeDurationMinutes>(defaultDuration);
   return (
-    <div className="fixed inset-0 z-50 mx-auto flex h-[100dvh] min-h-0 w-full max-w-[390px] flex-col overflow-hidden bg-background">
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-3 pt-4">
+    <div className="ps-flow ps-context fixed inset-0 z-50 mx-auto flex h-[100dvh] min-h-0 w-full max-w-[390px] flex-col overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-3 pt-5">
         <button
           onClick={onCancel}
           className="mb-2 flex min-h-10 items-center gap-2 self-start rounded-xl px-2 text-sm text-muted-foreground"
@@ -79,10 +79,8 @@ export function WakeContextSheet({
           </svg>
           Назад
         </button>
-        <p className="text-xs font-semibold uppercase tracking-wider text-accent">
-          Контекст пробуждения
-        </p>
-        <h1 className="mt-1.5 text-2xl font-bold">Как ты просыпаешься сейчас?</h1>
+        <p className="ps-kicker mt-3">Контекст пробуждения</p>
+        <h1 className="ps-flow-title mt-2">Как ты просыпаешься сейчас?</h1>
         <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
           Контекст помогает сравнивать похожие ситуации пробуждения. Первые протоколы могут
           совпадать; дальше Prosnix учится отдельно для выбранного контекста и времени.
@@ -91,7 +89,7 @@ export function WakeContextSheet({
           <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-4">
             <p className="text-sm font-semibold">Сделать задания удобнее?</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Ответь на три коротких вопроса или продолжи с безопасным набором без упражнений.
+              Ответь на четыре коротких вопроса или продолжи с безопасным набором без упражнений.
             </p>
             <button
               onClick={onOpenProfile}
@@ -109,7 +107,7 @@ export function WakeContextSheet({
                 key={item.value}
                 onClick={() => setContext(item.value)}
                 aria-pressed={selected}
-                className={`flex min-h-14 w-full items-center gap-3 rounded-2xl border px-4 py-2.5 text-left ${selected ? "border-primary bg-primary/10" : "border-border bg-card"}`}
+                className={`ps-flow-choice flex min-h-14 items-center gap-3 px-4 py-2.5 ${selected ? "border-primary bg-primary/10" : "border-border bg-card"}`}
               >
                 <span
                   aria-hidden="true"
@@ -125,25 +123,32 @@ export function WakeContextSheet({
             );
           })}
         </div>
-        <p className="mt-4 text-sm font-semibold">Сколько времени есть?</p>
+        <p className="mt-5 text-sm font-semibold">Какой формат удобнее?</p>
         <div className="mt-2 grid grid-cols-3 gap-2">
-          {([2, 5, 10] as const).map((value) => (
+          {(
+            [
+              [2, "Короткий", "≈ 2 мин"],
+              [5, "Средний", "≈ 5 мин"],
+              [10, "Длинный", "≈ 10 мин"],
+            ] as const
+          ).map(([value, label, estimate]) => (
             <button
               key={value}
               onClick={() => setDuration(value)}
               aria-pressed={duration === value}
-              className={`min-h-11 rounded-xl border text-sm font-semibold ${duration === value ? "border-accent bg-accent/15 text-accent" : "border-border bg-card"}`}
+              className={`ps-flow-choice flex min-h-16 flex-col items-center justify-center gap-0.5 px-1 text-center text-sm font-semibold ${duration === value ? "border-accent bg-accent/15 text-accent" : "border-border bg-card"}`}
             >
-              {value} мин
+              <span>{label}</span>
+              <span className="text-[11px] font-normal text-muted-foreground">{estimate}</span>
             </button>
           ))}
         </div>
       </div>
-      <div className="shrink-0 bg-background px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+      <div className="shrink-0 bg-[#0d0b09] px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
         <button
           disabled={busy}
           onClick={() => onStart(context, duration)}
-          className="min-h-14 w-full rounded-2xl bg-primary px-5 font-bold text-primary-foreground disabled:opacity-60"
+          className="ps-primary-button w-full px-5 disabled:opacity-60"
         >
           {busy ? "Подбираем протокол…" : "Начать пробуждение"}
         </button>

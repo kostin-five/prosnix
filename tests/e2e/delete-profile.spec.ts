@@ -84,11 +84,14 @@ test("пользователь подтверждает удаление и на
 
   await page.goto("/");
   await page.getByRole("button", { name: "Настройки" }).click();
+  await page.getByRole("button", { name: /Цель в жизни/ }).click();
   await page.getByRole("button", { name: "Добавить цель" }).click();
   await page.getByLabel("Моя жизненная цель").fill("Личная цель для удаления");
   await page.getByRole("button", { name: "Сохранить", exact: true }).last().click();
   await expect(page.getByText("Личная цель для удаления")).toBeVisible();
   expect(lifeGoal.text).toBe("Личная цель для удаления");
+  await page.getByRole("button", { name: "Настройки" }).first().click();
+  await page.getByRole("button", { name: "Удалить профиль" }).click();
   await page.getByRole("button", { name: "Удалить мой профиль" }).click();
   const deletion = page.waitForRequest(
     (request) => request.url().includes("/api/v1/me") && request.method() === "DELETE",
@@ -96,8 +99,8 @@ test("пользователь подтверждает удаление и на
   await page.getByRole("button", { name: "Да, удалить всё" }).click();
   await deletion;
   expect(lifeGoal.text).toBe("");
-  await expect(page.getByRole("heading", { name: "Prosnix" })).toBeVisible();
-  await expect(page.getByText(/0 из 7 экспериментов/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Пора проснуться" })).toBeVisible();
+  await expect(page.getByText("7", { exact: true })).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(() =>

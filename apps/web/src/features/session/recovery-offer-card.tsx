@@ -8,7 +8,7 @@ export function RecoveryOfferCard({
   onDecline: () => void;
 }) {
   return (
-    <section className="mb-5 rounded-2xl border border-primary/35 bg-primary/5 p-4">
+    <section className="ps-recovery-offer mb-5 rounded-2xl border border-primary/35 bg-primary/5 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-primary">
         Необязательное продолжение
       </p>

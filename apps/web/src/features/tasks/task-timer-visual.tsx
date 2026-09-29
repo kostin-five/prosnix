@@ -5,10 +5,12 @@ export function TaskTimerVisual({
   taskId,
   remaining,
   total,
+  waiting = false,
 }: {
   taskId: TaskId;
   remaining: number;
   total: number;
+  waiting?: boolean;
 }) {
   const complete = remaining <= 0;
   const progress = total <= 0 ? 1 : Math.min(1, Math.max(0, (total - remaining) / total));
@@ -19,7 +21,13 @@ export function TaskTimerVisual({
     <div
       className="pointer-events-none relative grid h-40 w-40 place-items-center"
       role="timer"
-      aria-label={complete ? "Таймер завершён" : `Осталось ${remaining} секунд`}
+      aria-label={
+        waiting
+          ? "Таймер ещё не начат"
+          : complete
+            ? "Таймер завершён"
+            : `Осталось ${remaining} секунд`
+      }
       data-testid="task-timer-visual"
     >
       {lightTask && (

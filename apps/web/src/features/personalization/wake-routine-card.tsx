@@ -43,7 +43,7 @@ export function WakeRoutineCard({
     }
   };
   return (
-    <section className="mb-4 rounded-2xl border border-border bg-card p-4">
+    <section className="ps-surface mb-4 p-4">
       <div className="flex items-center gap-2">
         <TaskIcon taskId="window" className="h-4 w-4 text-accent" />
         <h2 className="text-sm font-semibold">Рутина после пробуждения</h2>
@@ -139,7 +139,7 @@ export function WakeRoutineCard({
           <button
             disabled={saving || items.some((item) => !item.title.trim())}
             onClick={() => void submit()}
-            className="mt-3 min-h-12 w-full rounded-xl bg-primary font-semibold text-primary-foreground disabled:opacity-50"
+            className="ps-primary-button mt-3 w-full disabled:opacity-50"
           >
             {saving ? "Сохраняем…" : "Сохранить рутину"}
           </button>

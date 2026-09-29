@@ -7,8 +7,8 @@ const OPERATOR_CONTACT_URL = `https://t.me/${OPERATOR_CONTACT.replace(/^@/, "")}
 
 export function PrivacyPolicy() {
   return (
-    <main className="min-h-screen bg-background px-5 py-10 text-foreground">
-      <article className="mx-auto max-w-2xl rounded-3xl border border-border bg-card p-6 sm:p-8">
+    <main className="ps-legal min-h-screen px-5 py-10 text-foreground">
+      <article className="ps-surface mx-auto max-w-2xl p-6 sm:p-8">
         <LegalBack />
         <p className="text-xs font-semibold uppercase tracking-wider text-primary">Prosnix</p>
         <h1 className="mt-2 text-3xl font-bold">Политика конфиденциальности</h1>

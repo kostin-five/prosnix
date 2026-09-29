@@ -1,4 +1,16 @@
-import { ExternalLink, LockKeyhole, Settings2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Activity,
+  Bell,
+  ChevronLeft,
+  ChevronRight,
+  Crown,
+  FileText,
+  Flag,
+  ListChecks,
+  LockKeyhole,
+  Trash2,
+} from "lucide-react";
 
 import { DeleteProfile } from "../profile/delete-profile.js";
 import type { WakeSchedule } from "../schedule/schedule-api.js";
@@ -10,6 +22,7 @@ import { WakeRoutineCard } from "../personalization/wake-routine-card.js";
 import type { WakeProfile, WakeRoutine } from "../../shared/api/client.js";
 
 export default function SettingsScreen({
+  initialSection = null,
   alarmTime,
   schedule,
   saving,
@@ -23,6 +36,7 @@ export default function SettingsScreen({
   localStorageScope,
   goalCalibrationEnabled,
 }: {
+  initialSection?: "capabilities" | "goal" | null;
   alarmTime: string;
   schedule: WakeSchedule | null;
   saving: boolean;
@@ -40,60 +54,171 @@ export default function SettingsScreen({
   localStorageScope: string;
   goalCalibrationEnabled: boolean;
 }) {
+  const [section, setSection] = useState<
+    "schedule" | "capabilities" | "goal" | "routine" | "pro" | "privacy" | "delete" | null
+  >(initialSection);
+  useEffect(() => setSection(initialSection), [initialSection]);
+
+  const row = (title: string, description: string, icon: React.ReactNode, onClick: () => void) => (
+    <button type="button" className="ps-settings-row" onClick={onClick}>
+      <span className="ps-settings-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold">{title}</span>
+        <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>
+      </span>
+      <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+    </button>
+  );
+
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto px-5 pb-28 pt-14">
-      <div className="mb-6 flex items-center gap-3">
-        <Settings2 className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">Настройки</h1>
-          <p className="text-sm text-muted-foreground">Напоминания и данные профиля</p>
-        </div>
-      </div>
-
-      <WakeScheduleCard
-        schedule={schedule}
-        defaultTime={alarmTime}
-        saving={saving}
-        onSave={onScheduleSave}
-      />
-
-      <CapabilityProfileCard
-        profile={wakeProfile}
-        saving={personalizationSaving}
-        onSave={onProfileSave}
-      />
-      {goalCalibrationEnabled && <MorningGoalCard storageScope={localStorageScope} />}
-      <WakeRoutineCard
-        routine={wakeRoutine}
-        saving={personalizationSaving}
-        onSave={onRoutineSave}
-      />
-
-      {!demo && <ProCard />}
-
-      <section className="rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center gap-2">
-          <LockKeyhole className="h-4 w-4 text-green-400" />
-          <p className="text-sm font-semibold">Конфиденциальность</p>
-        </div>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          Здесь описано, какие данные сохраняются, зачем они нужны и как удалить профиль.
-        </p>
-        <a
-          href="/privacy"
-          className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary"
+    <div className="ps-settings flex flex-1 flex-col overflow-y-auto px-5 pb-28 pt-8">
+      {section && (
+        <button
+          type="button"
+          onClick={() => setSection(null)}
+          className="mb-5 flex min-h-11 items-center gap-2 self-start text-sm text-amber-300"
         >
-          Открыть политику <ExternalLink className="h-3.5 w-3.5" />
-        </a>
-        <a
-          href="/terms"
-          className="ml-4 mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary"
-        >
-          Соглашение <ExternalLink className="h-3.5 w-3.5" />
-        </a>
-      </section>
+          <ChevronLeft className="h-5 w-5" /> Настройки
+        </button>
+      )}
+      {!section ? (
+        <>
+          <span className="ps-wordmark" aria-label="Prosnix">
+            Prosni<span>x</span>
+          </span>
+          <h1 className="ps-flow-title mt-6">Настройки</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Сделай приложение удобным для себя</p>
 
-      {!demo && <DeleteProfile localStorageScope={localStorageScope} />}
+          <div className="ps-surface mt-7 overflow-hidden">
+            {row(
+              "Напоминания",
+              schedule?.enabled ? `Каждый день · ${schedule.localTime}` : "Сообщения в Telegram",
+              <Bell className="h-5 w-5" />,
+              () => setSection("schedule"),
+            )}
+            {row(
+              "Возможности",
+              "Движение и доступные задания",
+              <Activity className="h-5 w-5" />,
+              () => setSection("capabilities"),
+            )}
+            {goalCalibrationEnabled &&
+              row(
+                "Цель в жизни",
+                "Ради чего хочется начать день",
+                <Flag className="h-5 w-5" />,
+                () => setSection("goal"),
+              )}
+            {row(
+              "Личный распорядок",
+              wakeRoutine.enabled
+                ? `${wakeRoutine.items.length} пунктов после пробуждения`
+                : "Шаги после пробуждения",
+              <ListChecks className="h-5 w-5" />,
+              () => setSection("routine"),
+            )}
+            {!demo &&
+              row("Pro", "Узнать о возможностях", <Crown className="h-5 w-5" />, () =>
+                setSection("pro"),
+              )}
+          </div>
+
+          <div className="ps-surface mt-4 overflow-hidden">
+            {row(
+              "Конфиденциальность",
+              "Данные и документы",
+              <LockKeyhole className="h-5 w-5" />,
+              () => setSection("privacy"),
+            )}
+          </div>
+          {!demo && (
+            <button
+              type="button"
+              onClick={() => setSection("delete")}
+              className="ps-surface mt-4 flex min-h-14 items-center gap-3 px-4 text-left text-red-400"
+            >
+              <Trash2 className="h-5 w-5" /> Удалить профиль
+              <ChevronRight className="ml-auto h-5 w-5" />
+            </button>
+          )}
+        </>
+      ) : (
+        <div className="ps-settings-detail">
+          <h1 className="ps-flow-title mb-2">
+            {
+              {
+                schedule: "Напоминания",
+                capabilities: "Возможности",
+                goal: "Цель в жизни",
+                routine: "Личный распорядок",
+                pro: "Pro",
+                privacy: "Документы",
+                delete: "Удаление профиля",
+              }[section]
+            }
+          </h1>
+          <p className="mb-6 text-sm text-muted-foreground">
+            {
+              {
+                schedule: "Сообщения в твоём личном чате Telegram",
+                capabilities: "Задания подбираются с учётом твоих ответов",
+                goal: "Что вдохновляет тебя начинать новый день?",
+                routine: "Необязательные шаги после пробуждения",
+                pro: "Возможности Prosnix",
+                privacy: "Правила использования и обработки данных",
+                delete: "Управление личными данными",
+              }[section]
+            }
+          </p>
+          {section === "schedule" && (
+            <WakeScheduleCard
+              schedule={schedule}
+              defaultTime={alarmTime}
+              saving={saving}
+              onSave={onScheduleSave}
+            />
+          )}
+          {section === "capabilities" && (
+            <CapabilityProfileCard
+              profile={wakeProfile}
+              saving={personalizationSaving}
+              onSave={onProfileSave}
+            />
+          )}
+          {section === "goal" && goalCalibrationEnabled && (
+            <MorningGoalCard storageScope={localStorageScope} />
+          )}
+          {section === "routine" && (
+            <WakeRoutineCard
+              routine={wakeRoutine}
+              saving={personalizationSaving}
+              onSave={onRoutineSave}
+            />
+          )}
+          {section === "pro" && !demo && <ProCard />}
+          {section === "privacy" && (
+            <div className="ps-surface overflow-hidden">
+              <a href="/privacy" className="ps-settings-row">
+                <span className="ps-settings-icon">
+                  <LockKeyhole className="h-5 w-5" />
+                </span>
+                <span className="flex-1 font-semibold">Политика конфиденциальности</span>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </a>
+              <a href="/terms" className="ps-settings-row">
+                <span className="ps-settings-icon">
+                  <FileText className="h-5 w-5" />
+                </span>
+                <span className="flex-1 font-semibold">Пользовательское соглашение</span>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </a>
+            </div>
+          )}
+          {section === "delete" && !demo && <DeleteProfile localStorageScope={localStorageScope} />}
+        </div>
+      )}
     </div>
   );
 }

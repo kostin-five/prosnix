@@ -95,7 +95,7 @@ test("следующий шаг виден при загрузке и до пе�
   await expect(page.getByText("0/7", { exact: false })).toHaveCount(0);
   releaseProfile();
   await expect(page.getByText(/Пройди первый протокол после сна/)).toBeVisible();
-  await expect(page.getByText(/ещё 7 до первого профиля/)).toBeVisible();
+  await expect(page.getByText("0 из 7 до первого общего профиля")).toBeVisible();
 });
 
 test("после третьего пробуждения отчёт создаётся по нажатию", async ({ page }) => {
@@ -255,10 +255,19 @@ test("профиль показывает только воспроизводи�
   );
 
   await page.goto("/");
-  await expect(page.getByLabel("Prosnix Beta")).toBeVisible();
+  await expect(page.getByLabel("Prosnix", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Прирост бодрости по дням")).toHaveCount(0);
-  await expect(page.getByText("Средний прирост")).toBeVisible();
+  await expect(page.getByText(/Среднее изменение бодрости/)).toBeVisible();
   await page.getByRole("button", { name: "Статистика" }).click();
+
+  await expect(page.locator(".ps-stats-hero")).toBeVisible();
+  await expect(
+    page.getByRole("progressbar", { name: "Прогресс до первого профиля" }),
+  ).toHaveAttribute("aria-valuenow", "6");
+  await page.setViewportSize({ width: 320, height: 700 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
 
   await expect(page.getByText("+3.5", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("60%", { exact: true }).first()).toBeVisible();
@@ -511,7 +520,7 @@ test("до третьего пробуждения отчёт недоступе
   });
 
   await page.goto("/");
-  const brand = await page.getByLabel("Prosnix Beta").boundingBox();
+  const brand = await page.getByLabel("Prosnix", { exact: true }).boundingBox();
   const counter = await page.getByLabel("Завершено сессий: 2").boundingBox();
   expect(brand).not.toBeNull();
   expect(counter).not.toBeNull();

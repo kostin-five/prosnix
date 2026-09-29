@@ -51,7 +51,7 @@ export function WakeScheduleCard({
   return (
     <section
       aria-labelledby="wake-reminder-title"
-      className="bg-card border border-border rounded-3xl p-5 mb-4 relative overflow-hidden"
+      className="ps-surface p-5 mb-4 relative overflow-hidden"
     >
       <div
         className="absolute inset-0 opacity-10 pointer-events-none"
@@ -97,7 +97,7 @@ export function WakeScheduleCard({
             type="button"
             disabled={saving}
             onClick={() => void save()}
-            className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-60"
+            className="ps-primary-button w-full px-4 disabled:opacity-60"
           >
             {saving ? (
               <span className="inline-flex items-center gap-2">

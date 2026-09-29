@@ -8,7 +8,6 @@ import {
   Check,
   TrendingUp,
   ArrowRight,
-  Sun,
   Award,
   ChevronRight,
   Zap,
@@ -20,8 +19,8 @@ import {
 } from "lucide-react";
 import { useBootstrap } from "../features/bootstrap/use-bootstrap.js";
 import { useAnalyticsProfile } from "../features/analytics/use-analytics.js";
-import { useCoachInsight } from "../features/coach/use-coach-insight.js";
 import { useSessionHistory } from "../features/history/use-session-history.js";
+import { useCoachInsight } from "../features/coach/use-coach-insight.js";
 import {
   SessionConflictError,
   abandonWakeSession,
@@ -52,7 +51,6 @@ import {
   type DifficultyLevel,
 } from "../features/tasks/task-engine.js";
 import { LazyBoundary } from "./lazy-boundary.js";
-import { ProsnixBrand } from "../features/brand/prosnix-brand.js";
 import { TaskIcon } from "../features/tasks/task-icon.js";
 import {
   TaskSubmissionGate,
@@ -68,6 +66,7 @@ const WAKE_TASK_SUBSTITUTION_ENABLED =
   import.meta.env.VITE_WAKE_TASK_SUBSTITUTION_ENABLED === "true" ||
   (import.meta.env.DEV && import.meta.env.VITE_WAKE_TASK_SUBSTITUTION_ENABLED !== "false");
 
+const HomeScreen = lazy(() => import("../features/home/home-screen.js"));
 const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
 const StartRatingScreen = lazy(async () => ({
   default: (await import("../features/session/rating-screens.js")).StartRatingScreen,
@@ -1035,6 +1034,7 @@ export function TasksContainer({
 }) {
   const [protocolOpen, setProtocolOpen] = useState(false);
   const [replacementTarget, setReplacementTarget] = useState<number | null>(null);
+  const [taskActionContainer, setTaskActionContainer] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
     if (soundMode !== "on") return;
     let active = true;
@@ -1083,11 +1083,12 @@ export function TasksContainer({
   };
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-3 pt-3"
+      className="ps-protocol ps-task-screen flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-3 pt-3"
+      data-current-task={taskIds[taskIndex]}
       aria-busy={submitting}
     >
-      <div className="mb-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
+      <div className="ps-task-top mb-3">
+        <div className="ps-task-toolbar mb-2 flex items-center justify-between gap-2">
           <span className="min-w-0 text-[11px] text-muted-foreground">
             Шаг {taskIndex + 1} из {taskIds.length} · {remainingLabel}
           </span>
@@ -1137,10 +1138,7 @@ export function TasksContainer({
           </Suspense>
         )}
       </div>
-      <div className="mb-2 flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/20 text-primary">
-          <TaskIcon taskId={id} className="h-5 w-5" />
-        </div>
+      <div className="ps-task-title mb-2 flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="text-base font-bold">{meta.title}</h2>
           <p className="text-xs text-muted-foreground">
@@ -1159,7 +1157,7 @@ export function TasksContainer({
           </button>
         )}
       </div>
-      <div className="mb-2">
+      <div className="ps-next-step mb-2">
         {nextId && (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-card/60 px-3 py-2">
             <span className="text-[11px] font-medium text-muted-foreground">Следующий шаг:</span>
@@ -1180,17 +1178,17 @@ export function TasksContainer({
         )}
       </div>
       <div
-        className="flex flex-col rounded-2xl border border-border/80 bg-card/35 p-3"
+        className="ps-task-card flex flex-col rounded-2xl border border-border/80 bg-card/35 p-3"
         data-testid="task-experience-shell"
       >
         {guidedExperience && !["math", "memory", "stroop", "reaction"].includes(id) && (
-          <div className="mb-2 h-24 shrink-0" data-testid="task-motion-region">
+          <div className="ps-task-motion mb-2 h-24 shrink-0" data-testid="task-motion-region">
             <Suspense fallback={<div className="h-24 rounded-2xl bg-secondary/40" />}>
               <TaskMotionVisual taskId={id} />
             </Suspense>
           </div>
         )}
-        <div data-testid="task-interaction-region">
+        <div className="ps-task-interaction" data-testid="task-interaction-region">
           {id === "math" && (
             <MathTask
               key={`${id}-${taskIndex}`}
@@ -1241,6 +1239,7 @@ export function TasksContainer({
                 protocolVersion={protocolVersion}
                 soundMode={soundMode}
                 onDone={completeTask}
+                actionContainer={taskActionContainer}
               />
             </Suspense>
           )}
@@ -1255,133 +1254,7 @@ export function TasksContainer({
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-// ─── Home Screen ──────────────────────────────────────────────────────────────
-function HomeScreen({
-  onStart,
-  sessions,
-  demo,
-  localStorageScope,
-  onOpenSettings,
-}: {
-  onStart: () => void;
-  sessions: Session[];
-  demo: boolean;
-  localStorageScope: string;
-  onOpenSettings: () => void;
-}) {
-  const analytics = useAnalyticsProfile(!demo, sessions.length);
-  const history = useSessionHistory(!demo, sessions.length);
-  const valid = sessions.filter((s) => s.endAlertness > 0);
-  const serverItems = history.status === "ready" ? history.items : [];
-  const apiProfile = analytics.status === "ready" ? analytics.profile : null;
-  const experimentCount = demo
-    ? valid.length
-    : (apiProfile?.averageDelta.evidenceCount ?? serverItems.length);
-  const averageValue = demo
-    ? valid.length
-      ? valid.reduce((sum, item) => sum + item.endAlertness - item.startAlertness, 0) / valid.length
-      : null
-    : (apiProfile?.averageDelta.value ?? null);
-  const avgGain = averageValue === null ? "—" : averageValue.toFixed(1);
-  const isLearning = experimentCount < 7;
-  const lp = Math.min(experimentCount, 7);
-
-  return (
-    <div className="flex flex-col flex-1 px-5 pt-14 pb-28 overflow-y-auto">
-      <div className="mb-6">
-        <div className="flex min-w-0 items-center justify-between gap-3">
-          <ProsnixBrand />
-          <div
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1.5"
-            aria-label={`Завершено сессий: ${experimentCount}`}
-          >
-            <Flame className="h-4 w-4 text-primary" />
-            <span className="text-sm font-bold">{experimentCount}</span>
-            <span className="hidden text-xs text-muted-foreground min-[350px]:inline">сессий</span>
-          </div>
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Помогает прийти в себя после любого сна
-        </p>
-      </div>
-
-      {/* Learning status */}
-      <div className="bg-card border border-border rounded-2xl p-4 mb-4">
-        <div className="flex items-center gap-2 mb-3">
-          {isLearning ? (
-            <Zap className="w-4 h-4 text-accent" />
-          ) : (
-            <Sparkles className="w-4 h-4 text-primary" />
-          )}
-          <p className={`text-sm font-semibold ${isLearning ? "text-accent" : "text-primary"}`}>
-            {isLearning ? "Изучаем твоё пробуждение" : "Первый профиль пробуждения готов"}
-          </p>
-        </div>
-        {isLearning && (
-          <div className="flex gap-1.5 mb-2">
-            {Array.from({ length: 7 }, (_, i) => (
-              <div
-                key={i}
-                className={`flex-1 h-2 rounded-full ${i < lp ? "bg-primary" : "bg-muted"}`}
-              />
-            ))}
-          </div>
-        )}
-        <p className="text-xs text-muted-foreground">
-          {isLearning
-            ? lp < 7
-              ? `${lp} из 7 экспериментов · Пробуем разные комбинации, чтобы понять, что помогает именно тебе.`
-              : "7 из 7 · Ещё один шаг до первых выводов!"
-            : "Мы уже нашли первые закономерности и продолжим уточнять их после новых пробуждений."}
-        </p>
-      </div>
-
-      {GOAL_CALIBRATION_ENABLED && (
-        <Suspense fallback={null}>
-          <MorningExperienceSlot
-            mode="due"
-            storageScope={localStorageScope}
-            onOpenSettings={onOpenSettings}
-          />
-        </Suspense>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-card border border-border rounded-2xl p-4">
-          <p className="text-xs text-muted-foreground mb-1">Средний прирост</p>
-          <div className="flex items-end gap-1">
-            <span className="text-3xl font-extrabold">
-              {avgGain === "—" ? "—" : `${(averageValue ?? 0) >= 0 ? "+" : ""}${avgGain}`}
-            </span>
-            {experimentCount > 0 && (
-              <span className="text-muted-foreground text-sm mb-0.5">балла</span>
-            )}
-          </div>
-        </div>
-        <div className="bg-card border border-border rounded-2xl p-4">
-          <p className="text-xs text-muted-foreground mb-1">Экспериментов</p>
-          <div className="flex items-end gap-1">
-            <span className="text-3xl font-extrabold">{experimentCount}</span>
-            <span className="text-muted-foreground text-sm mb-0.5">/ {isLearning ? "7" : "∞"}</span>
-          </div>
-        </div>
-      </div>
-
-      <button
-        onClick={onStart}
-        className="w-full py-5 rounded-2xl text-lg font-bold text-white flex items-center justify-center gap-3 active:scale-[0.98] transition-transform"
-        style={{
-          background: "linear-gradient(135deg,#F97316,#EA580C)",
-          boxShadow: "0 8px 32px rgba(249,115,22,.25)",
-        }}
-      >
-        <Sun className="w-5 h-5" /> {demo ? "Попробовать пробуждение" : "Начать пробуждение"}
-      </button>
+      <div className="ps-task-action-slot" ref={setTaskActionContainer} />
     </div>
   );
 }
@@ -1476,9 +1349,9 @@ function ResultsScreen({
   }
 
   return (
-    <div className="flex flex-col flex-1 p-6 overflow-y-auto">
+    <div className="ps-protocol ps-results flex flex-col flex-1 p-6 overflow-y-auto">
       {/* Header */}
-      <div className="text-center pt-8 mb-8">
+      <div className="ps-results-heading text-center pt-8 mb-8">
         <div className="w-16 h-16 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center mx-auto mb-5">
           <Check className="w-8 h-8 text-green-400" strokeWidth={2.5} />
         </div>
@@ -1493,7 +1366,7 @@ function ResultsScreen({
       </div>
 
       {/* Before / After / Effect — main result */}
-      <div className="bg-card border border-border rounded-3xl p-5 mb-5">
+      <div className="ps-results-scores bg-card border border-border rounded-3xl p-5 mb-5">
         <div className="flex items-center justify-between">
           <div className="text-center flex-1">
             <p className="text-xs text-muted-foreground mb-2">До</p>
@@ -1514,7 +1387,7 @@ function ResultsScreen({
           </div>
           <div className="w-px h-12 bg-border mx-2" />
           <div className="text-center flex-1">
-            <p className="text-xs text-muted-foreground mb-2">Эффект</p>
+            <p className="text-xs text-muted-foreground mb-2">Изменение</p>
             <p className={`text-4xl font-black ${deltaColor}`}>
               {delta >= 0 ? "+" : ""}
               {delta}
@@ -1524,9 +1397,9 @@ function ResultsScreen({
       </div>
 
       {/* Today's protocol */}
-      <div className="bg-card border border-border rounded-2xl p-4 mb-4">
+      <div className="ps-results-steps bg-card border border-border rounded-2xl p-4 mb-4">
         <p className="text-sm font-semibold mb-3">Сегодняшний протокол</p>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="ps-results-step-grid flex items-center gap-2 flex-wrap">
           {session.tasks.map((t, i) => {
             const meta = TASK_META[t.id];
             const catMeta = CAT_META[t.category];
@@ -1548,7 +1421,7 @@ function ResultsScreen({
       </div>
 
       {/* Insight */}
-      <div className={`border rounded-2xl p-4 mb-4 ${insightColor}`}>
+      <div className={`ps-results-insight border rounded-2xl p-4 mb-4 ${insightColor}`}>
         <p className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
           {insightIcon === "profile" ? (
             <BarChart2 className="h-3.5 w-3.5" />
@@ -1574,7 +1447,7 @@ function ResultsScreen({
 
       {/* Follow-up */}
       {session.recoveryOffer?.status !== "eligible" && (
-        <div className="bg-card border border-border rounded-2xl p-4 mb-5">
+        <div className="ps-follow-up-card bg-card border border-border rounded-2xl p-4 mb-5">
           {!followUpAns ? (
             <>
               <p className="text-sm font-semibold mb-1">Через 15 минут мы проверим</p>
@@ -1783,45 +1656,69 @@ function StatsScreen({
               : "Пройди следующий назначенный протокол после похожего сна и обязательно ответь через 15 минут. Так появится первое честное сравнение последовательностей.";
 
   return (
-    <div className="flex flex-col flex-1 px-5 pt-14 pb-28 overflow-y-auto">
-      <div className="mb-1 flex items-center gap-2">
-        <h1 className="text-2xl font-bold">Статистика</h1>
-      </div>
-      <p className="text-sm text-muted-foreground mb-6">
-        Что приложение узнало о твоём пробуждении?
-      </p>
-
-      {/* Learning progress */}
-      {isLearning && (
-        <div className="bg-card border border-border rounded-2xl p-4 mb-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Zap className="w-4 h-4 text-accent" />
-            <p className="text-sm font-semibold text-accent">Период изучения</p>
+    <div className="ps-stats flex flex-1 flex-col overflow-y-auto px-5 pb-28 pt-8">
+      <header className="ps-stats-header mb-6">
+        <div className="mb-7 flex items-center justify-between gap-2">
+          <div>
+            <p className="ps-wordmark">
+              Prosni<span>x</span>
+            </p>
+            <p className="ps-kicker mt-2">Больше, чем просто утро</p>
           </div>
-          <div className="flex gap-1.5 mb-2">
-            {Array.from({ length: 7 }, (_, i) => (
-              <div
-                key={i}
-                className={`flex-1 h-2 rounded-full ${i < evidenceCount ? "bg-primary" : "bg-muted"}`}
-              />
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {evidenceCount}/7 —{" "}
-            {evidenceCount < 7
-              ? `ещё ${7 - evidenceCount} до первого профиля`
-              : "профиль формируется"}
-          </p>
+          <span className="ps-stats-count rounded-full px-3 py-2 text-xs">
+            {progressKnown ? `Завершено: ${evidenceCount}` : "Обновляем данные"}
+          </span>
         </div>
-      )}
+        <h1 className="ps-flow-title">Статистика</h1>
+        <p className="mt-2 text-base text-muted-foreground">Твои пробуждения. Твои наблюдения.</p>
+      </header>
 
-      <section className="mb-5 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+      <section
+        className="ps-surface ps-stats-hero mb-4 p-5"
+        aria-label="Среднее изменение бодрости"
+      >
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <TrendingUp className="h-5 w-5 text-primary" aria-hidden="true" />
+          <span>Среднее изменение</span>
+        </div>
+        <div className="ps-stats-hero-value mt-3">
+          {progressKnown && evidenceCount > 0
+            ? `${avgGain >= 0 ? "+" : ""}${avgGain.toFixed(1)}`
+            : "—"}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {progressKnown
+            ? evidenceCount > 0
+              ? `По ${evidenceCount} завершённым пробуждениям · оценка из 10`
+              : "Появится после первого завершённого пробуждения"
+            : "Подсчитываем среднее изменение…"}
+        </p>
+      </section>
+
+      <section className="ps-surface ps-stats-next mb-4 p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold">Следующий шаг</h2>
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h2 className="text-base font-semibold">Следующий шаг</h2>
           </div>
         </div>
+        {isLearning && (
+          <div className="mb-4">
+            <div
+              className="ps-stats-progress mb-2"
+              role="progressbar"
+              aria-label="Прогресс до первого профиля"
+              aria-valuenow={evidenceCount}
+              aria-valuemin={0}
+              aria-valuemax={7}
+            >
+              <span style={{ width: `${Math.min(100, (evidenceCount / 7) * 100)}%` }} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {evidenceCount} из 7 до первого общего профиля
+            </p>
+          </div>
+        )}
         {nextExperimentTasks.length > 0 && (
           <div className="mb-3 flex flex-wrap items-center gap-1.5">
             {nextExperimentTasks.map((taskId, index, all) => (
@@ -1845,10 +1742,10 @@ function StatsScreen({
       </section>
 
       {!demo && (
-        <section className="mb-5 rounded-2xl border border-accent/25 bg-card p-4">
+        <section className="ps-surface ps-stats-report mb-4 p-5">
           <div className="mb-3 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-accent" />
-            <p className="text-sm font-semibold">Персональный отчёт</p>
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h2 className="text-base font-semibold">Персональный отчёт</h2>
           </div>
           {analytics.status !== "ready" ? (
             <p className="text-sm text-muted-foreground">
@@ -1870,7 +1767,7 @@ function StatsScreen({
               <button
                 type="button"
                 onClick={() => void requestInsight()}
-                className="mt-3 min-h-11 w-full rounded-xl bg-primary font-semibold text-primary-foreground"
+                className="ps-primary-button mt-4 w-full"
               >
                 Создать персональный отчёт
               </button>
@@ -1909,23 +1806,15 @@ function StatsScreen({
         </section>
       )}
 
-      {/* Three key metrics */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
-          <TrendingUp className="w-4 h-4 text-primary mx-auto mb-2" />
-          <div className="text-xl font-extrabold">
-            {evidenceCount ? `${avgGain >= 0 ? "+" : ""}${avgGain.toFixed(1)}` : "—"}
-          </div>
-          <div className="text-xs text-muted-foreground mt-0.5">Прирост</div>
-        </div>
-        <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
+      <div className="ps-stats-metrics mb-4 grid grid-cols-2 gap-3">
+        <div className="ps-surface p-4">
           <Check className="w-4 h-4 text-green-400 mx-auto mb-2" />
           <div className="text-xl font-extrabold">
             {successRate !== null ? `${successRate}%` : "—"}
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">Подъём</div>
         </div>
-        <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
+        <div className="ps-surface p-4">
           <Activity className="w-4 h-4 text-accent mx-auto mb-2" />
           <div className="text-xl font-extrabold">
             {avgMinutes !== null ? `${avgMinutes}м` : "—"}
@@ -1935,8 +1824,8 @@ function StatsScreen({
       </div>
 
       {/* Wake-up profile */}
-      <div className="bg-card border border-border rounded-2xl p-4 mb-5">
-        <p className="text-sm font-semibold mb-4">Твой профиль пробуждения</p>
+      <section className="ps-surface ps-stats-profile mb-5 p-5">
+        <h2 className="mb-4 text-base font-semibold">Твой профиль пробуждения</h2>
         {!demo && analytics.status === "loading" ? (
           <p className="text-sm text-muted-foreground">
             Пересчитываем профиль по сохранённым сессиям…
@@ -2001,7 +1890,7 @@ function StatsScreen({
             );
           })
         )}
-      </div>
+      </section>
 
       {!demo && (
         <Suspense fallback={null}>
@@ -2009,172 +1898,178 @@ function StatsScreen({
         </Suspense>
       )}
 
-      {/* History */}
-      <div className="bg-card border border-border rounded-2xl p-4">
-        <p className="text-sm font-semibold mb-3">История пробуждений</p>
-        {demo &&
-          [...valid]
-            .reverse()
-            .slice(0, 6)
-            .map((s, i) => {
-              const delta = s.endAlertness - s.startAlertness;
-              const deltaColor2 =
+      <section className="ps-stats-history">
+        <h2 className="mb-1 text-xl font-bold">История пробуждений</h2>
+        <p className="mb-3 text-sm text-muted-foreground">Здесь все завершённые сессии.</p>
+        <div className="ps-surface p-4">
+          {demo &&
+            [...valid]
+              .reverse()
+              .slice(0, 6)
+              .map((s, i) => {
+                const delta = s.endAlertness - s.startAlertness;
+                const deltaColor2 =
+                  delta >= 4 ? "text-green-400" : delta >= 2 ? "text-yellow-300" : "text-red-400";
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between py-3 border-b border-border last:border-0"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">
+                        {s.date} · {s.wakeTime}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {s.tasks.map((t) => (
+                          <span key={t.id} className="text-base">
+                            <TaskIcon taskId={t.id} className="h-4 w-4 text-primary" />
+                          </span>
+                        ))}
+                        {s.followUp === "back" && (
+                          <span className="text-xs text-red-400 ml-1">лёг обратно</span>
+                        )}
+                        {s.followUp === "up" && (
+                          <span className="text-xs text-green-400 ml-1">встал</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`text-lg font-black ${deltaColor2}`}>
+                        {delta >= 0 ? "+" : ""}
+                        {delta}
+                        <span className="text-xs text-muted-foreground font-normal"> балла</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  </div>
+                );
+              })}
+          {!demo && history.status === "loading" && (
+            <p className="text-sm text-muted-foreground">Загружаем сохранённые сессии…</p>
+          )}
+          {!demo && history.status === "error" && (
+            <p className="text-sm text-red-400">{history.message}</p>
+          )}
+          {!demo &&
+            history.status === "ready" &&
+            (showAllHistory ? history.items : history.items.slice(0, 5)).map((item, index) => {
+              const delta = item.postRating - item.baseline;
+              const deltaColor =
                 delta >= 4 ? "text-green-400" : delta >= 2 ? "text-yellow-300" : "text-red-400";
               return (
-                <div
-                  key={i}
-                  className="flex items-center justify-between py-3 border-b border-border last:border-0"
+                <details
+                  key={item.id}
+                  onToggle={(event) => {
+                    const open = event.currentTarget.open;
+                    setOpenHistoryIds((current) => {
+                      const next = new Set(current);
+                      if (open) next.add(item.id);
+                      else next.delete(item.id);
+                      return next;
+                    });
+                  }}
+                  className="group border-b border-border last:border-0"
                 >
-                  <div>
-                    <p className="text-sm font-medium">
-                      {s.date} · {s.wakeTime}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      {s.tasks.map((t) => (
-                        <span key={t.id} className="text-base">
-                          <TaskIcon taskId={t.id} className="h-4 w-4 text-primary" />
-                        </span>
-                      ))}
-                      {s.followUp === "back" && (
-                        <span className="text-xs text-red-400 ml-1">лёг обратно</span>
+                  <summary
+                    aria-label={`Открыть эксперимент ${index + 1}`}
+                    className="flex cursor-pointer list-none items-center justify-between py-3 [&::-webkit-details-marker]:hidden"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">
+                        {new Date(item.completedAt).toLocaleString("ru-RU", {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                      {item.sessionKind === "recovery" && (
+                        <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                          Дополнительный раунд
+                        </p>
                       )}
-                      {s.followUp === "up" && (
-                        <span className="text-xs text-green-400 ml-1">встал</span>
-                      )}
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {item.baseline} → {item.postRating} · {taskCountLabel(item.tasks.length)}
+                        {item.followUp === "up"
+                          ? " · встал"
+                          : item.followUp === "back"
+                            ? " · лёг обратно"
+                            : item.followUp === "drowsy"
+                              ? " · ещё сонный"
+                              : ""}
+                      </p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className={`text-lg font-black ${deltaColor2}`}>
-                      {delta >= 0 ? "+" : ""}
-                      {delta}
-                      <span className="text-xs text-muted-foreground font-normal"> балла</span>
+                    <div className="flex items-center gap-2">
+                      <div className={`text-lg font-black ${deltaColor}`}>
+                        {delta >= 0 ? "+" : ""}
+                        {delta}
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-90" />
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </summary>
+                  <div className="mb-3 rounded-xl bg-secondary/60 p-3">
+                    <p className="text-xs font-semibold">Что было в эксперименте</p>
+                    <div className="mt-2 flex flex-col gap-2">
+                      {item.tasks.map((task, taskIndex) => {
+                        const meta = taskMeta(task.taskId);
+                        return (
+                          <div
+                            key={`${task.taskId}-${taskIndex}`}
+                            className="flex items-center gap-2 text-xs"
+                          >
+                            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-card">
+                              {meta ? (
+                                <TaskIcon taskId={task.taskId as TaskId} className="h-3.5 w-3.5" />
+                              ) : (
+                                <Check className="h-3.5 w-3.5" />
+                              )}
+                            </span>
+                            <span>
+                              {taskIndex + 1}. {meta?.title ?? "Задание"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+                      <p>
+                        Бодрость: {item.baseline} → {item.postRating}
+                      </p>
+                      <p>Длительность: {durationLabel(item.durationMs)}</p>
+                      <p>Контекст: {wakeContextLabel(item.wakeContext)}</p>
+                      <p>Выбранный режим: {item.durationMinutes} мин</p>
+                      <p className="col-span-2">{followUpLabel(item.followUp)}</p>
+                    </div>
+                    {openHistoryIds.has(item.id) && (
+                      <div className="mt-3">
+                        <Suspense fallback={null}>
+                          <WakeRoutineChecklist
+                            sessionId={item.id}
+                            routine={routine}
+                            demo={false}
+                          />
+                        </Suspense>
+                      </div>
+                    )}
                   </div>
-                </div>
+                </details>
               );
             })}
-        {!demo && history.status === "loading" && (
-          <p className="text-sm text-muted-foreground">Загружаем сохранённые сессии…</p>
-        )}
-        {!demo && history.status === "error" && (
-          <p className="text-sm text-red-400">{history.message}</p>
-        )}
-        {!demo &&
-          history.status === "ready" &&
-          (showAllHistory ? history.items : history.items.slice(0, 5)).map((item, index) => {
-            const delta = item.postRating - item.baseline;
-            const deltaColor =
-              delta >= 4 ? "text-green-400" : delta >= 2 ? "text-yellow-300" : "text-red-400";
-            return (
-              <details
-                key={item.id}
-                onToggle={(event) => {
-                  const open = event.currentTarget.open;
-                  setOpenHistoryIds((current) => {
-                    const next = new Set(current);
-                    if (open) next.add(item.id);
-                    else next.delete(item.id);
-                    return next;
-                  });
-                }}
-                className="group border-b border-border last:border-0"
-              >
-                <summary
-                  aria-label={`Открыть эксперимент ${index + 1}`}
-                  className="flex cursor-pointer list-none items-center justify-between py-3 [&::-webkit-details-marker]:hidden"
-                >
-                  <div>
-                    <p className="text-sm font-medium">
-                      {new Date(item.completedAt).toLocaleString("ru-RU", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                    {item.sessionKind === "recovery" && (
-                      <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
-                        Дополнительный раунд
-                      </p>
-                    )}
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {item.baseline} → {item.postRating} · {taskCountLabel(item.tasks.length)}
-                      {item.followUp === "up"
-                        ? " · встал"
-                        : item.followUp === "back"
-                          ? " · лёг обратно"
-                          : item.followUp === "drowsy"
-                            ? " · ещё сонный"
-                            : ""}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className={`text-lg font-black ${deltaColor}`}>
-                      {delta >= 0 ? "+" : ""}
-                      {delta}
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-90" />
-                  </div>
-                </summary>
-                <div className="mb-3 rounded-xl bg-secondary/60 p-3">
-                  <p className="text-xs font-semibold">Что было в эксперименте</p>
-                  <div className="mt-2 flex flex-col gap-2">
-                    {item.tasks.map((task, taskIndex) => {
-                      const meta = taskMeta(task.taskId);
-                      return (
-                        <div
-                          key={`${task.taskId}-${taskIndex}`}
-                          className="flex items-center gap-2 text-xs"
-                        >
-                          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-card">
-                            {meta ? (
-                              <TaskIcon taskId={task.taskId as TaskId} className="h-3.5 w-3.5" />
-                            ) : (
-                              <Check className="h-3.5 w-3.5" />
-                            )}
-                          </span>
-                          <span>
-                            {taskIndex + 1}. {meta?.title ?? "Задание"}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
-                    <p>
-                      Бодрость: {item.baseline} → {item.postRating}
-                    </p>
-                    <p>Длительность: {durationLabel(item.durationMs)}</p>
-                    <p>Контекст: {wakeContextLabel(item.wakeContext)}</p>
-                    <p>Выбранный режим: {item.durationMinutes} мин</p>
-                    <p className="col-span-2">{followUpLabel(item.followUp)}</p>
-                  </div>
-                  {openHistoryIds.has(item.id) && (
-                    <div className="mt-3">
-                      <Suspense fallback={null}>
-                        <WakeRoutineChecklist sessionId={item.id} routine={routine} demo={false} />
-                      </Suspense>
-                    </div>
-                  )}
-                </div>
-              </details>
-            );
-          })}
-        {!demo && history.status === "ready" && history.items.length > 5 && (
-          <button
-            type="button"
-            onClick={() => setShowAllHistory((current) => !current)}
-            className="mt-3 min-h-11 w-full rounded-xl bg-secondary px-3 text-sm font-semibold"
-          >
-            {showAllHistory ? "Скрыть ранние сессии" : `Показать ещё ${history.items.length - 5}`}
-          </button>
-        )}
-        {((demo && valid.length === 0) ||
-          (!demo && history.status === "ready" && history.items.length === 0)) && (
-          <p className="text-sm text-muted-foreground">Ещё нет завершённых сессий.</p>
-        )}
-      </div>
+          {!demo && history.status === "ready" && history.items.length > 5 && (
+            <button
+              type="button"
+              onClick={() => setShowAllHistory((current) => !current)}
+              className="mt-3 min-h-11 w-full rounded-xl bg-secondary px-3 text-sm font-semibold"
+            >
+              {showAllHistory ? "Скрыть ранние сессии" : `Показать ещё ${history.items.length - 5}`}
+            </button>
+          )}
+          {((demo && valid.length === 0) ||
+            (!demo && history.status === "ready" && history.items.length === 0)) && (
+            <p className="text-sm text-muted-foreground">Ещё нет завершённых сессий.</p>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
@@ -2188,14 +2083,7 @@ function BottomNav({
   onTab: (t: "home" | "stats" | "settings") => void;
 }) {
   return (
-    <div
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] z-50 flex justify-around items-center px-8 py-3"
-      style={{
-        background: "rgba(23,17,9,0.92)",
-        backdropFilter: "blur(20px)",
-        borderTop: "1px solid rgba(255,255,255,0.07)",
-      }}
-    >
+    <div className="ps-bottom-nav fixed bottom-0 left-1/2 z-50 flex w-full max-w-[390px] -translate-x-1/2 items-center justify-around px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3">
       {[
         { key: "home" as const, icon: <Home className="w-5 h-5" />, label: "Главная" },
         { key: "stats" as const, icon: <BarChart2 className="w-5 h-5" />, label: "Статистика" },
@@ -2204,7 +2092,7 @@ function BottomNav({
         <button
           key={tab.key}
           onClick={() => onTab(tab.key)}
-          className={`flex flex-col items-center gap-1 px-5 py-2 rounded-xl transition-colors ${current === tab.key ? "text-primary" : "text-muted-foreground"}`}
+          className={`flex min-h-14 flex-col items-center gap-1 rounded-xl px-4 py-2 transition-colors ${current === tab.key ? "text-amber-400" : "text-muted-foreground"}`}
         >
           {tab.icon}
           <span className="text-xs font-medium">{tab.label}</span>
@@ -2240,6 +2128,9 @@ function PrototypeApp({
     initialProtocolScreen(resume, launchSource, initialWakeProfile.onboardingCompleted),
   );
   const [navTab, setNavTab] = useState<"home" | "stats" | "settings">("home");
+  const [settingsInitialSection, setSettingsInitialSection] = useState<
+    "capabilities" | "goal" | null
+  >(null);
   const [alarmTime, setAlarmTime] = useState(initialWakeSchedule?.localTime ?? "07:00");
   const [wakeSchedule, setWakeSchedule] = useState<WakeSchedule | null>(
     initialWakeSchedule ?? null,
@@ -2644,6 +2535,7 @@ function PrototypeApp({
   }
 
   function handleNavTab(tab: "home" | "stats" | "settings") {
+    setSettingsInitialSection(null);
     setNavTab(tab);
     setScreen(tab);
   }
@@ -2672,7 +2564,8 @@ function PrototypeApp({
     setScreen("home");
   }
 
-  function openSettings(): void {
+  function openGoalSettings(): void {
+    setSettingsInitialSection("goal");
     setNavTab("settings");
     setScreen("settings");
   }
@@ -2788,13 +2681,20 @@ function PrototypeApp({
           </div>
         )}
         {screen === "home" && (
-          <HomeScreen
-            onStart={() => setScreen("context")}
-            sessions={sessions}
-            demo={demo}
-            localStorageScope={localStorageScope}
-            onOpenSettings={openSettings}
-          />
+          <Suspense
+            fallback={
+              <div className="ps-home flex-1 p-5 text-muted-foreground">Загружаем главную…</div>
+            }
+          >
+            <HomeScreen
+              onStart={() => setScreen("context")}
+              sessions={sessions}
+              demo={demo}
+              localStorageScope={localStorageScope}
+              onOpenSettings={() => handleNavTab("settings")}
+              onOpenGoal={openGoalSettings}
+            />
+          </Suspense>
         )}
         {screen === "onboarding" && (
           <Suspense
@@ -2822,6 +2722,7 @@ function PrototypeApp({
               busy={syncing}
               onCancel={() => setScreen("home")}
               onOpenProfile={() => {
+                setSettingsInitialSection("capabilities");
                 setNavTab("settings");
                 setScreen("settings");
               }}
@@ -2840,6 +2741,7 @@ function PrototypeApp({
               }
             >
               <SettingsScreen
+                initialSection={settingsInitialSection}
                 alarmTime={alarmTime}
                 schedule={wakeSchedule}
                 saving={scheduleSaving}
@@ -2934,11 +2836,14 @@ export default function App() {
       <div
         role="status"
         aria-live="polite"
-        className="min-h-screen bg-background text-foreground flex items-center justify-center p-6"
+        className="ps-start min-h-screen text-foreground flex items-center justify-center p-6"
       >
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="font-semibold">Загружаем твоё состояние…</p>
+          <div className="ps-wordmark mb-12" aria-label="Prosnix">
+            Prosni<span>x</span>
+          </div>
+          <Loader2 className="w-8 h-8 animate-spin text-amber-400 mx-auto mb-5" />
+          <p className="text-lg font-semibold">Загружаем твоё состояние…</p>
           <p className="text-sm text-muted-foreground mt-2">Берём только подтверждённые данные</p>
         </div>
       </div>

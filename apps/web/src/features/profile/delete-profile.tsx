@@ -24,7 +24,7 @@ export function DeleteProfile({ localStorageScope }: { localStorageScope: string
   }
 
   return (
-    <div className="mt-5 rounded-2xl border border-red-500/20 bg-card p-4">
+    <div className="ps-surface mt-5 border-red-500/20 p-4">
       <p className="text-sm font-semibold">Управление данными</p>
       <p className="mt-1 text-xs text-muted-foreground">
         Профиль, сессии и аналитика будут удалены без возможности восстановления.

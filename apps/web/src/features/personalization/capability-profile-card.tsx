@@ -8,21 +8,25 @@ const MOVEMENT_OPTIONS: Array<{
   value: WakeProfile["movementLevel"];
   title: string;
   description: string;
+  icon: TaskId;
 }> = [
   {
     value: "none",
     title: "Без упражнений",
     description: "Только задания для внимания и доступной среды",
+    icon: "sit_edge",
   },
   {
     value: "light",
     title: "Только лёгкое движение",
     description: "Ходьба и мягкая разминка без интенсивной нагрузки",
+    icon: "steps",
   },
   {
     value: "full",
     title: "Могу выполнять любые упражнения",
     description: "Включая приседания и другие активные варианты",
+    icon: "squats",
   },
 ];
 
@@ -131,31 +135,50 @@ export function CapabilityProfileCard({
   return (
     <section
       ref={cardRef}
-      className="mb-4 min-w-0 max-w-full rounded-3xl border border-border bg-card p-4"
+      className={wizard ? "min-w-0 max-w-full pb-4 pt-5" : "ps-surface mb-4 min-w-0 max-w-full p-4"}
     >
-      <div className="flex items-center gap-2">
-        <Check aria-hidden="true" className="h-4 w-4 text-accent" />
-        <h2 className="text-sm font-semibold">
-          {wizard ? "Настройка протокола" : "Что тебе подходит"}
-        </h2>
-      </div>
-      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        Мы назначим только явно разрешённые действия. Настройки можно изменить позже.
-      </p>
-      {wizard && editing && (
-        <div className="mt-4" aria-label={`Шаг ${page + 1} из 4`}>
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Шаг {page + 1} из 4</span>
-            <span>{["Нагрузка", "Упражнения", "Ресурсы", "Длительность"][page]}</span>
+      {!wizard && (
+        <>
+          <div className="flex items-center gap-2">
+            <Check aria-hidden="true" className="h-4 w-4 text-accent" />
+            <h2 className="text-sm font-semibold">Что тебе подходит</h2>
           </div>
-          <div className="mt-2 grid grid-cols-4 gap-1" aria-hidden="true">
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            Мы назначим только явно разрешённые действия. Настройки можно изменить позже.
+          </p>
+        </>
+      )}
+      {wizard && editing && (
+        <div className="mb-7" aria-label={`Шаг ${page + 1} из 4`}>
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span className="ps-kicker">Первая настройка</span>
+            <span>{page + 1} из 4</span>
+          </div>
+          <div className="ps-flow-progress mt-3 grid grid-cols-4 gap-1.5" aria-hidden="true">
             {[0, 1, 2, 3].map((step) => (
-              <span
-                key={step}
-                className={`h-1.5 rounded-full ${step <= page ? "bg-primary" : "bg-secondary"}`}
-              />
+              <span key={step} data-active={step <= page} />
             ))}
           </div>
+          <h1 className="ps-flow-title mt-8">
+            {
+              [
+                "Какие движения тебе подходят?",
+                "Что лучше исключить?",
+                "Что есть под рукой?",
+                "Какой формат удобнее?",
+              ][page]
+            }
+          </h1>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            {
+              [
+                "Подберём задания под твои возможности. Ответы можно изменить позже.",
+                "Отметь движения, которые не стоит предлагать.",
+                "Учтём обстановку, чтобы задания было удобно выполнить.",
+                "Время примерное: задания подстраиваются под выбранный формат.",
+              ][page]
+            }
+          </p>
         </div>
       )}
       {!editing ? (
@@ -181,8 +204,10 @@ export function CapabilityProfileCard({
         <>
           {(!wizard || page === 0) && (
             <div className="motion-safe:animate-[onboarding-step-in_180ms_ease-out]">
-              <p className="mt-5 text-sm font-semibold">Можешь выполнять упражнения?</p>
-              <div className="mt-2 space-y-2">
+              {!wizard && (
+                <p className="mt-5 text-sm font-semibold">Можешь выполнять упражнения?</p>
+              )}
+              <div className="mt-2 space-y-3">
                 {MOVEMENT_OPTIONS.map((option) => {
                   const selected =
                     draft.movementLevel === option.value && (!wizard || movementChosen);
@@ -195,18 +220,21 @@ export function CapabilityProfileCard({
                         setDraft({ ...draft, movementLevel: option.value });
                         setMovementChosen(true);
                       }}
-                      className={`flex min-h-16 w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${selected ? "border-primary bg-primary/10" : "border-border bg-secondary/40"}`}
+                      className={`ps-flow-choice flex min-h-20 items-center gap-3 px-4 py-3 ${selected ? "border-primary bg-primary/10" : "border-border bg-secondary/40"}`}
                     >
-                      <span
-                        className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${selected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/50"}`}
-                      >
-                        {selected && <Check className="h-4 w-4" />}
+                      <span className="grid h-10 w-10 shrink-0 place-items-center text-amber-400">
+                        <TaskIcon taskId={option.icon} className="h-6 w-6" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold">{option.title}</span>
                         <span className="mt-0.5 block text-xs text-muted-foreground">
                           {option.description}
                         </span>
+                      </span>
+                      <span
+                        className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${selected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/50"}`}
+                      >
+                        {selected && <Check className="h-4 w-4" />}
                       </span>
                     </button>
                   );
@@ -243,22 +271,28 @@ export function CapabilityProfileCard({
 
               {visibleExercises.length > 0 && (
                 <div className="mt-5">
-                  <p className="text-sm font-semibold">Какие упражнения можно предлагать?</p>
+                  {!wizard && (
+                    <p className="text-sm font-semibold">Какие упражнения можно предлагать?</p>
+                  )}
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Отключи любое отдельно — это не повлияет на остальные варианты.
+                    {wizard
+                      ? "Выбери только то, что хочешь убрать из протоколов."
+                      : "Отключи любое отдельно — это не повлияет на остальные варианты."}
                   </p>
                   <div className="mt-3 space-y-2">
                     {visibleExercises.map((exercise) => {
                       const permitted = exercise.id !== "pushups" || activeMovementAllowed;
-                      const enabled = permitted && !draft.excludedTaskIds.includes(exercise.id);
+                      const excluded = draft.excludedTaskIds.includes(exercise.id);
+                      const enabled = permitted && !excluded;
+                      const selected = wizard ? excluded : enabled;
                       return (
                         <button
                           key={exercise.id}
                           type="button"
-                          aria-pressed={enabled}
+                          aria-pressed={selected}
                           onClick={() => permitted && toggleTask(exercise.id)}
                           disabled={!permitted}
-                          className={`flex min-h-20 w-full items-center gap-3 rounded-2xl border p-3 text-left ${enabled ? "border-accent/40 bg-accent/8" : "border-border bg-secondary/40 opacity-65"}`}
+                          className={`ps-flow-choice flex min-h-20 items-center gap-3 p-3 ${selected ? "border-amber-400 bg-amber-400/10" : "border-border bg-secondary/40"} ${permitted ? "" : "opacity-55"}`}
                         >
                           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-secondary text-accent">
                             <TaskIcon taskId={exercise.id} className="h-6 w-6" />
@@ -270,9 +304,9 @@ export function CapabilityProfileCard({
                             </span>
                           </span>
                           <span
-                            className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${enabled ? "border-accent bg-accent text-accent-foreground" : "border-muted-foreground/50"}`}
+                            className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${selected ? "border-accent bg-accent text-accent-foreground" : "border-muted-foreground/50"}`}
                           >
-                            {enabled && <Check className="h-4 w-4" />}
+                            {selected && <Check className="h-4 w-4" />}
                           </span>
                         </button>
                       );
@@ -290,7 +324,7 @@ export function CapabilityProfileCard({
 
           {(!wizard || page === 2) && (
             <div className="motion-safe:animate-[onboarding-step-in_180ms_ease-out]">
-              <p className="mt-5 text-sm font-semibold">Что будет доступно рядом?</p>
+              {!wizard && <p className="mt-5 text-sm font-semibold">Что будет доступно рядом?</p>}
               <div className="mt-2 space-y-2">
                 {(
                   [
@@ -319,7 +353,7 @@ export function CapabilityProfileCard({
                       type="button"
                       onClick={() => toggleResource(value)}
                       aria-pressed={selected}
-                      className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left ${selected ? "border-primary/50 bg-primary/8" : "border-border bg-secondary/40"}`}
+                      className={`ps-flow-choice flex min-h-16 items-center justify-between gap-3 px-4 py-3 ${selected ? "border-primary/50 bg-primary/8" : "border-border bg-secondary/40"}`}
                     >
                       <span>
                         <span className="block text-sm font-semibold">{title}</span>
@@ -364,49 +398,58 @@ export function CapabilityProfileCard({
 
           {(!wizard || page === 3) && (
             <div className="motion-safe:animate-[onboarding-step-in_180ms_ease-out]">
-              <p className="mt-5 text-sm font-semibold">Обычная длительность</p>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {([2, 5, 10] as const).map((value) => (
+              {!wizard && <p className="mt-5 text-sm font-semibold">Обычная длительность</p>}
+              <div className={wizard ? "mt-2 space-y-3" : "mt-2 grid grid-cols-3 gap-2"}>
+                {(
+                  [
+                    [2, "Короткий", "≈ 2 минуты"],
+                    [5, "Средний", "≈ 5 минут"],
+                    [10, "Длинный", "≈ 10 минут"],
+                  ] as const
+                ).map(([value, title, estimate]) => (
                   <button
                     key={value}
                     type="button"
                     onClick={() => setDraft({ ...draft, defaultDurationMinutes: value })}
                     aria-pressed={draft.defaultDurationMinutes === value}
-                    className={`min-h-11 rounded-xl border text-sm ${draft.defaultDurationMinutes === value ? "border-primary bg-primary/10" : "border-border"}`}
+                    className={`ps-flow-choice flex items-center px-4 py-3 text-sm ${wizard ? "min-h-16 justify-between" : "min-h-16 flex-col justify-center gap-0.5 text-center"} ${draft.defaultDurationMinutes === value ? "border-primary bg-primary/10" : "border-border"}`}
                   >
-                    {value} мин
+                    <span className="font-semibold">{title}</span>
+                    <span className="text-xs text-muted-foreground">{estimate}</span>
                   </button>
                 ))}
               </div>
             </div>
           )}
-          {wizard && page > 0 && (
-            <button
-              type="button"
-              onClick={() => goToPage(page - 1)}
-              className="mt-5 min-h-12 w-full rounded-2xl border border-border bg-secondary/40 text-sm font-semibold"
-            >
-              Назад
-            </button>
-          )}
-          {wizard && page < 3 ? (
-            <button
-              type="button"
-              disabled={page === 0 && !movementChosen}
-              onClick={() => goToPage(page + 1)}
-              className="mt-2 min-h-14 w-full rounded-2xl bg-primary font-semibold text-primary-foreground disabled:opacity-50"
-            >
-              Далее
-            </button>
-          ) : (
-            <button
-              disabled={saving}
-              onClick={() => void submit()}
-              className="mt-5 min-h-14 w-full rounded-2xl bg-primary font-semibold text-primary-foreground disabled:opacity-60"
-            >
-              {saving ? "Сохраняем…" : "Сохранить возможности"}
-            </button>
-          )}
+          <div className={wizard ? "mt-8 flex gap-3 pb-4" : "mt-5"}>
+            {wizard && page > 0 && (
+              <button
+                type="button"
+                onClick={() => goToPage(page - 1)}
+                className="min-h-14 flex-1 rounded-2xl border border-border bg-secondary/20 text-sm font-semibold text-amber-300"
+              >
+                Назад
+              </button>
+            )}
+            {wizard && page < 3 ? (
+              <button
+                type="button"
+                disabled={page === 0 && !movementChosen}
+                onClick={() => goToPage(page + 1)}
+                className="ps-primary-button flex-1 px-4 disabled:opacity-50"
+              >
+                Продолжить
+              </button>
+            ) : (
+              <button
+                disabled={saving}
+                onClick={() => void submit()}
+                className="ps-primary-button flex-1 px-4 disabled:opacity-60"
+              >
+                {saving ? "Сохраняем…" : wizard ? "Готово" : "Сохранить возможности"}
+              </button>
+            )}
+          </div>
           {feedback && (
             <p role="status" className="mt-2 text-xs text-muted-foreground">
               {feedback}

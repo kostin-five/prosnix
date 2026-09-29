@@ -67,6 +67,7 @@ test("расписание сохраняется на сервере и пок�
 
   await page.goto("/");
   await page.getByRole("button", { name: "Настройки" }).click();
+  await page.getByRole("button", { name: /Напоминания/ }).click();
   const schedule = page.getByLabel("Telegram-напоминание");
   await expect(schedule).toBeVisible();
   await schedule.getByRole("button", { name: "Изменить" }).click();

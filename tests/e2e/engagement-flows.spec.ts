@@ -85,22 +85,22 @@ test("первая анкета идёт по страницам без гори
   });
 
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Подберём безопасные задания" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Какие движения тебе подходят?" })).toBeVisible();
   expect(
     await page
       .locator('[class*="onboarding-step-in"]')
       .first()
       .evaluate((element) => getComputedStyle(element).animationName),
   ).toBe("none");
-  for (const label of ["Только лёгкое движение", "Пройтись", "Есть вода", "5 мин"]) {
+  for (const label of ["Только лёгкое движение", "Пройтись", "Есть вода", "Средний"]) {
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
       .toBe(true);
     await page.getByRole("button", { name: label }).click();
-    if (label !== "5 мин") await page.getByRole("button", { name: "Далее" }).click();
+    if (label !== "Средний") await page.getByRole("button", { name: "Продолжить" }).click();
   }
   expect(saves).toBe(0);
-  await page.getByRole("button", { name: "Сохранить возможности" }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
   await expect(page.getByRole("button", { name: "Начать пробуждение" })).toBeVisible();
   expect(saves).toBe(1);
   await expect(page.locator('[data-testid="pix-avatar"]')).toHaveCount(0);
