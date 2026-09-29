@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   enableWakeSoundFromGesture,
+  playCountdownTick,
   resetWakeSoundForTests,
   signalTaskFeedback,
   startWakeProtocolSound,
@@ -58,6 +59,14 @@ describe("звук и тактильная обратная связь зада�
     expect(audioConstructor).toHaveBeenCalledOnce();
     expect(createOscillator).toHaveBeenCalledOnce();
     expect(createGain).toHaveBeenCalledOnce();
+  });
+
+  it("сигнал последних секунд звучит только при включённом звуке", async () => {
+    await enableWakeSoundFromGesture();
+    playCountdownTick("off");
+    expect(createOscillator).not.toHaveBeenCalled();
+    playCountdownTick("on");
+    expect(createOscillator).toHaveBeenCalledOnce();
   });
 
   it("повторяет сигнал до остановки протокола", async () => {

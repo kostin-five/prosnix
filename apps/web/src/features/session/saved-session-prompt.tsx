@@ -1,3 +1,6 @@
+import { primeHandsFreeSpeech } from "../tasks/hands-free-audio.js";
+import { enableWakeSoundFromGesture } from "../tasks/task-experience-feedback.js";
+
 export function SavedSessionPrompt({
   sessionKind,
   currentStepIndex,
@@ -6,6 +9,7 @@ export function SavedSessionPrompt({
   error,
   onContinue,
   onDiscard,
+  handsFreeSound = false,
 }: {
   sessionKind: "primary" | "recovery";
   currentStepIndex: number;
@@ -14,6 +18,7 @@ export function SavedSessionPrompt({
   error: string | null;
   onContinue: () => void;
   onDiscard: () => void;
+  handsFreeSound?: boolean;
 }) {
   return (
     <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
@@ -28,7 +33,13 @@ export function SavedSessionPrompt({
         </p>
         <button
           disabled={discarding}
-          onClick={onContinue}
+          onClick={() => {
+            if (handsFreeSound) {
+              void enableWakeSoundFromGesture();
+              primeHandsFreeSpeech();
+            }
+            onContinue();
+          }}
           className="mt-6 w-full rounded-2xl bg-primary py-3 font-bold text-white"
         >
           Продолжить

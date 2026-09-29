@@ -51,6 +51,44 @@ function assignedSession(): WakeSession {
 }
 
 describe("wake session transitions", () => {
+  it("отличает завершение по таймеру и проверяет режим и длительность", () => {
+    const assigned = {
+      ...assignedSession(),
+      durationMinutes: 2 as const,
+      experience: { soundMode: "on" as const, interactionMode: "hands_free" as const },
+      assignment: {
+        ...assignment,
+        protocolVersion: 11,
+        steps: [{ index: 0, taskId: "notice_three" as const, category: "behavioral" as const }],
+      },
+    };
+    const session = acceptBaseline(assigned, {
+      expectedVersion: 1,
+      value: 3,
+      observedAt: "2026-09-30T04:00:00.000Z",
+    });
+    const result = {
+      expectedVersion: 2,
+      stepIndex: 0,
+      taskId: "notice_three" as const,
+      correct: 1,
+      total: 1,
+      durationMs: 60_000,
+      completionSource: "timer" as const,
+      observedAt: "2026-09-30T04:01:00.000Z",
+    };
+    expect(acceptTaskResult(session, result).tasks[0]?.completionSource).toBe("timer");
+    expect(() => acceptTaskResult(session, { ...result, durationMs: 30_000 })).toThrowError(
+      /Автозавершение/,
+    );
+    expect(() =>
+      acceptTaskResult(session, { ...result, observedAt: "2026-09-30T04:00:30.000Z" }),
+    ).toThrowError(/Автозавершение/);
+    expect(() =>
+      acceptTaskResult({ ...session, experience: { soundMode: "on" } }, result),
+    ).toThrowError(/Автозавершение/);
+  });
+
   it("проверяет результат по effectiveSteps после замены", () => {
     const session = acceptBaseline(
       {

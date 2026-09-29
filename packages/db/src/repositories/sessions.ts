@@ -12,6 +12,8 @@ import {
   categoryForTask,
   SAFE_WAKE_PROFILE,
   selectPersonalizedAssignment,
+  selectHandsFreeAssignment,
+  HANDS_FREE_ORDER,
   selectRecoverySteps,
   selectTaskSubstitution,
   type ExperimentAssignment,
@@ -66,6 +68,8 @@ const TASK_IDS = new Set<TaskId>([
   "sit_edge",
   "cool_wash",
   "pushups",
+  "notice_three",
+  "find_color",
 ]);
 const CATEGORIES = new Set<TaskCategory>(["cognitive", "movement", "behavioral", "environment"]);
 function parseSteps(value: unknown): readonly ProtocolStep[] {
@@ -135,8 +139,10 @@ function parseSnapshot(value: unknown): WakePersonalizationSnapshot {
 function parseExperienceSnapshot(value: unknown): WakeExperienceSnapshot {
   if (typeof value !== "object" || value === null) return { soundMode: "unknown" };
   const soundMode = (value as { soundMode?: unknown }).soundMode;
+  const interactionMode = (value as { interactionMode?: unknown }).interactionMode;
   return {
     soundMode: soundMode === "on" || soundMode === "off" ? soundMode : "unknown",
+    interactionMode: interactionMode === "hands_free" ? "hands_free" : "manual",
   };
 }
 
@@ -316,6 +322,7 @@ async function loadSession(
       correct: task.correct,
       total: task.total,
       durationMs: task.durationMs,
+      completionSource: task.completionSource === "timer" ? "timer" : "manual",
       ...(task.difficultyLevel === null ? {} : { difficultyLevel: task.difficultyLevel }),
       observedAt: task.observedAt.toISOString(),
     })),
@@ -499,21 +506,26 @@ async function createSession(
     .where(eq(wakeCapabilityProfiles.userId, envelope.userId))
     .limit(1);
   const profile = mapProfile(profileRow);
-  const personalized = selectPersonalizedAssignment(
-    learningAssignmentCandidates(user.learningSessionCount).map((candidate) => ({
-      ...candidate,
-      id: "pending",
-    })),
-    profile,
-    envelope.command.durationMinutes,
-    previousTaskIds,
-    {
-      evidence: adaptiveEvidence,
-      wakeContext: envelope.command.wakeContext,
-      completedSessions: user.learningSessionCount,
-    },
-    { v9Enabled: options.wakeTaskCatalogV9Enabled },
-  );
+  const personalized =
+    envelope.command.interactionMode === "hands_free"
+      ? selectHandsFreeAssignment(profile, envelope.command.durationMinutes, {
+          v9Enabled: options.wakeTaskCatalogV9Enabled,
+        })
+      : selectPersonalizedAssignment(
+          learningAssignmentCandidates(user.learningSessionCount).map((candidate) => ({
+            ...candidate,
+            id: "pending",
+          })),
+          profile,
+          envelope.command.durationMinutes,
+          previousTaskIds,
+          {
+            evidence: adaptiveEvidence,
+            wakeContext: envelope.command.wakeContext,
+            completedSessions: user.learningSessionCount,
+          },
+          { v9Enabled: options.wakeTaskCatalogV9Enabled },
+        );
   const planned = personalized.assignment;
   await db
     .update(users)
@@ -577,6 +589,11 @@ async function createSession(
       wakeContext: envelope.command.wakeContext,
       durationBudgetMinutes: envelope.command.durationMinutes,
       personalizationSnapshot: personalized.snapshot,
+      experienceSnapshot: {
+        soundMode: "unknown",
+        interactionMode:
+          envelope.command.interactionMode === "hands_free" ? "hands_free" : "manual",
+      },
     })
     .returning({ id: wakeSessions.id });
   if (!row) throw new Error("Не удалось создать wake-сессию");
@@ -797,7 +814,10 @@ async function mutateSession(
           value: command.value,
           observedAt,
         }),
-        experience: command.experience ?? current.experience ?? { soundMode: "unknown" },
+        experience: {
+          soundMode: command.experience?.soundMode ?? current.experience?.soundMode ?? "unknown",
+          interactionMode: current.experience?.interactionMode ?? "manual",
+        },
       };
       await updateSnapshot(db, current, next, envelope.observedAt);
       await db.insert(ratingObservations).values({
@@ -852,6 +872,9 @@ async function mutateSession(
           ? { comparisonFactorKey: current.assignment.comparison.factorKey }
           : {}),
         catalog: { v9Enabled: current.assignment.protocolVersion >= 9 },
+        ...(current.experience?.interactionMode === "hands_free"
+          ? { allowedTaskIds: HANDS_FREE_ORDER }
+          : {}),
         reason: command.reason,
       });
       if (!originalStep || !selection) {
@@ -912,6 +935,7 @@ async function mutateSession(
         correct: observation.correct,
         total: observation.total,
         durationMs: observation.durationMs,
+        completionSource: observation.completionSource ?? "manual",
         difficultyLevel: observation.difficultyLevel ?? null,
         observedAt: envelope.observedAt,
         operationId: envelope.operationId,

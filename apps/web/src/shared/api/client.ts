@@ -48,7 +48,10 @@ export interface BootstrapResponse {
       parentSessionId?: string | null;
       recoveryBaseline?: { sessionId: string; ratingKind: "post_protocol" } | null;
       recoveryOffer?: RecoveryOfferResponse | null;
-      experience?: { soundMode: "unknown" | "off" | "on" };
+      experience?: {
+        soundMode: "unknown" | "off" | "on";
+        interactionMode?: "manual" | "hands_free";
+      };
     };
     protocol: {
       key: string;
@@ -98,7 +101,7 @@ export interface WakeSessionResponse {
   parentSessionId?: string | null;
   recoveryBaseline?: { sessionId: string; ratingKind: "post_protocol" } | null;
   recoveryOffer?: RecoveryOfferResponse | null;
-  experience?: { soundMode: "unknown" | "off" | "on" };
+  experience?: { soundMode: "unknown" | "off" | "on"; interactionMode?: "manual" | "hands_free" };
   assignment: {
     id: string;
     protocolKey: string;
@@ -122,6 +125,7 @@ export interface WakeSessionResponse {
     correct: number;
     total: number;
     durationMs: number;
+    completionSource?: "manual" | "timer";
     difficultyLevel?: number;
     observedAt: string;
   }>;

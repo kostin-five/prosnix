@@ -11,7 +11,9 @@ export type TaskId =
   | "curtains"
   | "sit_edge"
   | "cool_wash"
-  | "pushups";
+  | "pushups"
+  | "notice_three"
+  | "find_color";
 
 export type TaskCategory = "cognitive" | "movement" | "behavioral" | "environment";
 export type FollowUpOutcome = "up" | "back" | "drowsy";
@@ -19,6 +21,7 @@ export type SessionStatus = "assigned" | "in_progress" | "protocol_completed" | 
 export type SessionKind = "primary" | "recovery";
 export type TaskSubstitutionReason = "unwilling_now" | "not_helpful" | "cannot_do";
 export type WakeSoundMode = "unknown" | "off" | "on";
+export type WakeInteractionMode = "manual" | "hands_free";
 export type ExperimentPhase = "learning" | "adaptive" | "fallback";
 export type Confidence = "insufficient" | "low" | "medium" | "high";
 export type WakeContext = "unspecified" | "night_sleep" | "short_nap" | "long_nap" | "energy_reset";
@@ -81,6 +84,7 @@ export interface SessionTaskSubstitution {
 
 export interface WakeExperienceSnapshot {
   soundMode: WakeSoundMode;
+  interactionMode?: WakeInteractionMode;
 }
 
 export interface RecoveryBaselineProvenance {
@@ -116,6 +120,7 @@ export interface TaskObservation {
   correct: number;
   total: number;
   durationMs: number;
+  completionSource?: "manual" | "timer";
   difficultyLevel?: number;
   observedAt: string;
 }

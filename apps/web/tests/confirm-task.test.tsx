@@ -132,4 +132,67 @@ describe("подтверждаемые задания с таймером", () =
     );
     expect(confirm?.disabled).toBe(false);
   });
+
+  it("ставит таймер обычного задания на паузу и продолжает после нажатия", async () => {
+    const onDone = vi.fn();
+    act(() => root.render(<ConfirmTask taskId="sit_edge" durationMinutes={5} onDone={onDone} />));
+    act(() => container.querySelector<HTMLButtonElement>("button.ps-primary-button")?.click());
+    for (let second = 0; second < 3; second += 1)
+      await act(async () => vi.advanceTimersByTimeAsync(1_000));
+    const timer = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Поставить таймер на паузу"]',
+    );
+    act(() => timer?.click());
+    expect(container.querySelector('[role="timer"]')?.getAttribute("aria-label")).toContain(
+      "7 секунд",
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(12_000));
+    expect(container.querySelector('[role="timer"]')?.getAttribute("aria-label")).toContain(
+      "7 секунд",
+    );
+    expect(onDone).not.toHaveBeenCalled();
+    act(() =>
+      container.querySelector<HTMLButtonElement>('button[aria-label="Продолжить таймер"]')?.click(),
+    );
+    for (let second = 0; second < 7; second += 1)
+      await act(async () => vi.advanceTimersByTimeAsync(1_000));
+    expect(container.querySelector('[role="timer"]')?.getAttribute("aria-label")).toBe(
+      "Таймер завершён",
+    );
+  });
+
+  it("автоматически отправляет источник timer один раз и останавливается при скрытии", async () => {
+    const onDone = vi.fn();
+    act(() =>
+      root.render(
+        <ConfirmTask
+          taskId="sit_edge"
+          durationMinutes={5}
+          interactionMode="hands_free"
+          autoStart
+          onDone={onDone}
+        />,
+      ),
+    );
+    for (let second = 0; second < 2; second += 1)
+      await act(async () => vi.advanceTimersByTimeAsync(1_000));
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    await act(async () => vi.advanceTimersByTimeAsync(20_000));
+    expect(onDone).not.toHaveBeenCalled();
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+    act(() =>
+      container.querySelector<HTMLButtonElement>('button[aria-label="Продолжить таймер"]')?.click(),
+    );
+    for (let second = 0; second < 8; second += 1)
+      await act(async () => vi.advanceTimersByTimeAsync(1_000));
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onDone.mock.calls[0]?.[0]).toMatchObject({
+      completionSource: "timer",
+      correct: 1,
+      total: 1,
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(5_000));
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
 });

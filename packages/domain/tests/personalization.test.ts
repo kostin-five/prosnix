@@ -9,6 +9,8 @@ import {
   selectPersonalizedAssignment,
   selectTaskSubstitution,
   selectRecoverySteps,
+  selectHandsFreeAssignment,
+  HANDS_FREE_ORDER,
   type ExperimentAssignment,
   type WakeCapabilityProfile,
 } from "../src/index.js";
@@ -39,6 +41,52 @@ const profile: WakeCapabilityProfile = {
 };
 
 describe("персонализация протокола", () => {
+  it("назначает безэкранный режим без запрещённых ресурсов и экранных тестов", () => {
+    const safe = selectHandsFreeAssignment(SAFE_WAKE_PROFILE, 2);
+    expect(safe.assignment.steps.map(({ taskId }) => taskId)).toEqual([
+      "notice_three",
+      "find_color",
+    ]);
+    expect(plannedProtocolSeconds(safe.assignment.steps, 2, 11)).toBe(120);
+    expect(selectHandsFreeAssignment(SAFE_WAKE_PROFILE, 5).snapshot.fallbackReason).toBe(
+      "limited_eligible_tasks",
+    );
+
+    const constrained = selectHandsFreeAssignment(
+      {
+        ...profile,
+        movementLevel: "full",
+        availableResources: ["water", "floor_space", "active_movement"],
+        excludedTaskIds: ["find_color", "water"],
+      },
+      5,
+      { v9Enabled: false },
+    );
+    const ids = constrained.assignment.steps.map(({ taskId }) => taskId);
+    expect(ids).toContain("notice_three");
+    expect(ids).not.toContain("find_color");
+    expect(ids).not.toContain("water");
+    expect(ids).not.toContain("math");
+    expect(ids).not.toContain("pushups");
+    expect(ids.indexOf("sit_edge")).toBeLessThan(ids.indexOf("shake"));
+  });
+
+  it("замена в режиме без телефона остаётся среди неэкранных заданий", () => {
+    const result = selectTaskSubstitution({
+      steps: [{ index: 0, taskId: "notice_three", category: "behavioral" }],
+      targetIndex: 0,
+      currentStepIndex: 0,
+      completedTaskIds: [],
+      rejectedTaskIds: [],
+      profile: SAFE_WAKE_PROFILE,
+      durationMinutes: 2,
+      protocolVersion: 11,
+      allowedTaskIds: HANDS_FREE_ORDER,
+      reason: "unwilling_now",
+    });
+    expect(result?.replacementTaskId).toBe("find_color");
+  });
+
   it("детерминированно заменяет только текущий или следующий шаг без повторов", () => {
     const fullProfile: WakeCapabilityProfile = {
       ...profile,

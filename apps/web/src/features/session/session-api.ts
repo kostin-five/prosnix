@@ -83,8 +83,14 @@ export function createWakeSession(
   timezone: string,
   wakeContext: WakeContext,
   durationMinutes: WakeDurationMinutes,
+  interactionMode: "manual" | "hands_free" = "manual",
 ): Promise<WakeSessionResponse> {
-  return sendSessionCommand("POST", "/api/v1/sessions", { timezone, wakeContext, durationMinutes });
+  return sendSessionCommand("POST", "/api/v1/sessions", {
+    timezone,
+    wakeContext,
+    durationMinutes,
+    interactionMode,
+  });
 }
 
 export function saveBaseline(
@@ -114,6 +120,7 @@ export function saveTaskResult(
     correct: number;
     total: number;
     durationMs: number;
+    completionSource?: "manual" | "timer";
     difficultyLevel?: number;
   },
 ): Promise<WakeSessionResponse> {

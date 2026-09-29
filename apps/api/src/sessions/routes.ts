@@ -102,6 +102,9 @@ export async function registerSessionRoutes(
           timezone: request.body.timezone,
           wakeContext: request.body.wakeContext,
           durationMinutes: request.body.durationMinutes,
+          ...(request.body.interactionMode
+            ? { interactionMode: request.body.interactionMode }
+            : {}),
         },
       ),
   );

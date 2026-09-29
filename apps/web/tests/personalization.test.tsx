@@ -82,7 +82,7 @@ describe("персонализация пробуждения", () => {
     const startButton = findButton(container, "Начать пробуждение");
     expect(startButton.parentElement?.className).toContain("shrink-0");
     act(() => startButton.click());
-    expect(onStart).toHaveBeenCalledWith("short_nap", 2);
+    expect(onStart).toHaveBeenCalledWith("short_nap", 2, "manual");
   });
 
   it("сохраняет ограничения и рутину как отдельные настройки", async () => {

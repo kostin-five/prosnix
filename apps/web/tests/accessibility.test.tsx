@@ -53,7 +53,7 @@ describe("мобильные состояния доступности", () => {
         />,
       ),
     );
-    expect(container.querySelectorAll("button[aria-pressed]")).toHaveLength(7);
+    expect(container.querySelectorAll("button[aria-pressed]")).toHaveLength(9);
     expect(container.textContent).toContain("сравнивать похожие ситуации");
   });
 

@@ -14,6 +14,8 @@ export const TASK_IDS = [
   "sit_edge",
   "cool_wash",
   "pushups",
+  "notice_three",
+  "find_color",
 ] as const;
 
 export const TASK_CATEGORIES = ["cognitive", "movement", "behavioral", "environment"] as const;
@@ -22,6 +24,7 @@ export const FOLLOW_UP_OUTCOMES = ["up", "back", "drowsy"] as const;
 export const SESSION_KINDS = ["primary", "recovery"] as const;
 export const TASK_SUBSTITUTION_REASONS = ["unwilling_now", "not_helpful", "cannot_do"] as const;
 export const WAKE_SOUND_MODES = ["unknown", "off", "on"] as const;
+export const WAKE_INTERACTION_MODES = ["manual", "hands_free"] as const;
 
 export const TaskIdSchema = Type.Union(TASK_IDS.map((value) => Type.Literal(value)));
 export const TaskCategorySchema = Type.Union(TASK_CATEGORIES.map((value) => Type.Literal(value)));
@@ -33,8 +36,14 @@ export const TaskSubstitutionReasonSchema = Type.Union(
   TASK_SUBSTITUTION_REASONS.map((value) => Type.Literal(value)),
 );
 export const WakeSoundModeSchema = Type.Union(WAKE_SOUND_MODES.map((value) => Type.Literal(value)));
+export const WakeInteractionModeSchema = Type.Union(
+  WAKE_INTERACTION_MODES.map((value) => Type.Literal(value)),
+);
 export const WakeExperienceSnapshotSchema = Type.Object(
-  { soundMode: WakeSoundModeSchema },
+  {
+    soundMode: WakeSoundModeSchema,
+    interactionMode: Type.Optional(WakeInteractionModeSchema),
+  },
   { additionalProperties: false },
 );
 
@@ -53,6 +62,7 @@ export const TaskResultInputSchema = Type.Object(
     correct: Type.Integer({ minimum: 0 }),
     total: Type.Integer({ minimum: 0 }),
     durationMs: Type.Integer({ minimum: 0, maximum: 60 * 60 * 1000 }),
+    completionSource: Type.Optional(Type.Union([Type.Literal("manual"), Type.Literal("timer")])),
     difficultyLevel: Type.Optional(Type.Integer({ minimum: 1, maximum: 3 })),
   },
   { additionalProperties: false },
@@ -74,6 +84,7 @@ export type FollowUpOutcome = Static<typeof FollowUpOutcomeSchema>;
 export type SessionKind = Static<typeof SessionKindSchema>;
 export type TaskSubstitutionReason = Static<typeof TaskSubstitutionReasonSchema>;
 export type WakeSoundMode = Static<typeof WakeSoundModeSchema>;
+export type WakeInteractionMode = Static<typeof WakeInteractionModeSchema>;
 export type WakeExperienceSnapshot = Static<typeof WakeExperienceSnapshotSchema>;
 export type RatingInput = Static<typeof RatingInputSchema>;
 export type TaskResultInput = Static<typeof TaskResultInputSchema>;
@@ -125,6 +136,7 @@ export const CreateWakeSessionInputSchema = Type.Object(
     timezone: Type.String({ minLength: 1, maxLength: 100 }),
     wakeContext: WakeContextSchema,
     durationMinutes: WakeDurationSchema,
+    interactionMode: Type.Optional(WakeInteractionModeSchema),
   },
   { additionalProperties: false },
 );
@@ -133,7 +145,7 @@ export const WakeProfileInputSchema = Type.Object(
   {
     movementLevel: MovementLevelSchema,
     availableResources: Type.Array(WakeResourceSchema, { maxItems: 5, uniqueItems: true }),
-    excludedTaskIds: Type.Array(TaskIdSchema, { maxItems: 13, uniqueItems: true }),
+    excludedTaskIds: Type.Array(TaskIdSchema, { maxItems: 15, uniqueItems: true }),
     defaultDurationMinutes: WakeDurationSchema,
     onboardingCompleted: Type.Boolean(),
   },

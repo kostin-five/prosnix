@@ -54,10 +54,15 @@ export function WakeContextSheet({
   busy: boolean;
   onCancel: () => void;
   onOpenProfile: () => void;
-  onStart: (context: WakeContext, duration: WakeDurationMinutes) => void;
+  onStart: (
+    context: WakeContext,
+    duration: WakeDurationMinutes,
+    mode: "manual" | "hands_free",
+  ) => void;
 }) {
   const [context, setContext] = React.useState<WakeContext>("night_sleep");
   const [duration, setDuration] = React.useState<WakeDurationMinutes>(defaultDuration);
+  const [mode, setMode] = React.useState<"manual" | "hands_free">("manual");
   return (
     <div className="ps-flow ps-context fixed inset-0 z-50 mx-auto flex h-[100dvh] min-h-0 w-full max-w-[390px] flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-3 pt-5">
@@ -143,11 +148,37 @@ export function WakeContextSheet({
             </button>
           ))}
         </div>
+        <p className="mt-5 text-sm font-semibold">Как пройти протокол?</p>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {(
+            [
+              ["manual", "С экраном", "Подтверждать шаги самому"],
+              ["hands_free", "Без телефона", "Голос и переход по таймеру"],
+            ] as const
+          ).map(([value, label, hint]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setMode(value)}
+              aria-pressed={mode === value}
+              className={`ps-flow-choice min-h-20 px-3 py-2 text-left ${mode === value ? "border-accent bg-accent/15" : "border-border bg-card"}`}
+            >
+              <span className="block text-sm font-semibold">{label}</span>
+              <span className="mt-1 block text-[11px] text-muted-foreground">{hint}</span>
+            </button>
+          ))}
+        </div>
+        {mode === "hands_free" && (
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            После запуска шаги завершатся по таймеру. Пауза — нажатием на таймер. Звук работает,
+            пока Mini App открыт; в конце нужно оценить состояние на экране.
+          </p>
+        )}
       </div>
       <div className="shrink-0 bg-[#0d0b09] px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
         <button
           disabled={busy}
-          onClick={() => onStart(context, duration)}
+          onClick={() => onStart(context, duration, mode)}
           className="ps-primary-button w-full px-5 disabled:opacity-60"
         >
           {busy ? "Подбираем протокол…" : "Начать пробуждение"}

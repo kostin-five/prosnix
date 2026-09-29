@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
-import { estimatedTaskSeconds, taskSuccessTarget } from "@awc/domain";
+import { estimatedTaskSeconds, taskSuccessTarget, HANDS_FREE_ORDER } from "@awc/domain";
 import {
   Home,
   BarChart2,
@@ -124,7 +124,9 @@ type TaskId =
   | "curtains"
   | "sit_edge"
   | "cool_wash"
-  | "pushups";
+  | "pushups"
+  | "notice_three"
+  | "find_color";
 type TaskCategory = "cognitive" | "movement" | "behavioral" | "environment";
 type FollowUp = "up" | "back" | "drowsy" | null;
 type Confidence = "insufficient" | "low" | "medium" | "high";
@@ -146,6 +148,7 @@ interface TaskResult {
   total: number;
   timeMs: number;
   difficultyLevel?: number;
+  completionSource?: "manual" | "timer";
 }
 
 interface Session {
@@ -274,6 +277,16 @@ const TASK_META: Record<TaskId, { category: TaskCategory; title: string; subtitl
     category: "movement",
     title: "Отжимания",
     subtitle: "От пола или с колен",
+  },
+  notice_three: {
+    category: "behavioral",
+    title: "Три предмета",
+    subtitle: "Назови про себя три предмета вокруг",
+  },
+  find_color: {
+    category: "environment",
+    title: "Найди цвет",
+    subtitle: "Найди пять предметов одного цвета",
   },
 };
 
@@ -1019,6 +1032,10 @@ export function TasksContainer({
   substitutionEnabled = false,
   submitting = false,
   guidedExperience = GUIDED_TASK_EXPERIENCE_ENABLED,
+  interactionMode = "manual",
+  localStorageScope = "demo",
+  autoResumeBlocked = false,
+  onResumeAuto = () => undefined,
 }: {
   taskIds: TaskId[];
   taskIndex: number;
@@ -1031,20 +1048,71 @@ export function TasksContainer({
   substitutionEnabled?: boolean;
   submitting?: boolean;
   guidedExperience?: boolean;
+  interactionMode?: "manual" | "hands_free";
+  localStorageScope?: string;
+  autoResumeBlocked?: boolean;
+  onResumeAuto?: () => void;
 }) {
   const [protocolOpen, setProtocolOpen] = useState(false);
   const [replacementTarget, setReplacementTarget] = useState<number | null>(null);
   const [taskActionContainer, setTaskActionContainer] = useState<HTMLDivElement | null>(null);
+  const [preparingSeconds, setPreparingSeconds] = useState(
+    interactionMode === "hands_free" && taskIndex > 0 ? 10 : 0,
+  );
+  const [preparationPaused, setPreparationPaused] = useState(false);
+  const [speechUnavailable, setSpeechUnavailable] = useState(false);
+  const [audioUnavailable, setAudioUnavailable] = useState(false);
+  useEffect(() => {
+    if (interactionMode !== "hands_free" || soundMode !== "on") {
+      void import("../features/tasks/hands-free-audio.js").then(({ stopSpeech }) => stopSpeech());
+      return;
+    }
+    let active = true;
+    void import("../features/tasks/hands-free-audio.js").then(({ speakTask }) => {
+      if (active)
+        setSpeechUnavailable(
+          !speakTask(
+            taskIds[taskIndex]!,
+            TASK_META[taskIds[taskIndex]!].title,
+            localStorageScope,
+            taskIndex > 0,
+            estimatedTaskSeconds(taskIds[taskIndex]!, durationMinutes, protocolVersion),
+          ),
+        );
+    });
+    return () => {
+      active = false;
+      void import("../features/tasks/hands-free-audio.js").then(({ stopSpeech }) => stopSpeech());
+    };
+  }, [interactionMode, soundMode, taskIds, taskIndex, localStorageScope]);
+  useEffect(() => {
+    if (
+      interactionMode !== "hands_free" ||
+      preparingSeconds === 0 ||
+      preparationPaused ||
+      autoResumeBlocked
+    )
+      return;
+    const timer = window.setTimeout(() => setPreparingSeconds((seconds) => seconds - 1), 1_000);
+    return () => window.clearTimeout(timer);
+  }, [interactionMode, preparingSeconds, preparationPaused, autoResumeBlocked]);
+  useEffect(() => {
+    const pauseWhenHidden = () => {
+      if (document.visibilityState === "hidden") setPreparationPaused(true);
+    };
+    document.addEventListener("visibilitychange", pauseWhenHidden);
+    return () => document.removeEventListener("visibilitychange", pauseWhenHidden);
+  }, []);
   useEffect(() => {
     if (soundMode !== "on") return;
     let active = true;
     void import("../features/tasks/task-experience-feedback.js").then(
       ({ startWakeProtocolSound, stopWakeProtocolSound }) => {
         if (!active) return;
-        startWakeProtocolSound();
+        setAudioUnavailable(!startWakeProtocolSound(interactionMode === "hands_free"));
         const onVisibilityChange = () => {
           if (document.visibilityState === "hidden") stopWakeProtocolSound();
-          else startWakeProtocolSound();
+          else setAudioUnavailable(!startWakeProtocolSound(interactionMode === "hands_free"));
         };
         document.addEventListener("visibilitychange", onVisibilityChange);
         cleanup = () => {
@@ -1058,7 +1126,7 @@ export function TasksContainer({
       active = false;
       cleanup();
     };
-  }, [soundMode]);
+  }, [soundMode, interactionMode]);
   const id = taskIds[taskIndex];
   const nextId = taskIds[taskIndex + 1];
   const meta = TASK_META[id];
@@ -1157,6 +1225,39 @@ export function TasksContainer({
           </button>
         )}
       </div>
+      {interactionMode === "hands_free" && preparingSeconds > 0 && (
+        <button
+          type="button"
+          onClick={() => setPreparationPaused((paused) => !paused)}
+          className="mb-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-left text-sm text-primary"
+          aria-pressed={preparationPaused}
+        >
+          {preparationPaused
+            ? "Подготовка на паузе · нажми, чтобы продолжить"
+            : `Приготовься: ${meta.title} · ${preparingSeconds} сек`}
+        </button>
+      )}
+      {interactionMode === "hands_free" && soundMode === "on" && speechUnavailable && (
+        <p
+          className="mb-2 rounded-xl border border-amber-500/30 p-3 text-xs text-amber-300"
+          role="status"
+        >
+          На этом устройстве озвучка недоступна. Следи за заданиями на экране.
+        </p>
+      )}
+      {interactionMode === "hands_free" && soundMode === "on" && audioUnavailable && (
+        <p
+          className="mb-2 rounded-xl border border-amber-500/30 p-3 text-xs text-amber-300"
+          role="status"
+        >
+          Фоновый звук недоступен на этом устройстве. Протокол можно продолжить по экрану.
+        </p>
+      )}
+      {interactionMode === "hands_free" && autoResumeBlocked && (
+        <button type="button" onClick={onResumeAuto} className="ps-primary-button mb-2 w-full">
+          Продолжить протокол
+        </button>
+      )}
       <div className="ps-next-step mb-2">
         {nextId && (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-card/60 px-3 py-2">
@@ -1230,7 +1331,9 @@ export function TasksContainer({
             id === "curtains" ||
             id === "sit_edge" ||
             id === "cool_wash" ||
-            id === "pushups") && (
+            id === "pushups" ||
+            id === "notice_three" ||
+            id === "find_color") && (
             <Suspense fallback={<div className="rounded-2xl bg-secondary/30" />}>
               <ConfirmTask
                 key={`${id}-${taskIndex}`}
@@ -1240,6 +1343,11 @@ export function TasksContainer({
                 soundMode={soundMode}
                 onDone={completeTask}
                 actionContainer={taskActionContainer}
+                interactionMode={interactionMode}
+                preparing={preparingSeconds > 0}
+                autoStart={
+                  interactionMode === "hands_free" && preparingSeconds === 0 && !autoResumeBlocked
+                }
               />
             </Suspense>
           )}
@@ -2153,9 +2261,13 @@ function PrototypeApp({
     resume?.session.durationMinutes ?? initialWakeProfile.defaultDurationMinutes,
   );
   const [taskResults, setTaskResults] = useState<TaskResult[]>([]);
+  const [autoResumeBlocked, setAutoResumeBlocked] = useState(false);
   const [startAlertness, setStartAlertness] = useState(resume?.baseline ?? 0);
   const [soundMode, setSoundMode] = useState<WakeSoundMode>(
     resume?.session.experience?.soundMode === "on" ? "on" : "off",
+  );
+  const [interactionMode, setInteractionMode] = useState<"manual" | "hands_free">(
+    resume?.session.experience?.interactionMode === "hands_free" ? "hands_free" : "manual",
   );
   const sessionStartRef = useRef(Date.now());
   const taskSubmissionGateRef = useRef(new TaskSubmissionGate());
@@ -2232,13 +2344,22 @@ function PrototypeApp({
     setSyncError(error instanceof Error ? error.message : "Действие пока не подтверждено сервером");
   }
 
-  async function startSession(wakeContext: WakeContext, durationMinutes: WakeDurationMinutes) {
+  async function startSession(
+    wakeContext: WakeContext,
+    durationMinutes: WakeDurationMinutes,
+    mode: "manual" | "hands_free" = "manual",
+  ) {
     setSyncError(null);
-    setSoundMode("off");
+    setAutoResumeBlocked(false);
+    setSoundMode(mode === "hands_free" ? "on" : "off");
+    setInteractionMode(mode);
     setActiveDurationMinutes(durationMinutes);
     sessionStartRef.current = Date.now();
     if (demo) {
-      const ids = selectTasks(sessions.length, sessions);
+      const ids =
+        mode === "hands_free"
+          ? (["notice_three", "find_color"] as TaskId[])
+          : selectTasks(sessions.length, sessions);
       setTaskIds(ids);
       setTaskIndex(0);
       setTaskResults([]);
@@ -2252,6 +2373,7 @@ function PrototypeApp({
         Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
         wakeContext,
         durationMinutes,
+        mode,
       );
       setServerSession(created);
       setTaskIds(
@@ -2310,6 +2432,7 @@ function PrototypeApp({
         correct: result.correct,
         total: result.total,
         durationMs: result.timeMs,
+        ...(result.completionSource ? { completionSource: result.completionSource } : {}),
         ...(result.difficultyLevel === undefined
           ? {}
           : { difficultyLevel: result.difficultyLevel }),
@@ -2321,10 +2444,12 @@ function PrototypeApp({
       setTaskIds(updatedTaskIds);
       setTaskResults((current) => [...current, result]);
       setTaskIndex(updated.currentStepIndex);
+      setAutoResumeBlocked(false);
       sendTaskFeedback("success", soundMode);
       if (updated.currentStepIndex >= updatedTaskIds.length) setScreen("endRating");
     } catch (error) {
       taskSubmissionGateRef.current.reset();
+      if (interactionMode === "hands_free") setAutoResumeBlocked(true);
       setTaskRenderVersion((version) => version + 1);
       sendTaskFeedback("error", soundMode);
       applyConflict(error, taskIndex);
@@ -2341,7 +2466,11 @@ function PrototypeApp({
     if (!originalTaskId) return;
     setSyncError(null);
     if (demo) {
-      const replacement = (["reaction", "stroop", "memory", "math", "shake"] as TaskId[]).find(
+      const candidates: readonly TaskId[] =
+        interactionMode === "hands_free"
+          ? HANDS_FREE_ORDER
+          : (["reaction", "stroop", "memory", "math", "shake"] as TaskId[]);
+      const replacement = candidates.find(
         (taskId) => taskId !== originalTaskId && !taskIds.includes(taskId),
       );
       if (!replacement) {
@@ -2726,7 +2855,7 @@ function PrototypeApp({
                 setNavTab("settings");
                 setScreen("settings");
               }}
-              onStart={(context, duration) => void startSession(context, duration)}
+              onStart={(context, duration, mode) => void startSession(context, duration, mode)}
             />
           </Suspense>
         )}
@@ -2768,6 +2897,17 @@ function PrototypeApp({
               busy={syncing}
               localStorageScope={localStorageScope}
               soundMode={soundMode}
+              interactionMode={interactionMode}
+              plannedSeconds={taskIds.reduce(
+                (total, taskId) =>
+                  total +
+                  estimatedTaskSeconds(
+                    taskId,
+                    serverSession?.durationMinutes ?? activeDurationMinutes,
+                    serverSession?.assignment.protocolVersion ?? 11,
+                  ),
+                0,
+              )}
               onSoundModeChange={setSoundMode}
               goalCalibrationEnabled={GOAL_CALIBRATION_ENABLED}
               guidedExperience={GUIDED_TASK_EXPERIENCE_ENABLED}
@@ -2789,6 +2929,10 @@ function PrototypeApp({
             soundMode={soundMode}
             onSoundModeChange={setSoundMode}
             submitting={syncing}
+            interactionMode={interactionMode}
+            localStorageScope={localStorageScope}
+            autoResumeBlocked={autoResumeBlocked}
+            onResumeAuto={() => setAutoResumeBlocked(false)}
             substitutionEnabled={WAKE_TASK_SUBSTITUTION_ENABLED}
             onReplace={(stepIndex, reason) => void handleTaskReplacement(stepIndex, reason)}
             onDone={handleTaskDone}
@@ -2893,6 +3037,10 @@ export default function App() {
           stepCount={active.protocol.steps.length}
           discarding={discarding}
           error={discardError}
+          handsFreeSound={
+            active.session.experience?.interactionMode === "hands_free" &&
+            active.session.experience?.soundMode === "on"
+          }
           onContinue={() => setResumeAccepted(true)}
           onDiscard={() => void discardActiveSession()}
         />

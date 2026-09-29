@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Crown,
   FileText,
+  Headphones,
   Flag,
   ListChecks,
   LockKeyhole,
@@ -20,6 +21,7 @@ import { CapabilityProfileCard } from "../personalization/capability-profile-car
 import { MorningGoalCard } from "../personalization/morning-goal-card.js";
 import { WakeRoutineCard } from "../personalization/wake-routine-card.js";
 import type { WakeProfile, WakeRoutine } from "../../shared/api/client.js";
+import { resetHandsFreeGuidance } from "../tasks/hands-free-audio.js";
 
 export default function SettingsScreen({
   initialSection = null,
@@ -55,8 +57,9 @@ export default function SettingsScreen({
   goalCalibrationEnabled: boolean;
 }) {
   const [section, setSection] = useState<
-    "schedule" | "capabilities" | "goal" | "routine" | "pro" | "privacy" | "delete" | null
+    "schedule" | "capabilities" | "goal" | "routine" | "audio" | "pro" | "privacy" | "delete" | null
   >(initialSection);
+  const [guidanceReset, setGuidanceReset] = useState(false);
   useEffect(() => setSection(initialSection), [initialSection]);
 
   const row = (title: string, description: string, icon: React.ReactNode, onClick: () => void) => (
@@ -119,6 +122,12 @@ export default function SettingsScreen({
               <ListChecks className="h-5 w-5" />,
               () => setSection("routine"),
             )}
+            {row(
+              "Без телефона",
+              "Голосовые подсказки к заданиям",
+              <Headphones className="h-5 w-5" />,
+              () => setSection("audio"),
+            )}
             {!demo &&
               row("Pro", "Узнать о возможностях", <Crown className="h-5 w-5" />, () =>
                 setSection("pro"),
@@ -153,6 +162,7 @@ export default function SettingsScreen({
                 capabilities: "Возможности",
                 goal: "Цель в жизни",
                 routine: "Личный распорядок",
+                audio: "Без телефона",
                 pro: "Pro",
                 privacy: "Документы",
                 delete: "Удаление профиля",
@@ -166,6 +176,7 @@ export default function SettingsScreen({
                 capabilities: "Задания подбираются с учётом твоих ответов",
                 goal: "Что вдохновляет тебя начинать новый день?",
                 routine: "Необязательные шаги после пробуждения",
+                audio: "Подробные инструкции звучат при первой встрече с заданием",
                 pro: "Возможности Prosnix",
                 privacy: "Правила использования и обработки данных",
                 delete: "Управление личными данными",
@@ -196,6 +207,27 @@ export default function SettingsScreen({
               saving={personalizationSaving}
               onSave={onRoutineSave}
             />
+          )}
+          {section === "audio" && (
+            <div className="ps-surface p-4">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Верни подробную озвучку для всех заданий. Следующий раз подсказка снова объяснит,
+                как выполнять каждое действие.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  resetHandsFreeGuidance(localStorageScope);
+                  setGuidanceReset(true);
+                }}
+                className="ps-primary-button mt-4 w-full"
+              >
+                Повторить подробные подсказки
+              </button>
+              {guidanceReset && (
+                <p className="mt-2 text-sm text-primary">Подсказки восстановлены</p>
+              )}
+            </div>
           )}
           {section === "pro" && !demo && <ProCard />}
           {section === "privacy" && (

@@ -129,6 +129,7 @@ export type SessionCommand =
       timezone: string;
       wakeContext: Exclude<WakeContext, "unspecified">;
       durationMinutes: WakeDurationMinutes;
+      interactionMode?: import("./model.js").WakeInteractionMode;
     }
   | {
       type: "baseline";
@@ -147,6 +148,7 @@ export type SessionCommand =
       correct: number;
       total: number;
       durationMs: number;
+      completionSource?: "manual" | "timer";
       difficultyLevel?: number;
     }
   | {

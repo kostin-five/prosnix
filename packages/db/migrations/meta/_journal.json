@@ -92,6 +92,13 @@
       "when": 1790413200000,
       "tag": "0012_user_life_goals",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790716934000,
+      "tag": "0013_hands_free_completion_source",
+      "breakpoints": true
     }
   ]
 }

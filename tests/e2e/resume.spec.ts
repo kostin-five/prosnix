@@ -1,5 +1,74 @@
 import { expect, test } from "@playwright/test";
 
+test("сохранённый режим без телефона продолжает неэкранный шаг", async ({ page }) => {
+  await page.route("https://telegram.org/js/telegram-web-app.js*", (route) =>
+    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
+  );
+  await page.addInitScript(() => {
+    window.Telegram = {
+      WebApp: { initData: "synthetic-test-data", ready: () => undefined, expand: () => undefined },
+    };
+  });
+  await page.route("**/api/v1/auth/telegram", (route) => route.fulfill({ status: 204 }));
+  await page.route("**/api/v1/legal/status", (route) =>
+    route.fulfill({
+      json: {
+        privacyVersion: "2026-08-31",
+        termsVersion: "2026-08-31",
+        accepted: true,
+        acceptedAt: "2026-08-31T00:00:00.000Z",
+      },
+    }),
+  );
+  await page.route("**/api/v1/bootstrap", (route) =>
+    route.fulfill({
+      json: {
+        user: {
+          id: "00000000-0000-4000-8000-000000000042",
+          locale: "ru",
+          timezone: "Europe/Moscow",
+        },
+        activeSession: {
+          session: {
+            id: "00000000-0000-4000-8000-000000000100",
+            status: "in_progress",
+            currentStepIndex: 1,
+            version: 3,
+            durationMinutes: 2,
+            wakeContext: "night_sleep",
+            experience: { interactionMode: "hands_free", soundMode: "on" },
+          },
+          protocol: {
+            key: "hands-free-v1",
+            version: 11,
+            title: "Без телефона",
+            steps: [
+              { index: 0, taskId: "notice_three", category: "behavioral" },
+              { index: 1, taskId: "find_color", category: "environment" },
+            ],
+          },
+          assignment: { strategyVersion: "hands-free-v1", phase: "fallback", hypothesis: "test" },
+          baseline: 3,
+          postRating: null,
+        },
+        dueFollowUpSessionId: null,
+        wakeProfile: {
+          movementLevel: "none",
+          availableResources: [],
+          excludedTaskIds: [],
+          defaultDurationMinutes: 2,
+          onboardingCompleted: true,
+          revision: 1,
+        },
+      },
+    }),
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  await expect(page.getByRole("heading", { name: "Найди цвет" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Приготовься: Найди цвет/ })).toBeVisible();
+});
+
 test("mobile user resumes from the next confirmed task", async ({ page }) => {
   await page.route("https://telegram.org/js/telegram-web-app.js*", (route) =>
     route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),

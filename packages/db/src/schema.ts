@@ -402,6 +402,7 @@ export const taskObservations = pgTable(
     correct: integer().notNull(),
     total: integer().notNull(),
     durationMs: integer("duration_ms").notNull(),
+    completionSource: text("completion_source").notNull().default("manual"),
     difficultyLevel: integer("difficulty_level"),
     observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
     operationId: text("operation_id").notNull(),

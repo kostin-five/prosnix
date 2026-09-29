@@ -36,6 +36,8 @@ const MOTION_LABELS: Record<TaskId, string> = {
   sit_edge: "Сядь и поставь стопы на пол",
   cool_wash: "Умой лицо прохладной водой",
   pushups: "Выбери опору под свой уровень",
+  notice_three: "Заметь три предмета вокруг",
+  find_color: "Найди пять предметов одного цвета",
 };
 
 function prefersReducedMotion(): boolean {

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
 
 import type { WakeDurationMinutes } from "../../shared/api/client.js";
+import { estimatedTaskSeconds } from "@awc/domain";
 import type { WakeSoundMode } from "./task-experience-feedback.js";
 import type { TaskId } from "./task-icon.js";
 
@@ -64,6 +65,18 @@ const CONFIG: Record<ConfirmTaskId, { instruction: string; countdown: number; ct
       "Сделайте несколько отжиманий под свой уровень: от пола, а если так неудобно — с колен. Двигайтесь спокойно и остановитесь при дискомфорте.",
     countdown: 25,
     cta: "Сделал",
+  },
+  notice_three: {
+    instruction:
+      "Оглянись и назови про себя три предмета, которые видишь рядом. Говорить вслух не нужно.",
+    countdown: 60,
+    cta: "Готово",
+  },
+  find_color: {
+    instruction:
+      "Выбери любой цвет и найди вокруг пять предметов этого цвета. Можно просто посмотреть по сторонам.",
+    countdown: 60,
+    cta: "Готово",
   },
 };
 
@@ -165,6 +178,8 @@ const CATEGORY: Record<ConfirmTaskId, "movement" | "behavioral" | "environment">
   sit_edge: "movement",
   cool_wash: "behavioral",
   pushups: "movement",
+  notice_three: "behavioral",
+  find_color: "environment",
 };
 
 function signalStart(soundMode: WakeSoundMode): void {
@@ -180,6 +195,7 @@ export interface ConfirmTaskResult {
   correct: 1;
   total: 1;
   timeMs: number;
+  completionSource?: "manual" | "timer";
 }
 
 export function ConfirmTask({
@@ -189,6 +205,9 @@ export function ConfirmTask({
   onDone,
   soundMode = "off",
   actionContainer,
+  interactionMode = "manual",
+  autoStart = false,
+  preparing = false,
 }: {
   taskId: ConfirmTaskId;
   durationMinutes: WakeDurationMinutes;
@@ -196,6 +215,9 @@ export function ConfirmTask({
   onDone: (result: ConfirmTaskResult) => void;
   soundMode?: WakeSoundMode;
   actionContainer?: HTMLElement | null;
+  interactionMode?: "manual" | "hands_free";
+  autoStart?: boolean;
+  preparing?: boolean;
 }) {
   const cfg =
     durationMinutes === 5 && protocolVersion >= 10 && COMPACT_FIVE_MINUTE_OVERRIDES[taskId]
@@ -203,32 +225,69 @@ export function ConfirmTask({
       : durationMinutes === 10 && TEN_MINUTE_OVERRIDES[taskId]
         ? TEN_MINUTE_OVERRIDES[taskId]!
         : CONFIG[taskId];
+  const countdown =
+    interactionMode === "hands_free"
+      ? estimatedTaskSeconds(taskId, durationMinutes, protocolVersion)
+      : cfg.countdown;
   const [started, setStarted] = useState(false);
-  const [remaining, setRemaining] = useState(cfg.countdown);
+  const [paused, setPaused] = useState(false);
+  const [remaining, setRemaining] = useState(countdown);
   const [done, setDone] = useState(false);
   const startedAt = useRef(Date.now());
 
   useEffect(() => {
-    if (!started || remaining <= 0) return;
-    const timer = setTimeout(() => setRemaining((value) => value - 1), 1_000);
+    if (!started || paused || remaining <= 0) return;
+    const timer = setTimeout(() => {
+      if (document.visibilityState === "hidden") setPaused(true);
+      else {
+        if (interactionMode === "hands_free" && remaining <= 3) {
+          void import("./task-experience-feedback.js").then(({ playCountdownTick }) =>
+            playCountdownTick(soundMode),
+          );
+        }
+        setRemaining((value) => value - 1);
+      }
+    }, 1_000);
     return () => clearTimeout(timer);
-  }, [started, remaining]);
+  }, [started, paused, remaining, interactionMode, soundMode]);
 
-  const confirm = () => {
+  useEffect(() => {
+    const pauseWhenHidden = () => {
+      if (document.visibilityState === "hidden") setPaused(true);
+    };
+    document.addEventListener("visibilitychange", pauseWhenHidden);
+    return () => document.removeEventListener("visibilitychange", pauseWhenHidden);
+  }, []);
+
+  useEffect(() => {
+    if (!autoStart || preparing || started) return;
+    setStarted(true);
+    startedAt.current = Date.now();
+    if (document.visibilityState === "hidden") setPaused(true);
+    signalStart(soundMode);
+  }, [autoStart, preparing, started, soundMode]);
+
+  const confirm = (source: "manual" | "timer" = "manual") => {
     if (done) return;
     setDone(true);
-    setTimeout(
-      () =>
-        onDone({
-          id: taskId,
-          category: CATEGORY[taskId],
-          correct: 1,
-          total: 1,
-          timeMs: Date.now() - startedAt.current,
-        }),
-      500,
-    );
+    onDone({
+      id: taskId,
+      category: CATEGORY[taskId],
+      correct: 1,
+      total: 1,
+      timeMs:
+        source === "timer"
+          ? Math.max(Date.now() - startedAt.current, countdown * 1_000)
+          : Date.now() - startedAt.current,
+      ...(source === "timer" ? { completionSource: "timer" as const } : {}),
+    });
   };
+
+  useEffect(() => {
+    if (interactionMode === "hands_free" && started && !paused && remaining === 0 && !done) {
+      confirm("timer");
+    }
+  }, [interactionMode, started, paused, remaining, done]);
 
   if (done) {
     return (
@@ -236,7 +295,7 @@ export function ConfirmTask({
         <div className="flex h-20 w-20 items-center justify-center rounded-full border border-green-500/30 bg-green-500/20">
           <Check className="h-10 w-10 text-green-400" strokeWidth={2.5} />
         </div>
-        <p className="text-lg font-semibold text-green-400">Готово!</p>
+        <p className="text-lg font-semibold text-green-400">Сохраняем шаг…</p>
       </div>
     );
   }
@@ -256,8 +315,8 @@ export function ConfirmTask({
   ) : (
     <button
       type="button"
-      onClick={confirm}
-      disabled={cfg.countdown > 0 && remaining > 0}
+      onClick={() => confirm()}
+      disabled={countdown > 0 && remaining > 0}
       className="ps-primary-button w-full"
     >
       <span className="inline-flex items-center justify-center gap-2">
@@ -272,28 +331,44 @@ export function ConfirmTask({
         {cfg.instruction}
       </p>
       <div className="ps-confirm-timer flex min-h-32 items-center justify-center">
-        {cfg.countdown > 0 ? (
-          <Suspense
-            fallback={
-              <div className="grid h-40 w-40 place-items-center text-4xl font-black text-primary">
-                {remaining}
-              </div>
-            }
+        {countdown > 0 ? (
+          <button
+            type="button"
+            aria-label={paused ? "Продолжить таймер" : "Поставить таймер на паузу"}
+            aria-pressed={paused}
+            disabled={!started || remaining === 0}
+            onClick={() => setPaused((value) => !value)}
+            className="rounded-full disabled:cursor-default"
           >
-            <TaskTimerVisual
-              taskId={taskId}
-              remaining={remaining}
-              total={cfg.countdown}
-              waiting={!started}
-            />
-          </Suspense>
+            <Suspense
+              fallback={
+                <div className="grid h-40 w-40 place-items-center text-4xl font-black text-primary">
+                  {remaining}
+                </div>
+              }
+            >
+              <TaskTimerVisual
+                taskId={taskId}
+                remaining={remaining}
+                total={countdown}
+                waiting={!started}
+              />
+            </Suspense>
+          </button>
         ) : (
           <p className="max-w-[240px] text-center text-xs leading-relaxed text-muted-foreground">
             Нажми «Начать», когда будешь готов выполнить действие.
           </p>
         )}
       </div>
-      {actionContainer ? createPortal(action, actionContainer) : action}
+      {!preparing &&
+        (interactionMode !== "hands_free" || !autoStart) &&
+        (actionContainer ? createPortal(action, actionContainer) : action)}
+      {interactionMode === "hands_free" && paused && (
+        <p className="text-center text-xs text-primary">
+          Пауза. Нажми на таймер, чтобы продолжить.
+        </p>
+      )}
     </div>
   );
 }

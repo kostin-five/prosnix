@@ -5,6 +5,7 @@ import {
   enableWakeSoundFromGesture,
   type WakeSoundMode,
 } from "../tasks/task-experience-feedback.js";
+import { primeHandsFreeSpeech } from "../tasks/hands-free-audio.js";
 
 const MorningExperienceSlot = lazy(() => import("../personalization/morning-experience-slot.js"));
 const TaskSoundToggle = lazy(() => import("../tasks/task-sound-toggle.js"));
@@ -48,6 +49,8 @@ export function StartRatingScreen({
   onRetry,
   localStorageScope,
   soundMode = "off",
+  interactionMode = "manual",
+  plannedSeconds,
   onSoundModeChange = () => undefined,
   goalCalibrationEnabled = true,
   guidedExperience = true,
@@ -58,6 +61,8 @@ export function StartRatingScreen({
   onRetry?: () => void;
   localStorageScope?: string;
   soundMode?: WakeSoundMode;
+  interactionMode?: "manual" | "hands_free";
+  plannedSeconds?: number;
   onSoundModeChange?: (mode: WakeSoundMode) => void;
   goalCalibrationEnabled?: boolean;
   guidedExperience?: boolean;
@@ -84,8 +89,23 @@ export function StartRatingScreen({
       )}
       {guidedExperience && (
         <Suspense fallback={<div className="mb-6 h-24 rounded-2xl bg-card" />}>
-          <TaskSoundToggle mode={soundMode} onChange={onSoundModeChange} />
+          <TaskSoundToggle
+            mode={soundMode}
+            onChange={onSoundModeChange}
+            handsFree={interactionMode === "hands_free"}
+          />
         </Suspense>
+      )}
+      {interactionMode === "hands_free" && (
+        <div className="mb-4 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm">
+          <p className="font-semibold text-primary">
+            Без телефона · ≈ {Math.max(1, Math.round((plannedSeconds ?? 120) / 60))} мин
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            После запуска слушай подсказки и положи телефон рядом. В конце понадобится оценить
+            состояние на экране.
+          </p>
+        </div>
       )}
       <div className="ps-rating-panel">
         <RatingGrid selected={selected} onSelect={setSelected} />
@@ -98,6 +118,7 @@ export function StartRatingScreen({
         type="button"
         onClick={() => {
           if (soundMode === "on") void enableWakeSoundFromGesture();
+          if (interactionMode === "hands_free" && soundMode === "on") primeHandsFreeSpeech();
           if (selected) onDone(selected);
         }}
         disabled={!selected || !ready || !goalReady || busy}

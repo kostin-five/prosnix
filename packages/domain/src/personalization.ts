@@ -143,8 +143,9 @@ export function categoryForTask(taskId: TaskId): ProtocolStep["category"] {
   ) {
     return "movement";
   }
-  if (taskId === "water" || taskId === "cool_wash") return "behavioral";
-  if (taskId === "window" || taskId === "curtains") return "environment";
+  if (taskId === "water" || taskId === "cool_wash" || taskId === "notice_three")
+    return "behavioral";
+  if (taskId === "window" || taskId === "curtains" || taskId === "find_color") return "environment";
   return "cognitive";
 }
 
@@ -203,6 +204,7 @@ export function selectTaskSubstitution(input: {
   protocolVersion?: number;
   comparisonFactorKey?: string;
   catalog?: WakeTaskCatalogOptions;
+  allowedTaskIds?: readonly TaskId[];
   reason: TaskSubstitutionReason;
 }): TaskSubstitutionSelection | null {
   const target = input.steps[input.targetIndex];
@@ -234,7 +236,8 @@ export function selectTaskSubstitution(input: {
   const maximumSeconds = input.durationMinutes * 60 * 1.1;
   const originalFactor = factorPresence(target.taskId, input.comparisonFactorKey);
 
-  const candidates = eligibleWakeTasks(input.profile, input.catalog)
+  const candidates = (input.allowedTaskIds ?? eligibleWakeTasks(input.profile, input.catalog))
+    .filter((taskId) => allowed(taskId, input.profile, input.catalog ?? {}))
     .filter((taskId) => taskId !== target.taskId && !unavailable.has(taskId))
     .filter((taskId) => keepsSafeOrder(input.steps, input.targetIndex, taskId))
     .filter(
@@ -355,6 +358,68 @@ export function plannedProtocolSeconds(
     (total, { taskId }) => total + estimatedTaskSeconds(taskId, durationMinutes, protocolVersion),
     0,
   );
+}
+
+export const HANDS_FREE_ORDER: readonly TaskId[] = [
+  "notice_three",
+  "find_color",
+  "shake",
+  "steps",
+  "water",
+  "window",
+  "cool_wash",
+  "squats",
+  "pushups",
+];
+
+export function selectHandsFreeAssignment(
+  profile: WakeCapabilityProfile,
+  durationMinutes: WakeDurationMinutes,
+  options: WakeTaskCatalogOptions = {},
+): { assignment: ExperimentAssignment; snapshot: WakePersonalizationSnapshot } {
+  const selected: ProtocolStep[] = [];
+  const maximumSeconds = durationMinutes * 60 * 1.1;
+  for (const taskId of HANDS_FREE_ORDER) {
+    if (!allowed(taskId, profile, options)) continue;
+    if (
+      INTENSE_TASK_IDS.has(taskId) &&
+      !selected.some(({ taskId: current }) => WARMUP_TASK_IDS.has(current))
+    ) {
+      continue;
+    }
+    const candidate = withStandingTransition([
+      ...selected,
+      { index: selected.length, taskId, category: categoryForTask(taskId) },
+    ]);
+    if (plannedProtocolSeconds(candidate, durationMinutes, 11) <= maximumSeconds) {
+      selected.splice(0, selected.length, ...candidate);
+    }
+  }
+  const plannedSeconds = plannedProtocolSeconds(selected, durationMinutes, 11);
+  const fallbackReason: WakePersonalizationSnapshot["fallbackReason"] =
+    plannedSeconds < durationMinutes * 60 * 0.9
+      ? "limited_eligible_tasks"
+      : profile.onboardingCompleted
+        ? "none"
+        : "profile_missing";
+  return {
+    assignment: {
+      id: "pending",
+      protocolKey: `hands-free-v1:${durationMinutes}m:${selected.map(({ taskId }) => taskId).join("-")}`,
+      protocolVersion: 11,
+      strategyVersion: "hands-free-v1",
+      phase: "fallback",
+      hypothesis: "Проверяем пробуждение с голосовыми подсказками и действиями без экрана",
+      steps: selected,
+    },
+    snapshot: {
+      profileRevision: profile.revision,
+      movementLevel: profile.movementLevel,
+      availableResources: [...profile.availableResources],
+      excludedTaskIds: [...profile.excludedTaskIds],
+      fallbackReason,
+    },
+  };
 }
 
 function planForDuration(

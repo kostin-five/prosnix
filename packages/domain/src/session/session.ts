@@ -1,6 +1,8 @@
 import type { FollowUpOutcome, TaskId, WakeSession } from "../model.js";
 import { SessionCommandError } from "../model.js";
 import { STRICT_TASK_PROTOCOL_VERSION, taskSuccessTarget } from "../task-policy.js";
+import { HANDS_FREE_ORDER } from "../personalization.js";
+import { estimatedTaskSeconds } from "../task-policy.js";
 
 interface VersionedCommand {
   expectedVersion: number;
@@ -15,6 +17,7 @@ interface TaskResultCommand extends VersionedCommand {
   correct: number;
   total: number;
   durationMs: number;
+  completionSource?: "manual" | "timer";
   difficultyLevel?: number;
   observedAt: string;
 }
@@ -108,6 +111,26 @@ export function acceptTaskResult(session: WakeSession, command: TaskResultComman
   ) {
     throw new SessionCommandError("invalid_task_result", "Task result values are invalid");
   }
+  if (command.completionSource === "timer") {
+    const minimumMs =
+      estimatedTaskSeconds(
+        command.taskId,
+        session.durationMinutes,
+        session.assignment.protocolVersion,
+      ) * 1_000;
+    const previousObservedAt = session.tasks.at(-1)?.observedAt ?? session.startedAt;
+    if (
+      session.experience?.interactionMode !== "hands_free" ||
+      (command.taskId !== "sit_edge" && !HANDS_FREE_ORDER.includes(command.taskId)) ||
+      command.correct !== 1 ||
+      command.total !== 1 ||
+      command.durationMs < minimumMs ||
+      !previousObservedAt ||
+      Date.parse(command.observedAt) - Date.parse(previousObservedAt) < minimumMs
+    ) {
+      throw new SessionCommandError("invalid_task_result", "Автозавершение задания недоступно");
+    }
+  }
   if (session.assignment.protocolVersion >= STRICT_TASK_PROTOCOL_VERSION) {
     const target = taskSuccessTarget(
       command.taskId,
@@ -133,6 +156,7 @@ export function acceptTaskResult(session: WakeSession, command: TaskResultComman
         correct: command.correct,
         total: command.total,
         durationMs: command.durationMs,
+        completionSource: command.completionSource ?? "manual",
         ...(command.difficultyLevel === undefined
           ? {}
           : { difficultyLevel: command.difficultyLevel }),

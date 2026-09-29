@@ -17,6 +17,8 @@ const BASE_ESTIMATED_SECONDS: Record<TaskId, number> = {
   sit_edge: 10,
   cool_wash: 20,
   pushups: 25,
+  notice_three: 60,
+  find_color: 60,
 };
 
 const TEN_MINUTE_ESTIMATED_SECONDS: Record<TaskId, number> = {
@@ -33,6 +35,8 @@ const TEN_MINUTE_ESTIMATED_SECONDS: Record<TaskId, number> = {
   sit_edge: 10,
   cool_wash: 30,
   pushups: 30,
+  notice_three: 90,
+  find_color: 90,
 };
 
 const COMPACT_FIVE_MINUTE_ESTIMATED_SECONDS: Record<TaskId, number> = {
@@ -49,6 +53,8 @@ const COMPACT_FIVE_MINUTE_ESTIMATED_SECONDS: Record<TaskId, number> = {
   sit_edge: 10,
   cool_wash: 40,
   pushups: 40,
+  notice_three: 60,
+  find_color: 60,
 };
 
 export function taskSuccessTarget(

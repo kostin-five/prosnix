@@ -12,10 +12,12 @@ export function TaskSoundToggle({
   mode,
   onChange,
   compact = false,
+  handsFree = false,
 }: {
   mode: WakeSoundMode;
   onChange: (mode: WakeSoundMode) => void;
   compact?: boolean;
+  handsFree?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
@@ -90,7 +92,9 @@ export function TaskSoundToggle({
       <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
         {unavailable
           ? "Telegram или устройство не разрешили звук. Протокол продолжит работать без него."
-          : "Повторяющийся сигнал будет звучать во время открытого протокола. Его можно отключить в любой момент."}
+          : handsFree
+            ? "Озвучка, тихий фон и три сигнала в конце таймера работают, пока Mini App открыт. Их можно отключить в любой момент."
+            : "Повторяющийся сигнал будет звучать во время открытого протокола. Его можно отключить в любой момент."}
       </p>
     </section>
   );

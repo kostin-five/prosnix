@@ -174,7 +174,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           experience: { soundMode: "on" },
         },
       });
-      expect(baseline.session.experience).toEqual({ soundMode: "on" });
+      expect(baseline.session.experience).toEqual({ soundMode: "on", interactionMode: "manual" });
 
       const firstStep = baseline.session.assignment.steps[0]!;
       const replacementTaskId: TaskId = firstStep.taskId === "math" ? "reaction" : "math";
