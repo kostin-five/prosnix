@@ -104,6 +104,17 @@ test("протокол показывает крупную инструкцию 
   await page.getByRole("button", { name: "Начать протокол" }).click();
 
   await expect(page.getByTestId("task-illustration").locator("img")).toBeVisible();
+  expect(
+    await page
+      .getByTestId("task-illustration")
+      .evaluate((element) => getComputedStyle(element, "::before").animationName),
+  ).toBe("ps-first-phase");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  expect(
+    await page
+      .getByTestId("task-illustration")
+      .evaluate((element) => getComputedStyle(element, "::before").animationName),
+  ).toBe("none");
   await expect(page.getByLabel("Таймер ещё не начат")).toBeVisible();
   await expect(page.locator(".ps-task-action-slot button")).toHaveText("Начать");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
