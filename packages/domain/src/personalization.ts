@@ -9,7 +9,11 @@ import type {
   WakePersonalizationSnapshot,
   WakeContext,
 } from "./model.js";
-import { COMPACT_FIVE_MINUTE_PROTOCOL_VERSION, estimatedTaskSeconds } from "./task-policy.js";
+import {
+  COMPACT_FIVE_MINUTE_PROTOCOL_VERSION,
+  SHORT_OBSERVATION_PROTOCOL_VERSION,
+  estimatedTaskSeconds,
+} from "./task-policy.js";
 
 export const SAFE_WAKE_PROFILE: WakeCapabilityProfile = {
   movementLevel: "none",
@@ -391,11 +395,18 @@ export function selectHandsFreeAssignment(
       ...selected,
       { index: selected.length, taskId, category: categoryForTask(taskId) },
     ]);
-    if (plannedProtocolSeconds(candidate, durationMinutes, 11) <= maximumSeconds) {
+    if (
+      plannedProtocolSeconds(candidate, durationMinutes, SHORT_OBSERVATION_PROTOCOL_VERSION) <=
+      maximumSeconds
+    ) {
       selected.splice(0, selected.length, ...candidate);
     }
   }
-  const plannedSeconds = plannedProtocolSeconds(selected, durationMinutes, 11);
+  const plannedSeconds = plannedProtocolSeconds(
+    selected,
+    durationMinutes,
+    SHORT_OBSERVATION_PROTOCOL_VERSION,
+  );
   const fallbackReason: WakePersonalizationSnapshot["fallbackReason"] =
     plannedSeconds < durationMinutes * 60 * 0.9
       ? "limited_eligible_tasks"
@@ -405,8 +416,8 @@ export function selectHandsFreeAssignment(
   return {
     assignment: {
       id: "pending",
-      protocolKey: `hands-free-v1:${durationMinutes}m:${selected.map(({ taskId }) => taskId).join("-")}`,
-      protocolVersion: 11,
+      protocolKey: `hands-free-v2:${durationMinutes}m:${selected.map(({ taskId }) => taskId).join("-")}`,
+      protocolVersion: SHORT_OBSERVATION_PROTOCOL_VERSION,
       strategyVersion: "hands-free-v1",
       phase: "fallback",
       hypothesis: "Проверяем пробуждение с голосовыми подсказками и действиями без экрана",

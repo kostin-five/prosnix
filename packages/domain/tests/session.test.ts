@@ -87,6 +87,17 @@ describe("wake session transitions", () => {
     expect(() =>
       acceptTaskResult({ ...session, experience: { soundMode: "on" } }, result),
     ).toThrowError(/Автозавершение/);
+
+    const newSession = { ...session, assignment: { ...session.assignment, protocolVersion: 12 } };
+    const shortResult = {
+      ...result,
+      durationMs: 15_000,
+      observedAt: "2026-09-30T04:00:15.000Z",
+    };
+    expect(acceptTaskResult(newSession, shortResult).tasks[0]?.completionSource).toBe("timer");
+    expect(() => acceptTaskResult(newSession, { ...shortResult, durationMs: 14_000 })).toThrowError(
+      /Автозавершение/,
+    );
   });
 
   it("проверяет результат по effectiveSteps после замены", () => {

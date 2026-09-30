@@ -12,18 +12,21 @@ test("режим без телефона сам завершает шаги, д�
   await page.getByRole("button", { name: "3", exact: true }).click();
   await page.getByRole("button", { name: /Начать протокол/ }).click();
   await expect(page.getByRole("heading", { name: "Три предмета" })).toBeVisible();
-  await expect(page.getByRole("timer", { name: "Осталось 60 секунд" })).toBeVisible();
+  await expect(page.getByRole("timer", { name: "Осталось 15 секунд" })).toBeVisible();
 
   await page.getByRole("button", { name: "Поставить таймер на паузу" }).click();
   await page.clock.runFor(3_000);
-  await expect(page.getByRole("timer", { name: "Осталось 60 секунд" })).toBeVisible();
+  await expect(
+    page.getByRole("timer", { name: "Таймер на паузе, осталось 15 секунд" }),
+  ).toBeVisible();
+  await expect(page.getByTestId("task-timer-pause-icon")).toBeVisible();
   await page.getByRole("button", { name: "Продолжить таймер" }).click();
-  await page.clock.runFor(60_000);
+  await page.clock.runFor(15_000);
   await expect(page.getByRole("heading", { name: "Найди цвет" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Приготовься: Найди цвет/ })).toBeVisible();
   await page.clock.runFor(10_000);
-  await expect(page.getByRole("timer", { name: "Осталось 60 секунд" })).toBeVisible();
-  await page.clock.runFor(60_000);
+  await expect(page.getByRole("timer", { name: "Осталось 25 секунд" })).toBeVisible();
+  await page.clock.runFor(25_000);
   await expect(page.getByRole("heading", { name: "Как ты чувствуешь себя сейчас?" })).toBeVisible();
 });
 

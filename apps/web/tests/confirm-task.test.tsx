@@ -143,6 +143,7 @@ describe("подтверждаемые задания с таймером", () =
       'button[aria-label="Поставить таймер на паузу"]',
     );
     act(() => timer?.click());
+    expect(container.querySelector('[data-testid="task-timer-pause-icon"]')).not.toBeNull();
     expect(container.querySelector('[role="timer"]')?.getAttribute("aria-label")).toContain(
       "7 секунд",
     );
@@ -154,6 +155,7 @@ describe("подтверждаемые задания с таймером", () =
     act(() =>
       container.querySelector<HTMLButtonElement>('button[aria-label="Продолжить таймер"]')?.click(),
     );
+    expect(container.querySelector('[data-testid="task-timer-pause-icon"]')).toBeNull();
     for (let second = 0; second < 7; second += 1)
       await act(async () => vi.advanceTimersByTimeAsync(1_000));
     expect(container.querySelector('[role="timer"]')?.getAttribute("aria-label")).toBe(
@@ -194,5 +196,28 @@ describe("подтверждаемые задания с таймером", () =
     });
     await act(async () => vi.advanceTimersByTimeAsync(5_000));
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("показывает короткий таймер наблюдения только в новой версии", async () => {
+    const onDone = vi.fn();
+    act(() =>
+      root.render(
+        <ConfirmTask
+          taskId="notice_three"
+          durationMinutes={2}
+          protocolVersion={12}
+          interactionMode="hands_free"
+          autoStart
+          onDone={onDone}
+        />,
+      ),
+    );
+    expect(container.querySelector('[role="timer"]')?.getAttribute("aria-label")).toBe(
+      "Осталось 15 секунд",
+    );
+    for (let second = 0; second < 15; second += 1)
+      await act(async () => vi.advanceTimersByTimeAsync(1_000));
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onDone.mock.calls[0]?.[0]).toMatchObject({ completionSource: "timer" });
   });
 });

@@ -1,5 +1,10 @@
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
-import { estimatedTaskSeconds, taskSuccessTarget, HANDS_FREE_ORDER } from "@awc/domain";
+import {
+  estimatedTaskSeconds,
+  taskSuccessTarget,
+  HANDS_FREE_ORDER,
+  SHORT_OBSERVATION_PROTOCOL_VERSION,
+} from "@awc/domain";
 import {
   Home,
   BarChart2,
@@ -2904,7 +2909,7 @@ function PrototypeApp({
                   estimatedTaskSeconds(
                     taskId,
                     serverSession?.durationMinutes ?? activeDurationMinutes,
-                    serverSession?.assignment.protocolVersion ?? 11,
+                    serverSession?.assignment.protocolVersion ?? SHORT_OBSERVATION_PROTOCOL_VERSION,
                   ),
                 0,
               )}
@@ -2925,7 +2930,10 @@ function PrototypeApp({
             taskIds={taskIds}
             taskIndex={taskIndex}
             durationMinutes={serverSession?.durationMinutes ?? activeDurationMinutes}
-            protocolVersion={serverSession?.assignment.protocolVersion ?? 8}
+            protocolVersion={
+              serverSession?.assignment.protocolVersion ??
+              (interactionMode === "hands_free" ? SHORT_OBSERVATION_PROTOCOL_VERSION : 8)
+            }
             soundMode={soundMode}
             onSoundModeChange={setSoundMode}
             submitting={syncing}

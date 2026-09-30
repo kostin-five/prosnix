@@ -1,16 +1,18 @@
 import type { TaskId } from "./task-icon.js";
-import { Check } from "lucide-react";
+import { Check, Pause } from "lucide-react";
 
 export function TaskTimerVisual({
   taskId,
   remaining,
   total,
   waiting = false,
+  paused = false,
 }: {
   taskId: TaskId;
   remaining: number;
   total: number;
   waiting?: boolean;
+  paused?: boolean;
 }) {
   const complete = remaining <= 0;
   const progress = total <= 0 ? 1 : Math.min(1, Math.max(0, (total - remaining) / total));
@@ -26,7 +28,9 @@ export function TaskTimerVisual({
           ? "Таймер ещё не начат"
           : complete
             ? "Таймер завершён"
-            : `Осталось ${remaining} секунд`
+            : paused
+              ? `Таймер на паузе, осталось ${remaining} секунд`
+              : `Осталось ${remaining} секунд`
       }
       data-testid="task-timer-visual"
     >
@@ -63,6 +67,13 @@ export function TaskTimerVisual({
       <div
         className={`relative flex flex-col items-center ${complete ? "text-green-400" : "text-primary"}`}
       >
+        {paused && !complete && (
+          <Pause
+            data-testid="task-timer-pause-icon"
+            className="mb-1 h-5 w-5 fill-current"
+            aria-hidden="true"
+          />
+        )}
         {complete ? (
           <Check className="h-9 w-9" strokeWidth={2.5} />
         ) : (

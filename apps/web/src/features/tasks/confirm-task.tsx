@@ -352,6 +352,7 @@ export function ConfirmTask({
                 remaining={remaining}
                 total={countdown}
                 waiting={!started}
+                paused={paused}
               />
             </Suspense>
           </button>

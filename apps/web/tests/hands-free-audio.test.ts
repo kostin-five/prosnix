@@ -9,23 +9,29 @@ describe("голосовые подсказки без телефона", () => 
   const speak = vi.fn();
   const cancel = vi.fn();
   const utterances: string[] = [];
+  const spokenVoices: Array<string | null> = [];
 
   beforeEach(() => {
     localStorage.clear();
     speak.mockClear();
     cancel.mockClear();
     utterances.length = 0;
+    spokenVoices.length = 0;
     vi.stubGlobal(
       "SpeechSynthesisUtterance",
       class {
         lang = "";
         rate = 1;
+        voice: { name: string } | null = null;
         constructor(public text: string) {
           utterances.push(text);
         }
       },
     );
-    vi.stubGlobal("speechSynthesis", { speak, cancel });
+    speak.mockImplementation((utterance: { voice: { name: string } | null }) => {
+      spokenVoices.push(utterance.voice?.name ?? null);
+    });
+    vi.stubGlobal("speechSynthesis", { speak, cancel, getVoices: () => [] });
   });
 
   afterEach(() => vi.unstubAllGlobals());
@@ -47,5 +53,24 @@ describe("голосовые подсказки без телефона", () => 
     vi.stubGlobal("speechSynthesis", undefined);
     expect(speakTask("notice_three", "Назови три предмета", "user-2")).toBe(false);
     expect(speak).not.toHaveBeenCalled();
+  });
+
+  it("предпочитает русский женский голос и сохраняет системный fallback", () => {
+    vi.stubGlobal("speechSynthesis", {
+      speak,
+      cancel,
+      getVoices: () => [
+        { name: "Yuri", lang: "ru-RU" },
+        { name: "Samantha", lang: "en-US" },
+        { name: "Milena", lang: "ru-RU" },
+      ],
+    });
+    expect(speakTask("notice_three", "Три предмета", "user-3", false, 15)).toBe(true);
+    expect(utterances[0]).toContain("15 секунд");
+    expect(spokenVoices[0]).toBe("Milena");
+
+    vi.stubGlobal("speechSynthesis", { speak, cancel, getVoices: () => [] });
+    expect(speakTask("find_color", "Найди цвет", "user-3", false, 25)).toBe(true);
+    expect(spokenVoices[1]).toBeNull();
   });
 });

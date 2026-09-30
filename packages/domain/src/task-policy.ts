@@ -2,6 +2,7 @@ import type { TaskId, WakeDurationMinutes } from "./model.js";
 
 export const STRICT_TASK_PROTOCOL_VERSION = 3;
 export const COMPACT_FIVE_MINUTE_PROTOCOL_VERSION = 10;
+export const SHORT_OBSERVATION_PROTOCOL_VERSION = 12;
 
 const BASE_ESTIMATED_SECONDS: Record<TaskId, number> = {
   math: 60,
@@ -78,6 +79,10 @@ export function estimatedTaskSeconds(
   durationMinutes: WakeDurationMinutes,
   protocolVersion = 8,
 ): number {
+  if (protocolVersion >= SHORT_OBSERVATION_PROTOCOL_VERSION) {
+    if (taskId === "notice_three") return 15;
+    if (taskId === "find_color") return 25;
+  }
   if (durationMinutes === 5 && protocolVersion >= COMPACT_FIVE_MINUTE_PROTOCOL_VERSION) {
     return COMPACT_FIVE_MINUTE_ESTIMATED_SECONDS[taskId];
   }

@@ -47,6 +47,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL hands-free wak
       },
     });
     expect(created.session.experience?.interactionMode).toBe("hands_free");
+    expect(created.session.assignment.protocolVersion).toBe(12);
     expect(created.session.assignment.steps.map(({ taskId }) => taskId)).toEqual([
       "notice_three",
       "find_color",
@@ -72,7 +73,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL hands-free wak
       userId: user.id,
       operationId: "hands-free-task-1",
       requestHash: "hands-free-task-hash",
-      observedAt: new Date("2026-09-30T04:01:10.000Z"),
+      observedAt: new Date("2026-09-30T04:00:25.000Z"),
       command: {
         type: "task",
         sessionId: created.session.id,
@@ -81,7 +82,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL hands-free wak
         taskId: "notice_three",
         correct: 1,
         total: 1,
-        durationMs: 60_000,
+        durationMs: 15_000,
         completionSource: "timer",
       },
     });

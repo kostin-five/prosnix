@@ -99,6 +99,12 @@ test("протокол показывает крупную инструкцию 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/?demo=1");
   await expect(page.locator(".ps-home-orbit")).toHaveCSS("animation-name", "ps-orbit-drift");
+  expect(
+    await page.locator(".ps-home-orbit").evaluate((orbit) => {
+      const bounds = orbit.getBoundingClientRect();
+      return bounds.left >= 0 && bounds.right <= window.innerWidth;
+    }),
+  ).toBe(true);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(page.locator(".ps-home-orbit")).toHaveCSS("animation-name", "none");
   await page.emulateMedia({ reducedMotion: "no-preference" });

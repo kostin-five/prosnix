@@ -19,6 +19,18 @@ function storageKey(scope: string): string {
   return `prosnix:hands-free-guidance:${scope}`;
 }
 
+function preferredRussianVoice(): SpeechSynthesisVoice | undefined {
+  const voices = window.speechSynthesis?.getVoices?.() ?? [];
+  const russian = voices.filter((voice) => voice.lang.toLowerCase().startsWith("ru"));
+  return (
+    russian.find((voice) =>
+      /(?:milena|katya|tatyana|daria|alena|anna|irina|natalia|maria|yana|female|женск)/i.test(
+        voice.name,
+      ),
+    ) ?? russian[0]
+  );
+}
+
 function seenTasks(scope: string): TaskId[] {
   try {
     const value = JSON.parse(localStorage.getItem(storageKey(scope)) ?? "[]");
@@ -51,6 +63,7 @@ export function primeHandsFreeSpeech(): void {
     if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
     const utterance = new SpeechSynthesisUtterance("Начинаем протокол.");
     utterance.lang = "ru-RU";
+    utterance.voice = preferredRussianVoice() ?? null;
     window.speechSynthesis.speak(utterance);
   } catch {
     // The visible instructions are the fallback.
@@ -69,7 +82,7 @@ export function speakTask(
     const seen = seenTasks(scope);
     const firstTime = !seen.includes(taskId);
     const duration =
-      seconds ?? (taskId === "find_color" || taskId === "notice_three" ? 60 : undefined);
+      seconds ?? (taskId === "find_color" ? 25 : taskId === "notice_three" ? 15 : undefined);
     const instruction = firstTime
       ? `${title}. ${duration ? `${duration} секунд. ` : ""}${GUIDANCE[taskId] ?? "Выполни задание в удобном темпе."}`
       : `${title}. ${duration ? `${duration} секунд.` : "Следуй таймеру."}`;
@@ -77,7 +90,8 @@ export function speakTask(
       preparing ? `Приготовься. Следующее задание: ${instruction}` : instruction,
     );
     utterance.lang = "ru-RU";
-    utterance.rate = 0.94;
+    utterance.voice = preferredRussianVoice() ?? null;
+    utterance.rate = 1;
     stopSpeech();
     window.speechSynthesis.speak(utterance);
     if (firstTime) localStorage.setItem(storageKey(scope), JSON.stringify([...seen, taskId]));

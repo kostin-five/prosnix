@@ -47,7 +47,8 @@ describe("персонализация протокола", () => {
       "notice_three",
       "find_color",
     ]);
-    expect(plannedProtocolSeconds(safe.assignment.steps, 2, 11)).toBe(120);
+    expect(safe.assignment.protocolVersion).toBe(12);
+    expect(plannedProtocolSeconds(safe.assignment.steps, 2, 12)).toBe(40);
     expect(selectHandsFreeAssignment(SAFE_WAKE_PROFILE, 5).snapshot.fallbackReason).toBe(
       "limited_eligible_tasks",
     );
