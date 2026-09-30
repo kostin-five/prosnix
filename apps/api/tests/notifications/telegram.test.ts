@@ -97,7 +97,7 @@ describe("Telegram notification gateway", () => {
       text: string;
       reply_markup: { inline_keyboard: Array<Array<{ text: string; web_app: { url: string } }>> };
     };
-    expect(body.text).toContain("через 15 минут");
+    expect(body.text).toMatch(/^⚡ Что произошло через 15 минут/);
     expect(body.reply_markup.inline_keyboard[0]?.[0]?.text).toBe("Ответить на follow-up");
     expect(body.reply_markup.inline_keyboard[0]?.[0]?.web_app.url).toBe(
       "https://example.com/?source=follow_up",

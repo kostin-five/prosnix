@@ -92,7 +92,7 @@ export class TelegramBotGateway implements TelegramNotificationGateway {
           text:
             input.kind === "wake"
               ? `Доброе утро! Пора запустить твой протокол пробуждения ☀️${input.lifeGoal ? `\n\nТвоя жизненная цель: ${input.lifeGoal}` : ""}`
-              : "Что произошло через 15 минут после пробуждения? Ответ поможет подобрать следующий протокол.",
+              : "⚡ Что произошло через 15 минут после пробуждения? Ответ поможет подобрать следующий протокол.",
           reply_markup: {
             inline_keyboard: quickButtons
               ? quickButtons.map((button) => [button])
