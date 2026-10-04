@@ -18,6 +18,7 @@ import {
   Sparkles,
   Settings,
   RefreshCw,
+  X,
 } from "lucide-react";
 import { useBootstrap } from "../features/bootstrap/use-bootstrap.js";
 import { useAnalyticsProfile } from "../features/analytics/use-analytics.js";
@@ -966,6 +967,8 @@ export function TasksContainer({
   localStorageScope = "demo",
   autoResumeBlocked = false,
   onResumeAuto = () => undefined,
+  notice = null,
+  onDismissNotice = () => undefined,
 }: {
   taskIds: TaskId[];
   taskIndex: number;
@@ -982,6 +985,8 @@ export function TasksContainer({
   localStorageScope?: string;
   autoResumeBlocked?: boolean;
   onResumeAuto?: () => void;
+  notice?: string | null;
+  onDismissNotice?: () => void;
 }) {
   const [protocolOpen, setProtocolOpen] = useState(false);
   const [replacementTarget, setReplacementTarget] = useState<number | null>(null);
@@ -1195,6 +1200,22 @@ export function TasksContainer({
           Продолжить протокол
         </button>
       )}
+      {notice && (
+        <div
+          role="status"
+          className="ps-task-notice mb-3 flex items-start gap-2 rounded-xl border border-border bg-card p-3"
+        >
+          <p className="min-w-0 flex-1 text-sm leading-relaxed text-muted-foreground">{notice}</p>
+          <button
+            type="button"
+            aria-label="Скрыть сообщение"
+            onClick={onDismissNotice}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+      )}
       <div className="ps-next-step mb-2">
         {nextId && (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-card/60 px-3 py-2">
@@ -1202,16 +1223,6 @@ export function TasksContainer({
             <span className="min-w-0 flex-1 truncate text-xs font-semibold">
               {TASK_META[nextId].title}
             </span>
-            {substitutionEnabled && onReplace && nextId !== "sit_edge" ? (
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => setReplacementTarget(taskIndex + 1)}
-                className="min-h-9 rounded-xl px-2 text-xs font-semibold text-primary disabled:opacity-50"
-              >
-                Заменить
-              </button>
-            ) : null}
           </div>
         )}
       </div>
@@ -1887,7 +1898,7 @@ function PrototypeApp({
         (taskId) => taskId !== originalTaskId && !taskIds.includes(taskId),
       );
       if (!replacement) {
-        setSyncError("Для этого шага сейчас нет новой безопасной альтернативы.");
+        setSyncError("Нет доступной замены с учётом твоих настроек и уже выбранных заданий.");
         return;
       }
       setTaskIds((current) =>
@@ -1921,7 +1932,7 @@ function PrototypeApp({
               .filter((taskId): taskId is TaskId => taskId in TASK_META),
           );
         }
-        setSyncError("Для этого шага сейчас нет новой безопасной альтернативы.");
+        setSyncError("Нет доступной замены с учётом твоих настроек и уже выбранных заданий.");
       } else {
         applyConflict(error);
       }
@@ -2177,11 +2188,12 @@ function PrototypeApp({
       <div
         className={`w-full max-w-[390px] flex flex-col bg-background relative ${screen === "tasks" || showNav ? "h-full min-h-0" : "min-h-screen"}`}
       >
-        {(syncing || syncError) && (
+        {(syncing || (syncError && screen !== "tasks")) && (
           <div
-            className={`sticky top-0 z-[60] px-4 py-2 text-center text-xs ${syncError ? "bg-red-500/90 text-white" : "bg-primary text-white"}`}
+            role="status"
+            className="shrink-0 border-b border-border bg-card px-4 py-2 text-center text-xs text-muted-foreground"
           >
-            {syncError ?? "Сохраняем подтверждённое состояние…"}
+            {(screen !== "tasks" && syncError) || "Сохраняем подтверждённое состояние…"}
           </div>
         )}
         {pendingProfileExclusion && (
@@ -2371,6 +2383,8 @@ function PrototypeApp({
             localStorageScope={localStorageScope}
             autoResumeBlocked={autoResumeBlocked}
             onResumeAuto={() => setAutoResumeBlocked(false)}
+            notice={syncError}
+            onDismissNotice={() => setSyncError(null)}
             substitutionEnabled={WAKE_TASK_SUBSTITUTION_ENABLED}
             onReplace={(stepIndex, reason) => void handleTaskReplacement(stepIndex, reason)}
             onDone={handleTaskDone}

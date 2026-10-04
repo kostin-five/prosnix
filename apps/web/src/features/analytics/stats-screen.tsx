@@ -373,7 +373,7 @@ export default function StatsScreen({
                     ? "AI-разбор"
                     : coach.insight.source === "cache"
                       ? "Сохранённый разбор"
-                      : "Разбор по данным"}
+                      : "Базовый разбор · AI-отчёт пока недоступен"}
                 </p>
                 <p className="text-xs font-semibold uppercase tracking-wide text-accent">
                   Главный вывод

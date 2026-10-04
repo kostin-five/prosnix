@@ -236,7 +236,11 @@ export function selectTaskSubstitution(input: {
   const maximumSeconds = input.durationMinutes * 60 * 1.1;
   const originalFactor = factorPresence(target.taskId, input.comparisonFactorKey);
 
-  const candidates = (input.allowedTaskIds ?? eligibleWakeTasks(input.profile, input.catalog))
+  const substitutionPool = input.allowedTaskIds ?? [
+    ...eligibleWakeTasks(input.profile, input.catalog),
+    ...((input.protocolVersion ?? 0) >= 11 ? (["notice_three", "find_color"] as const) : []),
+  ];
+  const candidates = substitutionPool
     .filter((taskId) => allowed(taskId, input.profile, input.catalog ?? {}))
     .filter((taskId) => taskId !== target.taskId && !unavailable.has(taskId))
     .filter((taskId) => keepsSafeOrder(input.steps, input.targetIndex, taskId))

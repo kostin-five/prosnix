@@ -311,3 +311,84 @@ test("сохранённая version 10 показывает шесть шаго
   await page.clock.runFor(1_000);
   await expect(page.getByRole("button", { name: "Выпил" })).toBeEnabled();
 });
+
+test("реакция круглая в ожидании, сигнале и результате; preview без замены", async ({ page }) => {
+  await installTelegram(page);
+  await page.clock.install();
+  await page.route("**/api/v1/auth/telegram", (route) => route.fulfill({ status: 204 }));
+  await page.route("**/api/v1/legal/status", (route) =>
+    json(route, {
+      privacyVersion: "2026-08-31",
+      termsVersion: "2026-08-31",
+      accepted: true,
+      acceptedAt: "2026-08-31T00:00:00.000Z",
+    }),
+  );
+  const steps = ["reaction", "math", "memory", "stroop", "water", "window"].map(
+    (taskId, index) => ({
+      index,
+      taskId,
+      category:
+        taskId === "water" ? "behavioral" : taskId === "window" ? "environment" : "cognitive",
+    }),
+  );
+  await page.route("**/api/v1/bootstrap", (route) =>
+    json(route, {
+      user: { id: baseSession.userId, locale: "ru", timezone: "Europe/Moscow" },
+      activeSession: {
+        session: {
+          id: baseSession.id,
+          status: "in_progress",
+          currentStepIndex: 0,
+          version: 2,
+          durationMinutes: 5,
+        },
+        protocol: { key: "compact-v10", version: 10, title: "Пятиминутный протокол", steps },
+        assignment: {
+          strategyVersion: "learning-v6",
+          phase: "learning",
+          hypothesis: "Пробуждение",
+        },
+        baseline: 3,
+        postRating: null,
+      },
+      dueFollowUpSessionId: null,
+      wakeProfile: {
+        movementLevel: "none",
+        availableResources: ["water"],
+        excludedTaskIds: [],
+        defaultDurationMinutes: 5,
+        onboardingCompleted: true,
+        revision: 1,
+      },
+      wakeRoutine: { enabled: false, items: [], revision: 0 },
+    }),
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  await expect(page.getByText("Шаг 1 из 6", { exact: false })).toBeVisible();
+
+  const target = page.locator(".ps-reaction-target");
+  const assertCircle = async () => {
+    const shape = await target.evaluate((button) => ({
+      radius: getComputedStyle(button).borderRadius,
+      width: button.getBoundingClientRect().width,
+      height: button.getBoundingClientRect().height,
+    }));
+    expect(shape.radius).toBe("50%");
+    expect(shape.width).toBeCloseTo(shape.height, 1);
+  };
+  await expect(target).toBeDisabled();
+  await assertCircle();
+  await expect(page.locator(".ps-next-step button")).toHaveCount(0);
+  await page.getByRole("button", { name: "Протокол", exact: true }).click();
+  const close = page.getByRole("button", { name: "Закрыть протокол" });
+  await expect(close.locator("svg")).toBeVisible();
+  expect((await close.boundingBox())!.width).toBeGreaterThanOrEqual(44);
+  await close.click();
+  await page.clock.runFor(5000);
+  await expect(target).toBeEnabled();
+  await assertCircle();
+  await target.click();
+  await assertCircle();
+});

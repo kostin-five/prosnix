@@ -1,3 +1,4 @@
+import type { TaskId } from "../src/model.js";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -8,6 +9,7 @@ import {
   SAFE_WAKE_PROFILE,
   selectPersonalizedAssignment,
   selectTaskSubstitution,
+  categoryForTask,
   selectRecoverySteps,
   selectHandsFreeAssignment,
   HANDS_FREE_ORDER,
@@ -124,6 +126,37 @@ describe("персонализация протокола", () => {
         profile: fullProfile,
         durationMinutes: 5,
         reason: "cannot_do",
+      }),
+    ).toBeNull();
+  });
+
+  it("находит короткую замену, когда когнитивные задания уже заняты и движение ограничено", () => {
+    const steps = ["math", "memory", "stroop", "reaction", "sit_edge", "water"].map(
+      (taskId, index) => ({
+        index,
+        taskId: taskId as TaskId,
+        category: categoryForTask(taskId as TaskId),
+      }),
+    );
+    const input = {
+      steps,
+      targetIndex: 0,
+      currentStepIndex: 0,
+      completedTaskIds: [],
+      rejectedTaskIds: [],
+      profile: { ...SAFE_WAKE_PROFILE, availableResources: ["water"] as const },
+      durationMinutes: 5 as const,
+      protocolVersion: 13,
+      reason: "unwilling_now" as const,
+    };
+    expect(selectTaskSubstitution(input)?.replacementTaskId).toBe("find_color");
+    expect(
+      selectTaskSubstitution({ ...input, rejectedTaskIds: ["notice_three", "find_color"] }),
+    ).toBeNull();
+    expect(
+      selectTaskSubstitution({
+        ...input,
+        profile: { ...input.profile, excludedTaskIds: ["notice_three", "find_color"] },
       }),
     ).toBeNull();
   });

@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { TaskIcon, type TaskId } from "./task-icon.js";
 
 export function ProtocolSheet({
@@ -30,9 +31,9 @@ export function ProtocolSheet({
             type="button"
             aria-label="Закрыть протокол"
             onClick={onClose}
-            className="min-h-9 rounded-xl bg-secondary px-3 text-xs font-semibold text-muted-foreground"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground"
           >
-            Закрыть
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
         <ol className="ps-protocol-list space-y-2">

@@ -135,7 +135,7 @@ describe("утренний вход и компактный shell", () => {
     );
   });
 
-  it("показывает две точки замены и требует причину", async () => {
+  it("показывает только замену текущего шага и требует причину", async () => {
     const onReplace = vi.fn();
     await Promise.all([
       import("../src/features/tasks/task-motion-visual.js"),
@@ -159,17 +159,44 @@ describe("утренний вход и компактный shell", () => {
     const replaceButtons = [...container.querySelectorAll("button")].filter(
       (button) => button.textContent?.trim() === "Заменить",
     );
-    expect(replaceButtons).toHaveLength(2);
+    expect(replaceButtons).toHaveLength(1);
     await act(async () => {
-      replaceButtons[1]?.click();
+      replaceButtons[0]?.click();
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    expect(container.textContent).toContain("Почему заменить «Стакан воды»?");
+    expect(container.textContent).toContain("Почему заменить «Математика»?");
     const cannotDo = [...container.querySelectorAll("button")].find((button) =>
       button.textContent?.includes("Не могу выполнить"),
     );
     act(() => cannotDo?.click());
-    expect(onReplace).toHaveBeenCalledWith(1, "cannot_do");
+    expect(onReplace).toHaveBeenCalledWith(0, "cannot_do");
+  });
+
+  it("показывает закрываемое сообщение рядом с текущим заданием", async () => {
+    const onDismissNotice = vi.fn();
+    await act(async () => {
+      root.render(
+        <TasksContainer
+          taskIds={["math", "water"]}
+          taskIndex={0}
+          durationMinutes={5}
+          onDone={() => undefined}
+          notice="Нет доступной замены"
+          onDismissNotice={onDismissNotice}
+        />,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const notice = container.querySelector(".ps-task-notice");
+    expect(notice?.getAttribute("role")).toBe("status");
+    expect(notice?.textContent).toContain("Нет доступной замены");
+    act(() =>
+      (
+        notice?.querySelector('button[aria-label="Скрыть сообщение"]') as HTMLButtonElement
+      )?.click(),
+    );
+    expect(onDismissNotice).toHaveBeenCalledOnce();
+    expect(container.querySelector('[data-testid="task-interaction-region"]')).not.toBeNull();
   });
 
   it("не показывает общую справку об аналитике", () => {

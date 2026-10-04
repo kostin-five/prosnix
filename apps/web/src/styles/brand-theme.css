@@ -205,7 +205,7 @@ body,
   background: #18191c;
   font-size: 1rem;
 }
-.ps-task-interaction .ps-reaction-target {
+.ps-task-interaction button.ps-reaction-target {
   flex: none;
   width: 10rem;
   height: 10rem;
@@ -245,5 +245,28 @@ body,
   }
   .ps-task-screen .ps-task-title h2 {
     font-size: 1.65rem;
+  }
+}
+
+/* Названия выполненных действий читаются полностью при любой ширине. */
+.ps-results-step-grid span {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+.ps-results-step-grid > div > div {
+  height: 100%;
+  min-height: 2.75rem;
+  align-items: flex-start;
+}
+.ps-results-step-grid > div > div > svg {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+@media (max-width: 359px) {
+  .ps-results-step-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
