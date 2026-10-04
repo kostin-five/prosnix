@@ -57,11 +57,14 @@ async function openTelegramApp(page: Page) {
 
 test("следующий шаг виден при загрузке и до первого пробуждения", async ({ page }) => {
   await openTelegramApp(page);
+  let analyticsRequests = 0;
+  let historyRequests = 0;
   let releaseProfile = () => undefined;
   const heldProfile = new Promise<void>((resolve) => {
     releaseProfile = resolve;
   });
   await page.route("**/api/v1/analytics/profile", async (route) => {
+    analyticsRequests += 1;
     await heldProfile;
     await json(route, {
       methodVersion: "analytics-v2",
@@ -86,7 +89,10 @@ test("следующий шаг виден при загрузке и до пе�
       dailyTrend: [],
     });
   });
-  await page.route("**/api/v1/sessions/history?limit=10", (route) => json(route, { sessions: [] }));
+  await page.route("**/api/v1/sessions/history?limit=10", (route) => {
+    historyRequests += 1;
+    return json(route, { sessions: [] });
+  });
 
   await page.goto("/");
   await page.getByRole("button", { name: "Статистика" }).click();
@@ -94,8 +100,24 @@ test("следующий шаг виден при загрузке и до пе�
   await expect(page.getByText(/Проверяем сохранённые пробуждения/)).toBeVisible();
   await expect(page.getByText("0/7", { exact: false })).toHaveCount(0);
   releaseProfile();
-  await expect(page.getByText(/Пройди первый протокол после сна/)).toBeVisible();
+  await expect(page.getByText(/После следующего сна выбери короткий протокол/)).toBeVisible();
   await expect(page.getByText("0 из 7 до первого общего профиля")).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 500 });
+  const requestsBeforeSwitch = { analyticsRequests, historyRequests };
+  await page.locator(".ps-stats").evaluate((element) => {
+    element.setAttribute("data-retained-screen", "true");
+    element.scrollTop = 120;
+  });
+  await expect
+    .poll(() => page.locator(".ps-stats").evaluate((element) => element.scrollTop))
+    .toBe(120);
+  await page.getByRole("button", { name: "Настройки", exact: true }).click();
+  await expect(page.locator(".ps-stats")).toBeHidden();
+  await page.getByRole("button", { name: "Статистика", exact: true }).click();
+  await expect(page.locator(".ps-stats")).toHaveAttribute("data-retained-screen", "true");
+  await expect(page.getByText("0 из 7 до первого общего профиля")).toBeVisible();
+  expect({ analyticsRequests, historyRequests }).toEqual(requestsBeforeSwitch);
+  expect(await page.locator(".ps-stats").evaluate((element) => element.scrollTop)).toBe(120);
 });
 
 test("после третьего пробуждения отчёт создаётся по нажатию", async ({ page }) => {
@@ -257,7 +279,7 @@ test("профиль показывает только воспроизводи�
   await page.goto("/");
   await expect(page.getByLabel("Prosnix", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Прирост бодрости по дням")).toHaveCount(0);
-  await expect(page.getByText(/Среднее изменение бодрости/)).toBeVisible();
+  await expect(page.getByText("Пробуждений", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Статистика" }).click();
 
   await expect(page.locator(".ps-stats-hero")).toBeVisible();
@@ -275,7 +297,7 @@ test("профиль показывает только воспроизводи�
   await expect(page.getByText("Как проходит пробуждение")).toBeVisible();
   await expect(page.getByText(/заметно выше/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Следующий шаг" })).toBeVisible();
-  await expect(page.getByText(/Повтори пробуждение в похожих условиях/)).toBeVisible();
+  await expect(page.getByText(/В следующий раз выбери тот же контекст сна/)).toBeVisible();
   await expect(page.getByText(/До первого профиля осталось 1/)).toBeVisible();
   await expect(page.getByText(/Это рабочая проверка, а не доказанный лучший способ/)).toBeVisible();
   await expect(page.getByText("Средний прирост по датам")).toHaveCount(0);
@@ -381,9 +403,7 @@ test("после 13 сессий общий профиль не зависит �
   await expect(page.getByRole("img", { name: "Эффект 2 последних пробуждений" })).toBeVisible();
   await expect(page.getByText("Высокая уверенность")).toHaveCount(0);
   await expect(page.getByText(/Профиль готов по/)).toHaveCount(0);
-  await expect(
-    page.getByText(/Ближайшая полезная проверка.*Пройтись → Реакция → Память/),
-  ).toBeVisible();
+  await expect(page.getByText(/Проверь порядок «Пройтись → Реакция → Память»/)).toBeVisible();
 });
 
 test("после пяти сессий feedback показывается один раз и отправляется без влияния на wake flow", async ({
@@ -521,10 +541,9 @@ test("до третьего пробуждения отчёт недоступе
 
   await page.goto("/");
   const brand = await page.getByLabel("Prosnix", { exact: true }).boundingBox();
-  const counter = await page.getByLabel("Завершено сессий: 2").boundingBox();
   expect(brand).not.toBeNull();
-  expect(counter).not.toBeNull();
-  expect(brand!.x + brand!.width).toBeLessThanOrEqual(counter!.x);
+  expect(brand!.x + brand!.width).toBeLessThanOrEqual(320);
+  await expect(page.getByLabel("Завершено сессий: 2")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Статистика" }).click();
   await expect(page.getByText(/Пока мало данных для персонального отчёта: 2\/3/)).toBeVisible();

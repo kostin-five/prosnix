@@ -1,0 +1,190 @@
+/* Единая система Prosnix: нейтральные поверхности и ленточный логотип № 6. */
+.ps-brand-wordmark {
+  position: relative;
+  display: inline-block;
+  width: 11rem;
+  max-width: 100%;
+  aspect-ratio: 3.1;
+  overflow: hidden;
+  flex-shrink: 1;
+  vertical-align: middle;
+}
+.ps-brand-wordmark img {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  transform: translateY(-50%);
+}
+.ps-brand-wordmark.ps-brand-compact {
+  width: 7rem;
+}
+:is(.ps-home, .ps-stats, .ps-settings, .ps-flow, .ps-start, .ps-legal, .ps-protocol) {
+  min-width: 0;
+  max-width: 100%;
+  color: #f4f4f5;
+  background: #07080a;
+  overflow-wrap: anywhere;
+}
+:is(.ps-home, .ps-stats, .ps-settings) {
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+}
+:is(.ps-home, .ps-stats, .ps-settings, .ps-flow, .ps-protocol)
+  :is(h1, h2, p, button, summary, input, textarea, select) {
+  min-width: 0;
+  max-width: 100%;
+}
+:is(.ps-home, .ps-stats, .ps-settings, .ps-flow, .ps-protocol) button {
+  min-height: 2.75rem;
+  white-space: normal;
+}
+.ps-flow-title {
+  font-size: clamp(1.75rem, 7.5vw, 2.25rem);
+  font-weight: 650;
+  line-height: 1.15;
+  color: #f4f4f5;
+  letter-spacing: -0.04em;
+}
+.ps-kicker {
+  color: #a6a6ad;
+  letter-spacing: 0.12em;
+}
+.ps-surface,
+.ps-flow .ps-surface,
+.ps-settings .ps-surface,
+.ps-legal .ps-surface,
+.ps-rating-panel,
+.ps-rating-comparison,
+.ps-results-scores,
+.ps-results-steps,
+.ps-results-insight,
+.ps-follow-up-card,
+.ps-recovery-offer,
+.ps-next-step {
+  border: 1px solid #242728;
+  border-radius: 10px;
+  background: #101111;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.ps-flow-choice,
+.ps-rating-grid button,
+.ps-task-interaction button[class*="bg-secondary"],
+.ps-protocol-list li,
+.ps-substitution-dialog button:not(:last-child) {
+  border: 1px solid #34363a;
+  border-radius: 8px;
+  background: #18191c;
+  color: #f4f4f5;
+  box-shadow: none;
+}
+.ps-flow-choice[aria-pressed="true"],
+.ps-rating-grid button[aria-pressed="true"],
+.ps-protocol-list li[aria-current="step"] {
+  border-color: #ff9b20;
+  background: #271e12;
+  color: #ffcc75;
+}
+.ps-primary-button,
+.ps-home .ps-primary-button,
+.ps-task-action-slot .ps-primary-button,
+.ps-task-interaction .ps-confirm-task button.ps-primary-button:not(:disabled) {
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #ffb53e;
+  border-radius: 8px;
+  background: #ffab30 !important;
+  color: #16100a;
+  box-shadow: none;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.ps-primary-button:disabled,
+.ps-task-action-slot .ps-primary-button:disabled {
+  border-color: #34363a;
+  background: #18191c !important;
+  color: #a6a6ad;
+}
+.ps-settings-row + .ps-settings-row {
+  border-top-color: #242728;
+}
+.ps-settings-row {
+  min-height: 4rem;
+  gap: 0.75rem;
+}
+.ps-protocol-dialog,
+.ps-substitution-dialog {
+  border: 1px solid #34363a;
+  border-radius: 12px;
+  background: #101111;
+  box-shadow: none;
+}
+.ps-task-action-slot:not(:empty) {
+  background: #07080a;
+}
+.ps-confirm-task > p,
+.ps-legal p,
+.ps-legal li {
+  color: #b8b8bf;
+}
+.ps-legal article {
+  border-radius: 10px;
+  background: #101111;
+}
+.ps-stats-header > div {
+  flex-wrap: wrap;
+}
+.ps-stats-history details {
+  margin-bottom: 0.5rem;
+  border: 1px solid #242728;
+  border-radius: 8px;
+}
+.ps-stats-history details:last-child {
+  margin-bottom: 0;
+  border: 1px solid #242728;
+}
+.ps-stats-history summary {
+  gap: 0.75rem;
+  padding: 0.85rem;
+}
+.ps-stats-history summary > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+.ps-stats-history summary > div:last-child {
+  flex-shrink: 0;
+}
+.ps-stats-history summary + div {
+  padding: 0.85rem;
+}
+.ps-bottom-nav {
+  padding-inline: 0.5rem;
+  background: #07080a;
+}
+.ps-bottom-nav button {
+  flex: 1;
+  min-width: 0;
+  padding-inline: 0.3rem;
+}
+.ps-bottom-nav button[aria-current="page"] {
+  background: #18191c;
+  color: #ffbd57;
+}
+html,
+body,
+* {
+  scrollbar-color: #34363a #07080a;
+}
+*::-webkit-scrollbar-track {
+  background: #07080a;
+}
+*::-webkit-scrollbar-thumb {
+  border-color: #07080a;
+  background: #34363a;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #55575d;
+}

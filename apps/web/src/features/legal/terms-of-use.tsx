@@ -1,3 +1,4 @@
+import { ProsnixWordmark } from "../brand/prosnix-brand.js";
 import { LegalBack } from "./legal-back.js";
 
 const UPDATED_AT = "7 сентября 2026 года";
@@ -10,7 +11,7 @@ export function TermsOfUse() {
     <main className="ps-legal min-h-screen px-5 py-10 text-foreground">
       <article className="ps-surface mx-auto max-w-2xl p-6 sm:p-8">
         <LegalBack />
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary">Prosnix</p>
+        <ProsnixWordmark className="mb-6" />
         <h1 className="mt-2 text-3xl font-bold">Пользовательское соглашение</h1>
         <p className="mt-2 text-sm text-muted-foreground">Обновлено: {UPDATED_AT}</p>
 

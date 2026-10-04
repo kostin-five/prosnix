@@ -1,4 +1,29 @@
-import bannerUrl from "../../../../../assets/brand/prosnix-telegram-banner-600x320.png";
+import { useId } from "react";
+import wordmarkUrl from "../../../../../assets/brand/prosnix-ribbon-wordmark-v6.jpg";
+
+export function ProsnixWordmark({ className = "" }: { className?: string }) {
+  const filterId = `prosnix-cutout-${useId().replace(/:/g, "")}`;
+  return (
+    <span className={`ps-brand-wordmark ${className}`} role="img" aria-label="Prosnix">
+      <svg width="0" height="0" aria-hidden="true" className="absolute">
+        <defs>
+          <filter id={filterId} colorInterpolationFilters="sRGB">
+            <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  2 2 2 0 -0.4" />
+          </filter>
+        </defs>
+      </svg>
+      <img
+        src={wordmarkUrl}
+        style={{ filter: `url(#${filterId})` }}
+        alt=""
+        aria-hidden="true"
+        width={1774}
+        height={887}
+        decoding="async"
+      />
+    </span>
+  );
+}
 
 export function ProductBetaBadge({ className = "" }: { className?: string }) {
   return (
@@ -12,23 +37,9 @@ export function ProductBetaBadge({ className = "" }: { className?: string }) {
 
 export function ProsnixBrand() {
   return (
-    <div className="min-w-0" aria-label="Prosnix Beta">
-      <div className="flex min-w-0 items-center gap-1.5">
-        <h1 aria-label="Prosnix" className="shrink-0">
-          <img
-            src={bannerUrl}
-            alt=""
-            aria-hidden="true"
-            className="h-12 w-[160px] object-cover object-center min-[380px]:h-14 min-[380px]:w-[192px]"
-            style={{
-              maskImage: "radial-gradient(ellipse 72% 65% at center,black 58%,transparent 100%)",
-              WebkitMaskImage:
-                "radial-gradient(ellipse 72% 65% at center,black 58%,transparent 100%)",
-            }}
-          />
-        </h1>
-        <ProductBetaBadge className="-ml-1" />
-      </div>
+    <div className="flex min-w-0 items-center gap-2">
+      <ProsnixWordmark />
+      <ProductBetaBadge />
     </div>
   );
 }

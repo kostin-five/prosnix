@@ -1,3 +1,4 @@
+import { ProsnixWordmark } from "../brand/prosnix-brand.js";
 import { useState } from "react";
 import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
 
@@ -34,9 +35,7 @@ export function LegalGate({
   return (
     <main className="ps-legal flex min-h-screen items-center justify-center p-5 text-foreground">
       <section className="w-full max-w-sm">
-        <div className="ps-wordmark mb-12" aria-label="Prosnix">
-          Prosni<span>x</span>
-        </div>
+        <ProsnixWordmark className="mb-12" />
         <div className="ps-surface p-6">
           <ShieldCheck className="h-10 w-10 text-amber-400" aria-hidden="true" />
           <p className="ps-kicker mt-6">Перед началом</p>

@@ -1,3 +1,4 @@
+import { ProsnixWordmark } from "../brand/prosnix-brand.js";
 import type { WakeProfile } from "../../shared/api/client.js";
 import { CapabilityProfileCard } from "./capability-profile-card.js";
 
@@ -14,9 +15,7 @@ export function CapabilityOnboardingScreen({
 }) {
   return (
     <div className="ps-flow flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-x-hidden overflow-y-auto px-5 pb-8 pt-8">
-      <div className="ps-wordmark" aria-label="Prosnix">
-        Prosni<span>x</span>
-      </div>
+      <ProsnixWordmark className="" />
       <CapabilityProfileCard
         profile={profile}
         saving={saving}

@@ -2,26 +2,26 @@
 
 :root {
   --font-size: 16px;
-  --background: #0d0a06;
-  --foreground: #ecedf5;
-  --card: #171109;
-  --card-foreground: #ecedf5;
-  --popover: #171109;
-  --popover-foreground: #ecedf5;
+  --background: #07080a;
+  --foreground: #f4f4f5;
+  --card: #101111;
+  --card-foreground: #f4f4f5;
+  --popover: #101111;
+  --popover-foreground: #f4f4f5;
   --primary: #ff7a00;
   --primary-foreground: #1a0d00;
-  --secondary: #241a0f;
-  --secondary-foreground: #ecedf5;
-  --muted: #241a0f;
-  --muted-foreground: #a58f76;
+  --secondary: #18191c;
+  --secondary-foreground: #f4f4f5;
+  --muted: #18191c;
+  --muted-foreground: #a6a6ad;
   --accent: #facc15;
   --accent-foreground: #211500;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: rgba(255, 196, 92, 0.12);
+  --border: #242728;
   --input: transparent;
-  --input-background: #241a0f;
-  --switch-background: #3a2a17;
+  --input-background: #18191c;
+  --switch-background: #34363a;
   --font-weight-medium: 600;
   --font-weight-normal: 400;
   --ring: #facc15;
@@ -30,7 +30,7 @@
   --chart-3: #22c55e;
   --chart-4: #eab308;
   --chart-5: #ec4899;
-  --radius: 1rem;
+  --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: #030213;
@@ -185,26 +185,26 @@
 }
 
 .dark {
-  --background: #0d0a06;
-  --foreground: #ecedf5;
-  --card: #171109;
-  --card-foreground: #ecedf5;
-  --popover: #171109;
-  --popover-foreground: #ecedf5;
+  --background: #07080a;
+  --foreground: #f4f4f5;
+  --card: #101111;
+  --card-foreground: #f4f4f5;
+  --popover: #101111;
+  --popover-foreground: #f4f4f5;
   --primary: #ff7a00;
   --primary-foreground: #1a0d00;
-  --secondary: #241a0f;
-  --secondary-foreground: #ecedf5;
-  --muted: #241a0f;
-  --muted-foreground: #a58f76;
+  --secondary: #18191c;
+  --secondary-foreground: #f4f4f5;
+  --muted: #18191c;
+  --muted-foreground: #a6a6ad;
   --accent: #facc15;
   --accent-foreground: #211500;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: rgba(255, 196, 92, 0.12);
+  --border: #242728;
   --input: transparent;
-  --input-background: #241a0f;
-  --switch-background: #3a2a17;
+  --input-background: #18191c;
+  --switch-background: #34363a;
   --ring: #facc15;
   --font-weight-medium: 600;
   --font-weight-normal: 400;

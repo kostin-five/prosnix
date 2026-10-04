@@ -3,7 +3,7 @@ import { Activity, ArrowRight, ChevronRight, Flag, Sun } from "lucide-react";
 
 import { useAnalyticsProfile } from "../analytics/use-analytics.js";
 import { useSessionHistory } from "../history/use-session-history.js";
-import { ProductBetaBadge } from "../brand/prosnix-brand.js";
+import { ProductBetaBadge, ProsnixWordmark } from "../brand/prosnix-brand.js";
 import { loadLifeGoal } from "../personalization/personalization-api.js";
 import { readMorningGoal } from "../personalization/morning-preferences.js";
 
@@ -65,9 +65,7 @@ export default function HomeScreen({
     <div className="ps-home flex flex-1 flex-col overflow-y-auto px-5 pb-28 pt-8">
       <header className="flex min-w-0 items-center gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="ps-wordmark" aria-label="Prosnix">
-            Prosni<span>x</span>
-          </span>
+          <ProsnixWordmark className="" />
           <ProductBetaBadge className="mt-1" />
         </div>
       </header>

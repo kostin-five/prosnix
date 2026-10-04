@@ -231,7 +231,7 @@ test("полный wake-up цикл подтверждается серверо�
       .getByRole("button", { name: "Поставить таймер на паузу" })
       .evaluate((button) => getComputedStyle(button).backgroundImage),
   ).toBe("none");
-  await expect(page.locator('[data-testid="task-timer-light"]')).toBeVisible();
+  await expect(page.locator('[data-testid="task-timer-visual"]')).toBeVisible();
   await page.clock.runFor(31_000);
   await expect(page.getByRole("timer", { name: "Таймер завершён" })).toBeVisible();
   await page.getByRole("button", { name: "Готово" }).click();

@@ -1,3 +1,4 @@
+import { ProsnixWordmark } from "../brand/prosnix-brand.js";
 import { useEffect, useState } from "react";
 import {
   Activity,
@@ -76,7 +77,8 @@ export default function SettingsScreen({
   );
 
   return (
-    <div className="ps-settings flex flex-1 flex-col overflow-y-auto px-5 pb-28 pt-8">
+    <div className="ps-settings flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-28 pt-8">
+      <ProsnixWordmark className="mb-4" />
       {section && (
         <button
           type="button"
@@ -88,9 +90,6 @@ export default function SettingsScreen({
       )}
       {!section ? (
         <>
-          <span className="ps-wordmark" aria-label="Prosnix">
-            Prosni<span>x</span>
-          </span>
           <h1 className="ps-flow-title mt-6">Настройки</h1>
           <p className="mt-2 text-sm text-muted-foreground">Сделай приложение удобным для себя</p>
 

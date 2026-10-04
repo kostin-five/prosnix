@@ -1,3 +1,4 @@
+import { ProsnixWordmark } from "../brand/prosnix-brand.js";
 import React from "react";
 import type { WakeContext, WakeDurationMinutes } from "../../shared/api/client.js";
 
@@ -85,6 +86,7 @@ export function WakeContextSheet({
           Назад
         </button>
         <p className="ps-kicker mt-3">Контекст пробуждения</p>
+        <ProsnixWordmark className="ps-brand-compact mt-2" />
         <h1 className="ps-flow-title mt-2">Как ты просыпаешься сейчас?</h1>
         <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
           Контекст помогает сравнивать похожие ситуации пробуждения. Первые протоколы могут

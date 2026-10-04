@@ -1,25 +1,38 @@
-# Prosnix design direction
+# Визуальная система Prosnix
 
-## Reference
+## Основа
 
-The visual foundation is adapted from the Raycast DESIGN.md analysis:
-https://getdesign.md/raycast/design-md
+Направление основано на [разборе Raycast](https://getdesign.md/raycast/design-md),
+с собственной айдентикой Prosnix. Эти правила действуют для всех экранов и новых компонентов.
 
-This is a reference direction, not a request to copy Raycast branding or product UI.
+## Логотип
 
-## Rules for new pages and components
+Владелец выбрал вариант 6: ленточная оранжево-золотая P, белые буквы `rosnix` с оранжевыми
+акцентами на изгибах. Единый ресурс: `assets/brand/prosnix-ribbon-wordmark-v6.jpg`.
+Использовать компонент `ProsnixWordmark`, без повторного набора названия обычным шрифтом.
+Компактный вариант предназначен для протокола; полный — для главной, статистики, настроек и входа.
+Сохранять пропорции, не растягивать и не обрезать буквы. Старые брендовые файлы остаются в истории
+ресурсов, но не используются этим компонентом. Telegram-аватар и заголовок, управляемые ботом,
+меняются отдельно от Mini App.
 
-- Use a near-black canvas: `#07080a`.
-- Build depth with a surface ladder: `#0d0d0d`, `#101111`, `#121212`.
-- Use 1px hairline borders around cards: `#242728` or a low-opacity white border.
-- Prefer 6–10px radii for controls and cards. Use larger radii only for a deliberate hero element.
-- Avoid large drop shadows, heavy gradients and decorative blur. Depth comes from surface steps and borders.
-- Use Inter when available, with `font-feature-settings: "calt", "kern", "liga", "ss03"`.
-- Keep body text muted and readable; reserve bright accents for actions, status and task illustration.
-- Prosnix keeps its amber/orange accent for brand identity and wake actions. The primary home action may
-  use a light Raycast-style surface when it improves contrast.
-- Keep one clear primary action per view. Secondary actions should be transparent or use the elevated
-  surface.
-- Maintain 44px minimum touch targets and preserve readable layout at 320px wide.
-- Respect `prefers-reduced-motion`; never make essential information depend on animation.
-- Preserve Prosnix functions, Russian copy, legal links and Telegram WebView constraints.
+## Цвет и глубина
+
+- Фон: `#07080a`.
+- Поверхности: `#0d0d0d`, `#101111`, `#121212`; элементы управления: `#18191c`.
+- Границы толщиной 1 px: `#242728` и `#34363a`.
+- Основной текст: `#f4f4f5`; вторичный: `#a6a6ad`.
+- Янтарный акцент сохраняется в действиях и бренде; основной CTA: `#ffab30`.
+- Без декоративного размытия, крупных теней и фоновых градиентов. Глубину создают поверхности.
+- Радиус карточек 10 px, элементов управления 8 px, диалогов 12 px.
+
+## Типографика и размеры
+
+- Inter с системным fallback и `font-feature-settings: "calt", "kern", "liga", "ss03"`.
+- Заголовки имеют умеренную насыщенность, короткие строки и отрицательный tracking.
+- Один основной CTA на экран. Вторичные действия используют нейтральную поверхность.
+- Минимальная область касания 44 px; основное действие не меньше 48 px.
+- Карточки имеют внутренние отступы; строки истории — отдельные отступы и промежутки.
+- Flex-элементы с текстом получают `min-width: 0`; длинный текст переносится, высота не фиксируется.
+- Проверять ширины 320 и 390 px, увеличенный шрифт, отступ под навигацией и safe area.
+- Уважать `prefers-reduced-motion`; не связывать важную информацию с анимацией.
+- Сохранять русские тексты, правовые ссылки, правила данных и ограничения Telegram WebView.

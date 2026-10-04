@@ -1,4 +1,5 @@
-import { lazy, Suspense, useState } from "react";
+import { ProsnixWordmark } from "../brand/prosnix-brand.js";
+import { lazy, Suspense, useState, useRef, useLayoutEffect } from "react";
 import { Activity, ArrowRight, Check, ChevronRight, Sparkles, TrendingUp } from "lucide-react";
 import { eligibleWakeTasks } from "@awc/domain";
 import type { WakeContext, WakeProfile, WakeRoutine } from "../../shared/api/client.js";
@@ -99,6 +100,7 @@ function catEffLabel(avgDelta: number, sessions: number): { text: string; color:
 
 // ─── Stats Screen ─────────────────────────────────────────────────────────────
 export default function StatsScreen({
+  active = true,
   sessions,
   demo,
   routine,
@@ -108,6 +110,7 @@ export default function StatsScreen({
   computeCategoryEffectiveness,
   computeNextPlan,
 }: {
+  active?: boolean;
   sessions: Session[];
   demo: boolean;
   routine: WakeRoutine;
@@ -121,6 +124,12 @@ export default function StatsScreen({
     isLearning: boolean;
   };
 }) {
+  const scrollContainer = useRef<HTMLDivElement>(null);
+  const savedScrollTop = useRef(0);
+  useLayoutEffect(() => {
+    if (active && scrollContainer.current)
+      scrollContainer.current.scrollTop = savedScrollTop.current;
+  }, [active]);
   const analytics = useAnalyticsProfile(!demo, sessions.length);
   const { state: coach, requestInsight } = useCoachInsight(!demo);
   const history = useSessionHistory(!demo, sessions.length);
@@ -233,14 +242,17 @@ export default function StatsScreen({
             : "В следующий раз выбери тот же контекст сна и формат времени, пройди назначенный протокол и ответь через 15 минут. Так появится сопоставимое наблюдение.";
 
   return (
-    <div className="ps-stats flex flex-1 flex-col overflow-y-auto px-5 pb-28 pt-8">
+    <div
+      ref={scrollContainer}
+      onScroll={(event) => {
+        if (active) savedScrollTop.current = event.currentTarget.scrollTop;
+      }}
+      className="ps-stats flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-28 pt-8"
+    >
       <header className="ps-stats-header mb-6">
         <div className="mb-7 flex items-center justify-between gap-2">
           <div>
-            <p className="ps-wordmark">
-              Prosni<span>x</span>
-            </p>
-            <p className="ps-kicker mt-2">Больше, чем просто утро</p>
+            <ProsnixWordmark className="" />
           </div>
           <span className="ps-stats-count rounded-full px-3 py-2 text-xs">
             {progressKnown ? `Завершено: ${evidenceCount}` : "Обновляем данные"}

@@ -1,3 +1,4 @@
+import { ProsnixWordmark } from "../brand/prosnix-brand.js";
 import { AlertCircle } from "lucide-react";
 
 export function BootstrapErrorScreen({
@@ -15,9 +16,7 @@ export function BootstrapErrorScreen({
       className="ps-start min-h-screen text-foreground flex items-center justify-center p-6"
     >
       <div className="w-full max-w-sm text-center">
-        <div className="ps-wordmark mb-14" aria-label="Prosnix">
-          Prosni<span>x</span>
-        </div>
+        <ProsnixWordmark className="mb-14" />
         <div className="ps-surface p-6">
           <AlertCircle className="w-10 h-10 text-amber-400 mx-auto mb-5" />
           <h1 className="ps-flow-title text-2xl">

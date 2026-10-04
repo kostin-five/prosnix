@@ -1,3 +1,4 @@
+import { ProsnixWordmark } from "../features/brand/prosnix-brand.js";
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import {
   estimatedTaskSeconds,
@@ -1092,6 +1093,7 @@ export function TasksContainer({
       data-current-task={taskIds[taskIndex]}
       aria-busy={submitting}
     >
+      <ProsnixWordmark className="ps-brand-compact mb-1" />
       <div className="ps-task-top mb-3">
         <div className="ps-task-toolbar mb-2 flex items-center justify-between gap-2">
           <span className="min-w-0 text-[11px] text-muted-foreground">
@@ -1395,6 +1397,7 @@ function ResultsScreen({
   return (
     <div className="ps-protocol ps-results flex flex-col flex-1 p-6 overflow-y-auto">
       {/* Header */}
+      <ProsnixWordmark className="ps-brand-compact self-center" />
       <div className="ps-results-heading text-center pt-8 mb-8">
         <div className="w-16 h-16 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center mx-auto mb-5">
           <Check className="w-8 h-8 text-green-400" strokeWidth={2.5} />
@@ -1610,6 +1613,7 @@ function BottomNav({
       ].map((tab) => (
         <button
           key={tab.key}
+          aria-current={current === tab.key ? "page" : undefined}
           onClick={() => onTab(tab.key)}
           className={`flex min-h-14 flex-col items-center gap-1 rounded-xl px-4 py-2 transition-colors ${current === tab.key ? "text-amber-400" : "text-muted-foreground"}`}
         >
@@ -1646,6 +1650,7 @@ function PrototypeApp({
   const [screen, setScreen] = useState<Screen>(() =>
     initialProtocolScreen(resume, launchSource, initialWakeProfile.onboardingCompleted),
   );
+  const [statsVisited, setStatsVisited] = useState(false);
   const [navTab, setNavTab] = useState<"home" | "stats" | "settings">("home");
   const [settingsInitialSection, setSettingsInitialSection] = useState<
     "capabilities" | "goal" | null
@@ -2075,6 +2080,7 @@ function PrototypeApp({
   }
 
   function handleNavTab(tab: "home" | "stats" | "settings") {
+    if (tab === "stats") setStatsVisited(true);
     setSettingsInitialSection(null);
     setNavTab(tab);
     setScreen(tab);
@@ -2127,6 +2133,7 @@ function PrototypeApp({
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
         <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6">
+          <ProsnixWordmark className="mb-4" />
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             Проверка подъёма
           </p>
@@ -2169,10 +2176,10 @@ function PrototypeApp({
 
   return (
     <div
-      className={`flex items-start justify-center bg-background text-foreground ${screen === "tasks" ? "h-[100dvh] overflow-hidden" : "min-h-screen"}`}
+      className={`flex items-start justify-center bg-background text-foreground ${screen === "tasks" || showNav ? "h-[100dvh] overflow-hidden" : "min-h-screen"}`}
     >
       <div
-        className={`w-full max-w-[390px] flex flex-col bg-background relative ${screen === "tasks" ? "h-full min-h-0" : "min-h-screen"}`}
+        className={`w-full max-w-[390px] flex flex-col bg-background relative ${screen === "tasks" || showNav ? "h-full min-h-0" : "min-h-screen"}`}
       >
         {(syncing || syncError) && (
           <div
@@ -2270,23 +2277,29 @@ function PrototypeApp({
             />
           </Suspense>
         )}
-        {screen === "stats" && (
-          <Suspense
-            fallback={
-              <div className="p-5 text-sm text-muted-foreground">Загружаем статистику…</div>
-            }
+        {(statsVisited || screen === "stats") && (
+          <div
+            className={screen === "stats" ? "flex min-h-0 flex-1 flex-col" : "hidden"}
+            hidden={screen !== "stats"}
           >
-            <StatsScreen
-              sessions={sessions}
-              demo={demo}
-              routine={wakeRoutine}
-              profile={wakeProfile}
-              taskMetaMap={TASK_META}
-              categoryMeta={CAT_META}
-              computeCategoryEffectiveness={computeCategoryEffectiveness}
-              computeNextPlan={computeNextPlan}
-            />
-          </Suspense>
+            <Suspense
+              fallback={
+                <div className="p-5 text-sm text-muted-foreground">Загружаем статистику…</div>
+              }
+            >
+              <StatsScreen
+                active={screen === "stats"}
+                sessions={sessions}
+                demo={demo}
+                routine={wakeRoutine}
+                profile={wakeProfile}
+                taskMetaMap={TASK_META}
+                categoryMeta={CAT_META}
+                computeCategoryEffectiveness={computeCategoryEffectiveness}
+                computeNextPlan={computeNextPlan}
+              />
+            </Suspense>
+          </div>
         )}
         {screen === "settings" && (
           <LazyBoundary>
@@ -2412,9 +2425,7 @@ export default function App() {
         className="ps-start min-h-screen text-foreground flex items-center justify-center p-6"
       >
         <div className="text-center">
-          <div className="ps-wordmark mb-12" aria-label="Prosnix">
-            Prosni<span>x</span>
-          </div>
+          <ProsnixWordmark className="mb-12" />
           <Loader2 className="w-8 h-8 animate-spin text-amber-400 mx-auto mb-5" />
           <p className="text-lg font-semibold">Загружаем твоё состояние…</p>
           <p className="text-sm text-muted-foreground mt-2">Берём только подтверждённые данные</p>
