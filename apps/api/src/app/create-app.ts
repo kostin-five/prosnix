@@ -192,7 +192,11 @@ export async function createApp(
           dependencies.analyticsRepository,
           dependencies.coachInsightRepository,
           dependencies.coachGateway ?? null,
-          { combinationAnalyticsEnabled: config.wakeCombinationAnalyticsEnabled },
+          {
+            combinationAnalyticsEnabled: config.wakeCombinationAnalyticsEnabled,
+            onProviderFailure: (failure) =>
+              app.log.warn({ event: "coach_provider_failed", ...failure }, "coach provider failed"),
+          },
         ),
         ...(dependencies.now ? { now: dependencies.now } : {}),
       });

@@ -20,6 +20,12 @@ test("единый логотип и доступные карточки на у
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
           true,
         );
+        const cardsFit = await page
+          .locator(".ps-home > .ps-surface, .ps-settings > .ps-surface, .ps-stats > section")
+          .evaluateAll((cards) =>
+            cards.every((card) => card.scrollHeight <= card.clientHeight + 2),
+          );
+        expect(cardsFit).toBe(true);
         const buttons = page.locator(".ps-bottom-nav button");
         for (const button of await buttons.all()) {
           const box = await button.boundingBox();

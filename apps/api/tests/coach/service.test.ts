@@ -6,7 +6,7 @@ import type {
   CoachInsightRecord,
   CoachInsightRepository,
 } from "@awc/domain";
-import type { CoachGateway } from "../../src/coach/deepseek.js";
+import { CoachGatewayError, type CoachGateway } from "../../src/coach/deepseek.js";
 import { CoachService } from "../../src/coach/service.js";
 
 function profile(evidenceCount: number): AnalyticsProfile {
@@ -138,7 +138,9 @@ describe("CoachService", () => {
   it("degrades safely when the provider fails", async () => {
     const { service, gateway } = setup(4);
     gateway.generate.mockRejectedValueOnce(new Error("timeout"));
-    await expect(service.getInsight("user-1")).resolves.toMatchObject({
+    await expect(
+      service.getInsight("user-1", new Date("2026-09-05T08:00:00Z")),
+    ).resolves.toMatchObject({
       status: "unavailable",
       insight: {
         summary: expect.stringMatching(/через 15 минут/i),
@@ -241,5 +243,41 @@ describe("CoachService", () => {
     await expect(
       service.getInsight("user-1", new Date("2026-09-05T18:00:00.000Z")),
     ).resolves.toMatchObject({ refreshAvailableAt: "2026-09-05T21:00:00.000Z" });
+  });
+  it("повторяет неудачный provider после московской полуночи без новых данных", async () => {
+    const { service, gateway } = setup(4);
+    gateway.generate.mockRejectedValueOnce(new Error("private error"));
+    await expect(
+      service.getInsight("user-1", new Date("2026-09-05T20:00:00Z")),
+    ).resolves.toMatchObject({ source: "fallback", limitReached: true });
+    await expect(
+      service.getInsight("user-1", new Date("2026-09-05T20:59:59Z")),
+    ).resolves.toMatchObject({ source: "fallback", cached: true });
+    expect(gateway.generate).toHaveBeenCalledTimes(1);
+    await expect(
+      service.getInsight("user-1", new Date("2026-09-05T21:00:00Z")),
+    ).resolves.toMatchObject({ source: "provider", cached: false });
+    expect(gateway.generate).toHaveBeenCalledTimes(2);
+    await expect(
+      service.getInsight("user-1", new Date("2026-09-06T21:00:00Z")),
+    ).resolves.toMatchObject({ source: "cache" });
+    expect(gateway.generate).toHaveBeenCalledTimes(2);
+  });
+
+  it("диагностика содержит только безопасные поля provider", async () => {
+    const { cache, gateway } = setup(4);
+    const onProviderFailure = vi.fn();
+    const analytics: AnalyticsRepository = { recompute: vi.fn(async () => profile(4)) };
+    const service = new CoachService(analytics, cache, gateway, {
+      combinationAnalyticsEnabled: true,
+      onProviderFailure,
+    });
+    gateway.generate.mockRejectedValueOnce(new CoachGatewayError("http", 401));
+    await service.getInsight("user-1", new Date("2026-09-05T08:00:00Z"));
+    expect(onProviderFailure).toHaveBeenLastCalledWith({ reason: "http", httpStatus: 401 });
+    gateway.generate.mockRejectedValueOnce(new Error("Bearer secret user-1"));
+    await service.getInsight("user-1", new Date("2026-09-06T08:00:00Z"));
+    expect(onProviderFailure).toHaveBeenLastCalledWith({ reason: "unknown" });
+    expect(JSON.stringify(onProviderFailure.mock.calls)).not.toMatch(/secret|user-1/);
   });
 });

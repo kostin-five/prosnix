@@ -77,7 +77,7 @@ describe("DeepSeek coach gateway", () => {
       timeoutMs: 1_000,
       fetcher,
     });
-    await expect(gateway.generate(payload)).rejects.toThrow("unsupported fields");
+    await expect(gateway.generate(payload)).rejects.toMatchObject({ reason: "invalid_response" });
   });
 
   it("rejects a report that spends its main conclusion on the visible average", async () => {
@@ -103,6 +103,65 @@ describe("DeepSeek coach gateway", () => {
       timeoutMs: 1_000,
       fetcher,
     });
-    await expect(gateway.generate(payload)).rejects.toThrow("already visible average");
+    await expect(gateway.generate(payload)).rejects.toMatchObject({ reason: "invalid_response" });
+  });
+  it.each([401, 402, 429, 500])("классифицирует HTTP %s без тела ответа", async (status) => {
+    const gateway = new DeepSeekCoachGateway({
+      apiKey: "secret",
+      baseUrl: "https://api.deepseek.com",
+      model: "deepseek-v4-flash",
+      timeoutMs: 1000,
+      fetcher: vi.fn(
+        async () => new Response("sensitive provider body", { status }),
+      ) as unknown as typeof fetch,
+    });
+    await expect(gateway.generate(payload)).rejects.toMatchObject({
+      reason: "http",
+      httpStatus: status,
+      message: "Coach provider failure: http",
+    });
+  });
+
+  it("не передаёт исходную сетевую ошибку", async () => {
+    const gateway = new DeepSeekCoachGateway({
+      apiKey: "secret",
+      baseUrl: "https://api.deepseek.com",
+      model: "deepseek-v4-flash",
+      timeoutMs: 1000,
+      fetcher: vi.fn(async () => {
+        throw new Error("Bearer secret");
+      }) as unknown as typeof fetch,
+    });
+    await expect(gateway.generate(payload)).rejects.toMatchObject({
+      reason: "network",
+      message: "Coach provider failure: network",
+    });
+  });
+
+  it("отличает timeout от сетевой ошибки", async () => {
+    const gateway = new DeepSeekCoachGateway({
+      apiKey: "secret",
+      baseUrl: "https://api.deepseek.com",
+      model: "deepseek-v4-flash",
+      timeoutMs: 5,
+      fetcher: vi.fn(async (_url, init) => {
+        await new Promise((resolve) => setTimeout(resolve, 15));
+        throw init?.signal?.reason;
+      }) as unknown as typeof fetch,
+    });
+    await expect(gateway.generate(payload)).rejects.toMatchObject({ reason: "timeout" });
+  });
+
+  it("отклоняет повреждённый JSON безопасной ошибкой", async () => {
+    const gateway = new DeepSeekCoachGateway({
+      apiKey: "secret",
+      baseUrl: "https://api.deepseek.com",
+      model: "deepseek-v4-flash",
+      timeoutMs: 1000,
+      fetcher: vi.fn(async () =>
+        Response.json({ choices: [{ message: { content: "not JSON" } }] }),
+      ) as unknown as typeof fetch,
+    });
+    await expect(gateway.generate(payload)).rejects.toMatchObject({ reason: "invalid_response" });
   });
 });

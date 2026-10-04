@@ -7,7 +7,14 @@ import type {
   CoachInsightRepository,
   Metric,
 } from "@awc/domain";
-import type { CoachAggregateMetric, CoachAggregatePayload, CoachGateway } from "./deepseek.js";
+import {
+  CoachGatewayError,
+  type CoachFailureReason,
+  type CoachAggregateMetric,
+  type CoachAggregatePayload,
+  type CoachGateway,
+  type GeneratedCoachInsight,
+} from "./deepseek.js";
 
 function safeMetric(metric: Metric): CoachAggregateMetric {
   return {
@@ -208,7 +215,10 @@ export class CoachService {
     private readonly analytics: AnalyticsRepository,
     private readonly cache: CoachInsightRepository,
     private readonly gateway: CoachGateway | null,
-    private readonly options: { combinationAnalyticsEnabled: boolean } = {
+    private readonly options: {
+      combinationAnalyticsEnabled: boolean;
+      onProviderFailure?: (failure: { reason: CoachFailureReason; httpStatus?: number }) => void;
+    } = {
       combinationAnalyticsEnabled: true,
     },
   ) {}
@@ -255,7 +265,10 @@ export class CoachService {
     const cached = await this.cache.findByUserId(userId);
     const generatedToday =
       cached !== null && localDateKey(cached.generatedAt, timezone) === localDateKey(now, timezone);
-    if (cached?.evidenceFingerprint === evidenceFingerprint) {
+    if (
+      cached?.evidenceFingerprint === evidenceFingerprint &&
+      (cached.model !== "deterministic-fallback" || generatedToday)
+    ) {
       return {
         status: cached.model === "deterministic-fallback" ? "unavailable" : "ready",
         evidenceCount,
@@ -278,37 +291,18 @@ export class CoachService {
     if (!this.gateway) {
       return deterministicFallback(profile, now, refreshAvailableAt);
     }
+    let generated: GeneratedCoachInsight;
     try {
-      const generated = await this.gateway.generate(payload);
-      const saved = await this.cache.save(
-        {
-          userId,
-          evidenceFingerprint,
-          summary: generated.summary,
-          nextExperiment: generated.nextExperiment,
-          caveat: generated.caveat,
-          model: generated.model,
-          evidenceCount,
-          generatedAt: now,
-        },
-        now,
+      generated = await this.gateway.generate(payload);
+    } catch (error) {
+      this.options.onProviderFailure?.(
+        error instanceof CoachGatewayError
+          ? {
+              reason: error.reason,
+              ...(error.httpStatus !== undefined ? { httpStatus: error.httpStatus } : {}),
+            }
+          : { reason: "unknown" },
       );
-      return {
-        status: "ready",
-        evidenceCount,
-        cached: false,
-        source: "provider",
-        limitReached: true,
-        refreshAvailableAt,
-        insight: {
-          summary: saved.summary,
-          nextExperiment: saved.nextExperiment,
-          caveat: saved.caveat,
-          confidence: profile.averageDelta.confidence,
-          generatedAt: saved.generatedAt.toISOString(),
-        },
-      };
-    } catch {
       const fallback = deterministicFallback(profile, now, refreshAvailableAt, true);
       if (fallback.insight) {
         await this.cache.save(
@@ -327,5 +321,33 @@ export class CoachService {
       }
       return fallback;
     }
+    const saved = await this.cache.save(
+      {
+        userId,
+        evidenceFingerprint,
+        summary: generated.summary,
+        nextExperiment: generated.nextExperiment,
+        caveat: generated.caveat,
+        model: generated.model,
+        evidenceCount,
+        generatedAt: now,
+      },
+      now,
+    );
+    return {
+      status: "ready",
+      evidenceCount,
+      cached: false,
+      source: "provider",
+      limitReached: true,
+      refreshAvailableAt,
+      insight: {
+        summary: saved.summary,
+        nextExperiment: saved.nextExperiment,
+        caveat: saved.caveat,
+        confidence: profile.averageDelta.confidence,
+        generatedAt: saved.generatedAt.toISOString(),
+      },
+    };
   }
 }

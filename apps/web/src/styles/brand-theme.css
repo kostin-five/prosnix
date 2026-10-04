@@ -188,3 +188,62 @@ body,
 *::-webkit-scrollbar-thumb:hover {
   background: #55575d;
 }
+
+/* Карточки в прокручиваемом flex-экране сохраняют полную высоту содержимого. */
+:is(.ps-home, .ps-stats, .ps-settings) > * {
+  flex-shrink: 0;
+}
+.ps-brand-wordmark {
+  flex-shrink: 0;
+}
+.ps-settings-back,
+.ps-settings-detail button[class*="min-h-11"] {
+  min-height: 3.25rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid #34363a;
+  border-radius: 8px;
+  background: #18191c;
+  font-size: 1rem;
+}
+.ps-task-interaction .ps-reaction-target {
+  flex: none;
+  width: 10rem;
+  height: 10rem;
+  min-height: 10rem;
+  border-radius: 50%;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+.ps-task-screen > * {
+  flex-shrink: 0;
+}
+.ps-task-motion {
+  height: clamp(7rem, 22dvh, 11rem);
+}
+.ps-task-interaction > div {
+  gap: 0.75rem;
+}
+.ps-confirm-task > p {
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+.ps-task-action-slot:not(:empty) {
+  margin-top: 0.65rem;
+  padding-top: 0.4rem;
+}
+@media (max-height: 720px) {
+  .ps-task-motion {
+    height: 7rem;
+  }
+  .ps-confirm-timer {
+    min-height: 6.5rem;
+  }
+  .ps-confirm-timer [data-testid="task-timer-visual"] {
+    width: 7rem;
+    height: 7rem;
+  }
+  .ps-task-screen .ps-task-title h2 {
+    font-size: 1.65rem;
+  }
+}

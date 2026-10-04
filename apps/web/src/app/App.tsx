@@ -63,8 +63,7 @@ const GOAL_CALIBRATION_ENABLED = import.meta.env.VITE_GOAL_CALIBRATION_ENABLED !
 const GUIDED_TASK_EXPERIENCE_ENABLED =
   import.meta.env.VITE_GUIDED_TASK_EXPERIENCE_ENABLED !== "false";
 const WAKE_TASK_SUBSTITUTION_ENABLED =
-  import.meta.env.VITE_WAKE_TASK_SUBSTITUTION_ENABLED === "true" ||
-  (import.meta.env.DEV && import.meta.env.VITE_WAKE_TASK_SUBSTITUTION_ENABLED !== "false");
+  import.meta.env.VITE_WAKE_TASK_SUBSTITUTION_ENABLED !== "false";
 
 const HomeScreen = lazy(() => import("../features/home/home-screen.js"));
 const SettingsScreen = lazy(() => import("../features/settings/settings-screen.js"));
@@ -886,7 +885,7 @@ export function ReactionTask({
         onClick={handleTap}
         disabled={phase !== "go"}
         aria-label={phase === "go" ? "Нажать по сигналу" : "Ожидание сигнала"}
-        className={`w-48 h-48 rounded-full text-3xl font-extrabold transition-all duration-150 border-4 ${
+        className={`ps-reaction-target w-48 h-48 rounded-full text-3xl font-extrabold transition-all duration-150 border-4 ${
           phase === "go"
             ? "bg-green-500 border-green-400 text-white scale-105 shadow-[0_0_60px_rgba(34,197,94,0.5)]"
             : phase === "result"
@@ -1093,7 +1092,6 @@ export function TasksContainer({
       data-current-task={taskIds[taskIndex]}
       aria-busy={submitting}
     >
-      <ProsnixWordmark className="ps-brand-compact mb-1" />
       <div className="ps-task-top mb-3">
         <div className="ps-task-toolbar mb-2 flex items-center justify-between gap-2">
           <span className="min-w-0 text-[11px] text-muted-foreground">
@@ -1397,7 +1395,6 @@ function ResultsScreen({
   return (
     <div className="ps-protocol ps-results flex flex-col flex-1 p-6 overflow-y-auto">
       {/* Header */}
-      <ProsnixWordmark className="ps-brand-compact self-center" />
       <div className="ps-results-heading text-center pt-8 mb-8">
         <div className="w-16 h-16 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center mx-auto mb-5">
           <Check className="w-8 h-8 text-green-400" strokeWidth={2.5} />
@@ -2133,7 +2130,6 @@ function PrototypeApp({
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
         <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6">
-          <ProsnixWordmark className="mb-4" />
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             Проверка подъёма
           </p>

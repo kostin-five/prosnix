@@ -77,7 +77,7 @@ export function CapabilityProfileCard({
   onSave,
   onCompleted,
   initiallyEditing = !profile.onboardingCompleted,
-  catalogV9Enabled = import.meta.env.VITE_WAKE_TASK_CATALOG_V9_ENABLED === "true",
+  catalogV9Enabled = import.meta.env.VITE_WAKE_TASK_CATALOG_V9_ENABLED !== "false",
   wizard = false,
 }: {
   profile: WakeProfile;

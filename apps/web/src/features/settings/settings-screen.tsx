@@ -83,7 +83,7 @@ export default function SettingsScreen({
         <button
           type="button"
           onClick={() => setSection(null)}
-          className="mb-5 flex min-h-14 items-center gap-2 self-start rounded-xl pr-4 text-base font-semibold text-amber-300"
+          className="ps-settings-back mb-5 flex items-center gap-2 self-start text-base font-semibold text-amber-300"
         >
           <ChevronLeft className="h-6 w-6" /> Настройки
         </button>

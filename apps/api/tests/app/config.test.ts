@@ -40,9 +40,9 @@ describe("application config", () => {
       deepseekBaseUrl: "https://api.deepseek.com",
       deepseekModel: "deepseek-v4-flash",
       deepseekTimeoutMs: 12_000,
-      wakeTaskCatalogV9Enabled: false,
-      wakeTaskSubstitutionEnabled: false,
-      wakeLowEffectRecoveryEnabled: false,
+      wakeTaskCatalogV9Enabled: true,
+      wakeTaskSubstitutionEnabled: true,
+      wakeLowEffectRecoveryEnabled: true,
       wakeCombinationAnalyticsEnabled: false,
     });
     expect(() =>
@@ -53,7 +53,7 @@ describe("application config", () => {
     );
   });
 
-  it("keeps the v9 wake-task catalog disabled unless explicitly enabled", () => {
+  it("allows explicitly disabling the default wake-task catalog", () => {
     expect(
       loadConfig({ ...production, WAKE_TASK_CATALOG_V9_ENABLED: "true" }).wakeTaskCatalogV9Enabled,
     ).toBe(true);
@@ -62,7 +62,7 @@ describe("application config", () => {
     ).toBe(false);
   });
 
-  it("keeps substitution, recovery and combination analytics disabled by default", () => {
+  it("allows enabling combination analytics independently", () => {
     expect(
       loadConfig({
         ...production,
@@ -83,7 +83,23 @@ describe("application config", () => {
     expect(
       loadConfig({ ...local, WAKE_TASK_SUBSTITUTION_ENABLED: "false" }).wakeTaskSubstitutionEnabled,
     ).toBe(false);
-    expect(loadConfig(production).wakeTaskSubstitutionEnabled).toBe(false);
+    expect(loadConfig(production).wakeTaskSubstitutionEnabled).toBe(true);
+  });
+
+  it("позволяет явно отключить готовые функции в production", () => {
+    expect(
+      loadConfig({
+        ...production,
+        WAKE_TASK_SUBSTITUTION_ENABLED: "false",
+        WAKE_LOW_EFFECT_RECOVERY_ENABLED: "false",
+        WAKE_TASK_CATALOG_V9_ENABLED: "false",
+      }),
+    ).toMatchObject({
+      wakeTaskSubstitutionEnabled: false,
+      wakeLowEffectRecoveryEnabled: false,
+      wakeTaskCatalogV9Enabled: false,
+      wakeCombinationAnalyticsEnabled: false,
+    });
   });
 
   it("provides bounded readiness, shutdown and sensitive-route limits", () => {

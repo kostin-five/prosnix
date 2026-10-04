@@ -1,4 +1,3 @@
-import { ProsnixWordmark } from "../brand/prosnix-brand.js";
 import { lazy, Suspense, useState } from "react";
 import { ArrowRight, Sun } from "lucide-react";
 
@@ -72,7 +71,6 @@ export function StartRatingScreen({
   const [goalReady, setGoalReady] = useState(!goalCalibrationEnabled || !localStorageScope);
   return (
     <div className="ps-protocol ps-rating-screen flex flex-1 flex-col overflow-y-auto px-5 pb-6 pt-7">
-      <ProsnixWordmark className="ps-brand-compact mb-4" />
       <div className="ps-rating-heading mb-7">
         <p className="ps-eyebrow mb-3">Перед началом</p>
         <h1 className="ps-flow-title mb-3">Насколько ты бодр сейчас?</h1>
@@ -165,7 +163,6 @@ export function EndRatingScreen({
   const [selected, setSelected] = useState<number | null>(null);
   return (
     <div className="ps-protocol ps-rating-screen flex flex-1 flex-col overflow-y-auto px-5 pb-6 pt-7">
-      <ProsnixWordmark className="ps-brand-compact mb-4" />
       <div className="ps-rating-heading mb-6">
         <p className="ps-eyebrow mb-3">
           <Sun className="inline h-4 w-4" /> После протокола

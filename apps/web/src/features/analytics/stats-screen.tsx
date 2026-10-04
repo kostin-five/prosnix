@@ -211,7 +211,7 @@ export default function StatsScreen({
         ),
       },
       {
-        v9Enabled: import.meta.env.VITE_WAKE_TASK_CATALOG_V9_ENABLED === "true",
+        v9Enabled: import.meta.env.VITE_WAKE_TASK_CATALOG_V9_ENABLED !== "false",
       },
     ),
   );
