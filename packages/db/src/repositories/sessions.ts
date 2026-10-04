@@ -341,7 +341,7 @@ async function loadSession(
     session.postRating !== null &&
     session.postRating - session.baseline <= 1 &&
     session.recoveryOffer === null &&
-    recoveryStepsFor(session).length > 0
+    recoveryStepsFor(session, options).length > 0
   ) {
     session.recoveryOffer = {
       status: "eligible",
@@ -602,7 +602,7 @@ async function createSession(
   return { session, responseStatus: 201 };
 }
 
-function recoveryStepsFor(primary: WakeSession): ProtocolStep[] {
+function recoveryStepsFor(primary: WakeSession, options: SessionRepositoryOptions): ProtocolStep[] {
   const profile: WakeCapabilityProfile = {
     movementLevel: primary.personalization.movementLevel,
     availableResources: primary.personalization.availableResources,
@@ -621,7 +621,9 @@ function recoveryStepsFor(primary: WakeSession): ProtocolStep[] {
         : []),
     ]),
     profile,
-    catalog: { v9Enabled: primary.assignment.protocolVersion >= 9 },
+    catalog: {
+      v9Enabled: options.wakeTaskCatalogV9Enabled && primary.assignment.protocolVersion >= 9,
+    },
   });
 }
 
@@ -663,7 +665,7 @@ async function createRecoverySession(
   ) {
     throw unavailable();
   }
-  const steps = recoveryStepsFor(primary);
+  const steps = recoveryStepsFor(primary, options);
   if (steps.length === 0) throw unavailable();
 
   const protocolKey = `recovery-${steps.map(({ taskId }) => taskId).join("-")}`;
@@ -871,7 +873,9 @@ async function mutateSession(
         ...(current.assignment.comparison?.factorKey
           ? { comparisonFactorKey: current.assignment.comparison.factorKey }
           : {}),
-        catalog: { v9Enabled: current.assignment.protocolVersion >= 9 },
+        catalog: {
+          v9Enabled: options.wakeTaskCatalogV9Enabled && current.assignment.protocolVersion >= 9,
+        },
         ...(current.experience?.interactionMode === "hands_free"
           ? { allowedTaskIds: HANDS_FREE_ORDER }
           : {}),
@@ -973,7 +977,7 @@ async function mutateSession(
         current.sessionKind !== "recovery" &&
         current.baseline !== null &&
         command.value - current.baseline <= 1 &&
-        recoveryStepsFor(next).length > 0
+        recoveryStepsFor(next, options).length > 0
       ) {
         next = {
           ...next,
@@ -994,7 +998,7 @@ async function mutateSession(
         current.postRating - current.baseline > 1 ||
         current.recoveryOffer?.status === "accepted" ||
         current.recoveryOffer?.status === "declined" ||
-        recoveryStepsFor(current).length === 0
+        recoveryStepsFor(current, options).length === 0
       ) {
         if (current.version !== command.expectedVersion) {
           throw new SessionCommandConflict(

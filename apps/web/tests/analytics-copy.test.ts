@@ -4,9 +4,11 @@ import { describe, expect, it } from "vitest";
 
 describe("текст персонального отчёта", () => {
   it("показывает понятный источник без технического подвала о числе сессий", () => {
-    const packagePath = resolve(process.cwd(), "src/app/App.tsx");
+    const packagePath = resolve(process.cwd(), "src/features/analytics/stats-screen.tsx");
     const source = readFileSync(
-      existsSync(packagePath) ? packagePath : resolve(process.cwd(), "apps/web/src/app/App.tsx"),
+      existsSync(packagePath)
+        ? packagePath
+        : resolve(process.cwd(), "apps/web/src/features/analytics/stats-screen.tsx"),
       "utf8",
     );
 

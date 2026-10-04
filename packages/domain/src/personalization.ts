@@ -9,11 +9,7 @@ import type {
   WakePersonalizationSnapshot,
   WakeContext,
 } from "./model.js";
-import {
-  COMPACT_FIVE_MINUTE_PROTOCOL_VERSION,
-  SHORT_OBSERVATION_PROTOCOL_VERSION,
-  estimatedTaskSeconds,
-} from "./task-policy.js";
+import { REALISTIC_ACTION_TIMING_PROTOCOL_VERSION, estimatedTaskSeconds } from "./task-policy.js";
 
 export const SAFE_WAKE_PROFILE: WakeCapabilityProfile = {
   movementLevel: "none",
@@ -396,8 +392,11 @@ export function selectHandsFreeAssignment(
       { index: selected.length, taskId, category: categoryForTask(taskId) },
     ]);
     if (
-      plannedProtocolSeconds(candidate, durationMinutes, SHORT_OBSERVATION_PROTOCOL_VERSION) <=
-      maximumSeconds
+      plannedProtocolSeconds(
+        candidate,
+        durationMinutes,
+        REALISTIC_ACTION_TIMING_PROTOCOL_VERSION,
+      ) <= maximumSeconds
     ) {
       selected.splice(0, selected.length, ...candidate);
     }
@@ -405,7 +404,7 @@ export function selectHandsFreeAssignment(
   const plannedSeconds = plannedProtocolSeconds(
     selected,
     durationMinutes,
-    SHORT_OBSERVATION_PROTOCOL_VERSION,
+    REALISTIC_ACTION_TIMING_PROTOCOL_VERSION,
   );
   const fallbackReason: WakePersonalizationSnapshot["fallbackReason"] =
     plannedSeconds < durationMinutes * 60 * 0.9
@@ -416,8 +415,8 @@ export function selectHandsFreeAssignment(
   return {
     assignment: {
       id: "pending",
-      protocolKey: `hands-free-v2:${durationMinutes}m:${selected.map(({ taskId }) => taskId).join("-")}`,
-      protocolVersion: SHORT_OBSERVATION_PROTOCOL_VERSION,
+      protocolKey: `hands-free-v3:${durationMinutes}m:${selected.map(({ taskId }) => taskId).join("-")}`,
+      protocolVersion: REALISTIC_ACTION_TIMING_PROTOCOL_VERSION,
       strategyVersion: "hands-free-v1",
       phase: "fallback",
       hypothesis: "Проверяем пробуждение с голосовыми подсказками и действиями без экрана",
@@ -440,7 +439,7 @@ function planForDuration(
   rotationSeed = 0,
   options: WakeTaskCatalogOptions = {},
 ): { steps: ProtocolStep[]; belowMinimum: boolean } {
-  const protocolVersion = durationMinutes === 5 ? COMPACT_FIVE_MINUTE_PROTOCOL_VERSION : 8;
+  const protocolVersion = REALISTIC_ACTION_TIMING_PROTOCOL_VERSION;
   const maximumSteps = durationMinutes === 5 ? 7 : Number.POSITIVE_INFINITY;
   const minimumSeconds = durationMinutes * 60 * 0.9;
   const maximumSeconds = durationMinutes * 60 * 1.1;
@@ -494,8 +493,46 @@ function planForDuration(
   const rotation = rotationSeed % catalogOrder.length;
   const expansionOrder = [...catalogOrder.slice(rotation), ...catalogOrder.slice(0, rotation)];
   for (const taskId of expansionOrder) {
-    if (plannedProtocolSeconds(selected, durationMinutes, protocolVersion) >= minimumSeconds) break;
+    const hasRequiredLightStep =
+      durationMinutes !== 10 ||
+      selected.some(({ taskId: selectedTaskId }) => selectedTaskId === "window");
+    if (
+      plannedProtocolSeconds(selected, durationMinutes, protocolVersion) >= minimumSeconds &&
+      hasRequiredLightStep
+    )
+      break;
     tryAppend({ index: selected.length, taskId, category: categoryForTask(taskId) });
+  }
+
+  if (
+    durationMinutes === 5 &&
+    plannedProtocolSeconds(selected, durationMinutes, protocolVersion) < minimumSeconds
+  ) {
+    const cognitiveFillers: readonly TaskId[] = ["math", "memory", "stroop", "reaction"];
+    let best: ProtocolStep[] | null = null;
+    let bestSeconds = plannedProtocolSeconds(selected, durationMinutes, protocolVersion);
+    for (const shortTask of ["water", "window"] as const) {
+      if (!selected.some(({ taskId }) => taskId === shortTask)) continue;
+      const withoutShortTask = selected.filter(({ taskId }) => taskId !== shortTask);
+      if (!withoutShortTask.some(({ taskId }) => ACTIVE_TASK_IDS.has(taskId))) continue;
+      for (const taskId of cognitiveFillers) {
+        if (used.has(taskId) || !allowed(taskId, profile, options)) continue;
+        const candidate = withStandingTransition([
+          ...withoutShortTask,
+          { index: withoutShortTask.length, taskId, category: "cognitive" },
+        ]);
+        const seconds = plannedProtocolSeconds(candidate, durationMinutes, protocolVersion);
+        if (
+          candidate.length <= maximumSteps &&
+          seconds <= maximumSeconds &&
+          seconds > bestSeconds
+        ) {
+          best = candidate;
+          bestSeconds = seconds;
+        }
+      }
+    }
+    if (best) selected = best;
   }
 
   selected = withStandingTransition(selected);
@@ -590,7 +627,7 @@ export function personalizeAssignment(
     assignment: {
       ...baseAssignment,
       protocolVersion: Math.max(
-        durationMinutes === 5 ? COMPACT_FIVE_MINUTE_PROTOCOL_VERSION : options.v9Enabled ? 9 : 8,
+        REALISTIC_ACTION_TIMING_PROTOCOL_VERSION,
         assignment.protocolVersion,
       ),
       protocolKey: `${assignment.protocolKey}:${durationMinutes}m:${suffix}`,

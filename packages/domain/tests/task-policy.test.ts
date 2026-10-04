@@ -30,4 +30,17 @@ describe("нагрузка заданий", () => {
       expect(estimatedTaskSeconds("find_color", duration, 12)).toBe(25);
     }
   });
+
+  it("согласует новые короткие действия с таймером и сохраняет старые версии", () => {
+    expect(estimatedTaskSeconds("water", 5, 12)).toBe(50);
+    expect(estimatedTaskSeconds("window", 10, 12)).toBe(60);
+    expect(estimatedTaskSeconds("curtains", 10, 12)).toBe(30);
+    for (const duration of [2, 5, 10] as const) {
+      expect(estimatedTaskSeconds("water", duration, 13)).toBe(15);
+      expect(estimatedTaskSeconds("window", duration, 13)).toBe(15);
+      expect(estimatedTaskSeconds("curtains", duration, 13)).toBe(10);
+    }
+    expect(estimatedTaskSeconds("steps", 5, 13)).toBe(40);
+    expect(estimatedTaskSeconds("shake", 5, 13)).toBe(30);
+  });
 });

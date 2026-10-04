@@ -47,7 +47,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL hands-free wak
       },
     });
     expect(created.session.experience?.interactionMode).toBe("hands_free");
-    expect(created.session.assignment.protocolVersion).toBe(12);
+    expect(created.session.assignment.protocolVersion).toBe(13);
     expect(created.session.assignment.steps.map(({ taskId }) => taskId)).toEqual([
       "notice_three",
       "find_color",

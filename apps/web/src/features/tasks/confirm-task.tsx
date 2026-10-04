@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
 
 import type { WakeDurationMinutes } from "../../shared/api/client.js";
-import { estimatedTaskSeconds } from "@awc/domain";
+import { estimatedTaskSeconds, REALISTIC_ACTION_TIMING_PROTOCOL_VERSION } from "@awc/domain";
 import type { WakeSoundMode } from "./task-experience-feedback.js";
 import type { TaskId } from "./task-icon.js";
 
@@ -168,6 +168,14 @@ const COMPACT_FIVE_MINUTE_OVERRIDES: Partial<
   },
 };
 
+const FAST_ACTION_INSTRUCTIONS: Partial<Record<ConfirmTaskId, string>> = {
+  water: "Налей воду и сделай несколько глотков в удобном темпе. Подтверди через 15 секунд.",
+  window:
+    "Открой шторы или включи яркий свет. Оставь свет включённым после шага. Не смотри прямо на солнце.",
+  curtains:
+    "Открой шторы и впусти дневной свет. Если темно, включи свет в комнате. Свет оставь включённым.",
+};
+
 const CATEGORY: Record<ConfirmTaskId, "movement" | "behavioral" | "environment"> = {
   steps: "movement",
   squats: "movement",
@@ -208,6 +216,8 @@ export function ConfirmTask({
   interactionMode = "manual",
   autoStart = false,
   preparing = false,
+  onRemainingChange,
+  onPauseChange,
 }: {
   taskId: ConfirmTaskId;
   durationMinutes: WakeDurationMinutes;
@@ -218,15 +228,21 @@ export function ConfirmTask({
   interactionMode?: "manual" | "hands_free";
   autoStart?: boolean;
   preparing?: boolean;
+  onRemainingChange?: (seconds: number) => void;
+  onPauseChange?: (paused: boolean) => void;
 }) {
-  const cfg =
+  const legacyConfig =
     durationMinutes === 5 && protocolVersion >= 10 && COMPACT_FIVE_MINUTE_OVERRIDES[taskId]
       ? COMPACT_FIVE_MINUTE_OVERRIDES[taskId]!
       : durationMinutes === 10 && TEN_MINUTE_OVERRIDES[taskId]
         ? TEN_MINUTE_OVERRIDES[taskId]!
         : CONFIG[taskId];
+  const cfg =
+    protocolVersion >= REALISTIC_ACTION_TIMING_PROTOCOL_VERSION && FAST_ACTION_INSTRUCTIONS[taskId]
+      ? { ...legacyConfig, instruction: FAST_ACTION_INSTRUCTIONS[taskId]! }
+      : legacyConfig;
   const countdown =
-    interactionMode === "hands_free"
+    interactionMode === "hands_free" || protocolVersion >= REALISTIC_ACTION_TIMING_PROTOCOL_VERSION
       ? estimatedTaskSeconds(taskId, durationMinutes, protocolVersion)
       : cfg.countdown;
   const [started, setStarted] = useState(false);
@@ -234,6 +250,9 @@ export function ConfirmTask({
   const [remaining, setRemaining] = useState(countdown);
   const [done, setDone] = useState(false);
   const startedAt = useRef(Date.now());
+
+  useEffect(() => onRemainingChange?.(remaining), [remaining, onRemainingChange]);
+  useEffect(() => onPauseChange?.(paused), [paused, onPauseChange]);
 
   useEffect(() => {
     if (!started || paused || remaining <= 0) return;

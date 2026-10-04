@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   enableWakeSoundFromGesture,
+  muteWakeSound,
   playCountdownTick,
   resetWakeSoundForTests,
   signalTaskFeedback,
@@ -84,6 +85,18 @@ describe("звук и тактильная обратная связь зада�
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("после выключения отменяет текущие сигналы и не запускает новые", async () => {
+    await enableWakeSoundFromGesture();
+    signalTaskFeedback("start", "on");
+    const current = createOscillator.mock.results[0]?.value;
+    muteWakeSound();
+    expect(current?.stop).toHaveBeenCalled();
+    signalTaskFeedback("success", "on");
+    playCountdownTick("on");
+    expect(createOscillator).toHaveBeenCalledTimes(1);
+    expect(startWakeProtocolSound()).toBe(false);
   });
 
   it("продолжает работу без звука, если AudioContext недоступен", async () => {

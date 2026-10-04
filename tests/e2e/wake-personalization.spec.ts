@@ -95,6 +95,7 @@ test("цель открывается с главной, а юридически
 test("протокол показывает крупную инструкцию и действие без выхода за мобильный экран", async ({
   page,
 }) => {
+  await page.clock.install();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/?demo=1");
   await expect(page.locator(".ps-home-orbit")).toHaveCount(0);
@@ -122,7 +123,31 @@ test("протокол показывает крупную инструкцию 
   await expect(page.locator(".ps-task-action-slot button")).toHaveText("Начать");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
+  const remainingBeforeStart = await page.locator(".ps-task-toolbar").innerText();
   await page.locator(".ps-task-action-slot button").click();
+  await page.clock.runFor(1_000);
+  expect(await page.locator(".ps-task-toolbar").innerText()).not.toBe(remainingBeforeStart);
   await expect(page.getByLabel("Таймер ещё не начат")).toHaveCount(0);
   await expect(page.locator(".ps-task-action-slot button")).toBeDisabled();
+
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "20px";
+  });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(
+    await page
+      .getByTestId("task-illustration")
+      .locator("img")
+      .evaluate((element) => {
+        const image = element as HTMLImageElement;
+        return getComputedStyle(image).objectFit;
+      }),
+  ).toBe("contain");
+  await expect(page.locator(".ps-task-action-slot button")).toBeAttached();
+  const instruction = await page.locator(".ps-confirm-task > p").boundingBox();
+  const action = await page.locator(".ps-task-action-slot").boundingBox();
+  expect(instruction).not.toBeNull();
+  expect(action).not.toBeNull();
+  expect(action!.y).toBeGreaterThanOrEqual(instruction!.y + instruction!.height);
 });

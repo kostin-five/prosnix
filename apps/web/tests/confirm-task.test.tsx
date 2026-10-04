@@ -107,6 +107,39 @@ describe("подтверждаемые задания с таймером", () =
   });
 
   it.each([
+    ["water", 15, "Выпил"],
+    ["window", 15, "Готово"],
+    ["curtains", 10, "Открыл"],
+  ] as const)(
+    "в версии 13 завершает короткое действие %s без ожидания",
+    async (taskId, seconds, cta) => {
+      const onDone = vi.fn();
+      const onRemainingChange = vi.fn();
+      act(() =>
+        root.render(
+          <ConfirmTask
+            taskId={taskId}
+            durationMinutes={5}
+            protocolVersion={13}
+            onDone={onDone}
+            onRemainingChange={onRemainingChange}
+          />,
+        ),
+      );
+      act(() => container.querySelector<HTMLButtonElement>("button.ps-primary-button")?.click());
+      expect(onRemainingChange).toHaveBeenCalledWith(seconds);
+      for (let second = 0; second < seconds; second += 1) {
+        await act(async () => vi.advanceTimersByTimeAsync(1_000));
+      }
+      const confirm = [...container.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
+        item.textContent?.includes(cta),
+      );
+      expect(confirm?.disabled).toBe(false);
+      expect(onRemainingChange).toHaveBeenCalledWith(0);
+    },
+  );
+
+  it.each([
     ["cool_wash", 20, "Умылся"],
     ["pushups", 25, "Сделал"],
   ] as const)("не разрешает подтвердить %s до конца таймера", async (taskId, seconds, cta) => {
@@ -135,7 +168,17 @@ describe("подтверждаемые задания с таймером", () =
 
   it("ставит таймер обычного задания на паузу и продолжает после нажатия", async () => {
     const onDone = vi.fn();
-    act(() => root.render(<ConfirmTask taskId="sit_edge" durationMinutes={5} onDone={onDone} />));
+    const onPauseChange = vi.fn();
+    act(() =>
+      root.render(
+        <ConfirmTask
+          taskId="sit_edge"
+          durationMinutes={5}
+          onDone={onDone}
+          onPauseChange={onPauseChange}
+        />,
+      ),
+    );
     act(() => container.querySelector<HTMLButtonElement>("button.ps-primary-button")?.click());
     for (let second = 0; second < 3; second += 1)
       await act(async () => vi.advanceTimersByTimeAsync(1_000));
@@ -143,6 +186,7 @@ describe("подтверждаемые задания с таймером", () =
       'button[aria-label="Поставить таймер на паузу"]',
     );
     act(() => timer?.click());
+    expect(onPauseChange).toHaveBeenLastCalledWith(true);
     expect(container.querySelector('[data-testid="task-timer-pause-icon"]')).not.toBeNull();
     expect(container.querySelector('[role="timer"]')?.getAttribute("aria-label")).toContain(
       "7 секунд",
@@ -155,6 +199,7 @@ describe("подтверждаемые задания с таймером", () =
     act(() =>
       container.querySelector<HTMLButtonElement>('button[aria-label="Продолжить таймер"]')?.click(),
     );
+    expect(onPauseChange).toHaveBeenLastCalledWith(false);
     expect(container.querySelector('[data-testid="task-timer-pause-icon"]')).toBeNull();
     for (let second = 0; second < 7; second += 1)
       await act(async () => vi.advanceTimersByTimeAsync(1_000));

@@ -550,6 +550,12 @@ body,
   .ps-task-card {
     padding: 0;
   }
+  .ps-task-action-slot:not(:empty) {
+    position: static;
+    margin-top: 1rem;
+    padding-top: 0;
+    background: none;
+  }
 }
 
 .ps-task-interaction button:disabled {
@@ -664,6 +670,19 @@ body,
   }
   .ps-task-motion {
     height: 9rem;
+  }
+  .ps-next-step > div {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .ps-next-step > div > span:nth-of-type(2) {
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+  }
+  .ps-next-step button {
+    grid-column: 2;
+    justify-self: end;
   }
   .ps-task-card {
     padding: 0;

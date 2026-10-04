@@ -47,8 +47,8 @@ describe("персонализация протокола", () => {
       "notice_three",
       "find_color",
     ]);
-    expect(safe.assignment.protocolVersion).toBe(12);
-    expect(plannedProtocolSeconds(safe.assignment.steps, 2, 12)).toBe(40);
+    expect(safe.assignment.protocolVersion).toBe(13);
+    expect(plannedProtocolSeconds(safe.assignment.steps, 2, 13)).toBe(40);
     expect(selectHandsFreeAssignment(SAFE_WAKE_PROFILE, 5).snapshot.fallbackReason).toBe(
       "limited_eligible_tasks",
     );
@@ -170,7 +170,7 @@ describe("персонализация протокола", () => {
         }),
       );
       const selected = selectPersonalizedAssignment(candidates, fullProfile, 5).assignment;
-      expect(selected.protocolVersion).toBe(10);
+      expect(selected.protocolVersion).toBe(13);
       expect(selected.steps.length).toBeGreaterThanOrEqual(6);
       expect(selected.steps.length).toBeLessThanOrEqual(7);
       expect(
@@ -198,6 +198,34 @@ describe("персонализация протокола", () => {
         ...[taskIds.indexOf("steps"), taskIds.indexOf("shake")].filter((index) => index >= 0),
       );
       expect(warmupIndex).toBeLessThan(taskIds.indexOf("squats"));
+    }
+  });
+
+  it("сохраняет правдоподобный план 2, 5 и 10 минут в новой версии", () => {
+    const fullProfile: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: ["water", "bright_light", "floor_space"],
+    };
+    for (const duration of [2, 5, 10] as const) {
+      for (let completedSessions = 0; completedSessions < 7; completedSessions += 1) {
+        const result = selectPersonalizedAssignment(
+          learningAssignmentCandidates(completedSessions).map((candidate) => ({
+            ...candidate,
+            id: "planned",
+          })),
+          fullProfile,
+          duration,
+        );
+        const seconds = plannedProtocolSeconds(
+          result.assignment.steps,
+          duration,
+          result.assignment.protocolVersion,
+        );
+        expect(result.assignment.protocolVersion).toBe(13);
+        expect(seconds).toBeGreaterThanOrEqual(duration * 60 * 0.9);
+        expect(seconds).toBeLessThanOrEqual(duration * 60 * 1.1);
+      }
     }
   });
 
@@ -343,9 +371,13 @@ describe("персонализация протокола", () => {
       2,
     );
     const taskIds = result.assignment.steps.map(({ taskId }) => taskId);
-    expect(taskIds).toEqual(["sit_edge", "steps", "squats", "water"]);
-    expect(plannedProtocolSeconds(result.assignment.steps, 2)).toBeGreaterThanOrEqual(108);
-    expect(plannedProtocolSeconds(result.assignment.steps, 2)).toBeLessThanOrEqual(132);
+    expect(taskIds).toEqual(["sit_edge", "steps", "squats", "water", "stroop"]);
+    expect(
+      plannedProtocolSeconds(result.assignment.steps, 2, result.assignment.protocolVersion),
+    ).toBeGreaterThanOrEqual(108);
+    expect(
+      plannedProtocolSeconds(result.assignment.steps, 2, result.assignment.protocolVersion),
+    ).toBeLessThanOrEqual(132);
   });
 
   it("добавляет доступное активное действие к пяти минутам", () => {
@@ -461,7 +493,7 @@ describe("персонализация протокола", () => {
     );
     const taskIds = result.assignment.steps.map(({ taskId }) => taskId);
 
-    expect(result.assignment.protocolVersion).toBe(9);
+    expect(result.assignment.protocolVersion).toBe(13);
     expect(taskIds).toEqual(expect.arrayContaining(["cool_wash", "pushups"]));
     expect(taskIds.indexOf("sit_edge")).toBeLessThan(taskIds.indexOf("shake"));
     expect(taskIds.indexOf("shake")).toBeLessThan(taskIds.indexOf("pushups"));

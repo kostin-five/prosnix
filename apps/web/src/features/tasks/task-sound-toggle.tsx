@@ -3,10 +3,11 @@ import { Volume2, VolumeX } from "lucide-react";
 
 import {
   enableWakeSoundFromGesture,
+  muteWakeSound,
   signalTaskFeedback,
-  stopWakeProtocolSound,
   type WakeSoundMode,
 } from "./task-experience-feedback.js";
+import { stopSpeech } from "./hands-free-audio.js";
 
 export function TaskSoundToggle({
   mode,
@@ -46,7 +47,8 @@ export function TaskSoundToggle({
           disabled={busy}
           onClick={() => {
             if (mode === "on") {
-              stopWakeProtocolSound();
+              muteWakeSound();
+              stopSpeech();
               onChange("off");
             } else void enable();
           }}
@@ -68,7 +70,8 @@ export function TaskSoundToggle({
           type="button"
           aria-pressed={mode === "off"}
           onClick={() => {
-            stopWakeProtocolSound();
+            muteWakeSound();
+            stopSpeech();
             onChange("off");
           }}
           className={`min-h-11 rounded-xl px-3 text-sm font-semibold ${mode === "off" ? "bg-primary text-primary-foreground" : "bg-secondary"}`}

@@ -16,6 +16,13 @@ type AudioContextConstructor = new () => AudioContextLike;
 
 let audioContext: AudioContextLike | null = null;
 let protocolInterval: ReturnType<typeof setInterval> | null = null;
+let muted = false;
+const activeOscillators = new Set<OscillatorNode>();
+
+function trackOscillator(oscillator: OscillatorNode): void {
+  activeOscillators.add(oscillator);
+  oscillator.onended = () => activeOscillators.delete(oscillator);
+}
 
 function audioContextConstructor(): AudioContextConstructor | undefined {
   const audioWindow = window as typeof window & {
@@ -33,7 +40,9 @@ export async function enableWakeSoundFromGesture(): Promise<boolean> {
     if (!AudioContextClass) return false;
     audioContext ??= new AudioContextClass();
     if (audioContext.state === "suspended") await audioContext.resume?.();
-    return audioContext.state === undefined || audioContext.state === "running";
+    const ready = audioContext.state === undefined || audioContext.state === "running";
+    if (ready) muted = false;
+    return ready;
   } catch {
     audioContext = null;
     return false;
@@ -41,7 +50,8 @@ export async function enableWakeSoundFromGesture(): Promise<boolean> {
 }
 
 function playProtocolCue(ambient = false): boolean {
-  if (!audioContext || (audioContext.state && audioContext.state !== "running")) return false;
+  if (muted || !audioContext || (audioContext.state && audioContext.state !== "running"))
+    return false;
   try {
     const now = audioContext.currentTime;
     for (const [offset, frequency] of ambient
@@ -55,6 +65,7 @@ function playProtocolCue(ambient = false): boolean {
           [0.44, 659],
         ]) {
       const oscillator = audioContext.createOscillator();
+      trackOscillator(oscillator);
       const gain = audioContext.createGain();
       oscillator.type = "sine";
       oscillator.frequency.setValueAtTime(frequency, now + offset);
@@ -74,7 +85,8 @@ function playProtocolCue(ambient = false): boolean {
 
 export function startWakeProtocolSound(ambient = false): boolean {
   if (protocolInterval) return true;
-  if (!audioContext || (audioContext.state && audioContext.state !== "running")) return false;
+  if (muted || !audioContext || (audioContext.state && audioContext.state !== "running"))
+    return false;
   if (!playProtocolCue(ambient)) return false;
   protocolInterval = setInterval(
     () => {
@@ -88,12 +100,27 @@ export function startWakeProtocolSound(ambient = false): boolean {
 export function stopWakeProtocolSound(): void {
   if (protocolInterval) clearInterval(protocolInterval);
   protocolInterval = null;
+  for (const oscillator of activeOscillators) {
+    try {
+      oscillator.stop();
+      oscillator.disconnect();
+    } catch {
+      // The tone may already have stopped.
+    }
+  }
+  activeOscillators.clear();
+}
+
+export function muteWakeSound(): void {
+  muted = true;
+  stopWakeProtocolSound();
 }
 
 function playTone(kind: TaskFeedbackKind): void {
   if (!audioContext) return;
   try {
     const oscillator = audioContext.createOscillator();
+    trackOscillator(oscillator);
     const gain = audioContext.createGain();
     const now = audioContext.currentTime;
     const frequency =
@@ -114,14 +141,15 @@ function playTone(kind: TaskFeedbackKind): void {
 
 export function signalTaskFeedback(kind: TaskFeedbackKind, soundMode: WakeSoundMode): void {
   triggerTelegramHaptic(kind);
-  if (soundMode === "on") playTone(kind);
+  if (soundMode === "on" && !muted) playTone(kind);
 }
 
 export function playCountdownTick(soundMode: WakeSoundMode): void {
-  if (soundMode !== "on" || !audioContext) return;
+  if (soundMode !== "on" || muted || !audioContext) return;
   try {
     const now = audioContext.currentTime;
     const oscillator = audioContext.createOscillator();
+    trackOscillator(oscillator);
     const gain = audioContext.createGain();
     oscillator.type = "sine";
     oscillator.frequency.setValueAtTime(880, now);
@@ -140,4 +168,5 @@ export function playCountdownTick(soundMode: WakeSoundMode): void {
 export function resetWakeSoundForTests(): void {
   stopWakeProtocolSound();
   audioContext = null;
+  muted = false;
 }
