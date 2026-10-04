@@ -17,7 +17,6 @@ export function TaskTimerVisual({
   const complete = remaining <= 0;
   const progress = total <= 0 ? 1 : Math.min(1, Math.max(0, (total - remaining) / total));
   const circumference = 2 * Math.PI * 54;
-  const lightTask = taskId === "window" || taskId === "curtains";
 
   return (
     <div
@@ -33,14 +32,8 @@ export function TaskTimerVisual({
               : `Осталось ${remaining} секунд`
       }
       data-testid="task-timer-visual"
+      data-task-id={taskId}
     >
-      {lightTask && (
-        <div
-          data-testid="task-timer-light"
-          className="absolute inset-4 rounded-full bg-amber-400/15 blur-xl motion-safe:animate-pulse"
-          aria-hidden="true"
-        />
-      )}
       <svg className="absolute inset-0 -rotate-90" viewBox="0 0 128 128" aria-hidden="true">
         <circle
           cx="64"
@@ -67,19 +60,20 @@ export function TaskTimerVisual({
       <div
         className={`relative flex flex-col items-center ${complete ? "text-green-400" : "text-primary"}`}
       >
-        {paused && !complete && (
-          <Pause
-            data-testid="task-timer-pause-icon"
-            className="mb-1 h-5 w-5 fill-current"
-            aria-hidden="true"
-          />
-        )}
         {complete ? (
           <Check className="h-9 w-9" strokeWidth={2.5} />
+        ) : paused ? (
+          <Pause
+            data-testid="task-timer-pause-icon"
+            className="h-12 w-12 fill-current"
+            aria-hidden="true"
+          />
         ) : (
           <span className="text-4xl font-black tabular-nums">{remaining}</span>
         )}
-        {!complete && <span className="text-[11px] font-medium text-muted-foreground">секунд</span>}
+        {!complete && !paused && (
+          <span className="text-[11px] font-medium text-muted-foreground">секунд</span>
+        )}
       </div>
     </div>
   );

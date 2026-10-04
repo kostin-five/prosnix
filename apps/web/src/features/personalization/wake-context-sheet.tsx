@@ -163,7 +163,14 @@ export function WakeContextSheet({
               aria-pressed={mode === value}
               className={`ps-flow-choice min-h-20 px-3 py-2 text-left ${mode === value ? "border-accent bg-accent/15" : "border-border bg-card"}`}
             >
-              <span className="block text-sm font-semibold">{label}</span>
+              <span className="flex items-center gap-1.5 text-sm font-semibold">
+                {label}
+                {value === "hands_free" && (
+                  <span className="rounded-full border border-amber-400/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-amber-300">
+                    Бета
+                  </span>
+                )}
+              </span>
               <span className="mt-1 block text-[11px] text-muted-foreground">{hint}</span>
             </button>
           ))}

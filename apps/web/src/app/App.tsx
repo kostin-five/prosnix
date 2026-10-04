@@ -1283,10 +1283,7 @@ export function TasksContainer({
           </div>
         )}
       </div>
-      <div
-        className="ps-task-card flex flex-col rounded-2xl border border-border/80 bg-card/35 p-3"
-        data-testid="task-experience-shell"
-      >
+      <div className="ps-task-card flex flex-col" data-testid="task-experience-shell">
         {guidedExperience && !["math", "memory", "stroop", "reaction"].includes(id) && (
           <div className="ps-task-motion mb-2 h-24 shrink-0" data-testid="task-motion-region">
             <Suspense fallback={<div className="h-24 rounded-2xl bg-secondary/40" />}>
@@ -1802,7 +1799,7 @@ function StatsScreen({
         <p className="mt-2 text-xs text-muted-foreground">
           {progressKnown
             ? evidenceCount > 0
-              ? `По ${evidenceCount} завершённым пробуждениям · оценка из 10`
+              ? `По ${evidenceCount} пробуждениям · пункты шкалы 1–10`
               : "Появится после первого завершённого пробуждения"
             : "Подсчитываем среднее изменение…"}
         </p>
@@ -1892,12 +1889,28 @@ function StatsScreen({
           ) : coach.status === "ready" ? (
             coach.insight.insight ? (
               <>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  {coach.insight.source === "provider"
+                    ? "AI-разбор"
+                    : coach.insight.source === "cache"
+                      ? "Сохранённый разбор"
+                      : "Разбор по данным"}
+                </p>
                 <p className="text-xs font-semibold uppercase tracking-wide text-accent">
                   Главный вывод
                 </p>
                 <p className="mt-1 text-sm leading-relaxed">{coach.insight.insight.summary}</p>
+                <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-accent">
+                  Что проверить в следующий раз
+                </p>
+                <p className="mt-1 text-sm leading-relaxed">
+                  {coach.insight.insight.nextExperiment}
+                </p>
                 <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                  {coach.insight.insight.caveat}
+                  {coach.insight.insight.caveat.replace(
+                    /^Базовый отчёт основан на \d+ сессиях?\.\s*/,
+                    "",
+                  )}
                 </p>
                 {coach.insight.limitReached && (
                   <p className="mt-2 text-xs text-muted-foreground">

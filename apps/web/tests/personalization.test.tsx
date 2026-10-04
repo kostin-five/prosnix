@@ -104,6 +104,8 @@ describe("персонализация пробуждения", () => {
       ),
     );
     act(() => findButton(container, "Могу выполнять любые упражнения").click());
+    await act(async () => findButton(container, "Сохранить возможности").click());
+    act(() => findButton(container, "Упражнения").click());
     act(() => findButton(container, "Приседания").click());
     await act(async () => findButton(container, "Сохранить возможности").click());
     expect(onProfileSave).toHaveBeenCalledWith(
@@ -120,7 +122,6 @@ describe("персонализация пробуждения", () => {
         />,
       ),
     );
-    act(() => findButton(container, "Развернуть").click());
     act(() => findButton(container, "Добавить пункт").click());
     const input = container.querySelector<HTMLInputElement>('input[aria-label="Пункт рутины 1"]');
     if (!input) throw new Error("Routine input not found");
@@ -165,9 +166,33 @@ describe("персонализация пробуждения", () => {
     );
 
     act(() => findButton(container, "Могу выполнять любые упражнения").click());
+    await act(async () => findButton(container, "Сохранить возможности").click());
+    act(() => findButton(container, "Упражнения").click());
     expect(findButton(container, "Отжимания").disabled).toBe(true);
     act(() => findButton(container, "Можно активные упражнения").click());
     expect(findButton(container, "Отжимания").disabled).toBe(false);
+    await act(async () => findButton(container, "Сохранить возможности").click());
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ availableResources: ["active_movement"] }),
+    );
+    act(() =>
+      root.render(
+        <CapabilityProfileCard
+          catalogV9Enabled
+          profile={{
+            movementLevel: "full",
+            availableResources: ["active_movement"],
+            excludedTaskIds: [],
+            defaultDurationMinutes: 5,
+            onboardingCompleted: true,
+            revision: 2,
+          }}
+          saving={false}
+          onSave={onSave}
+        />,
+      ),
+    );
+    act(() => findButton(container, "Условия").click());
     act(() => findButton(container, "Можно умыться").click());
     await act(async () => findButton(container, "Сохранить возможности").click());
 
@@ -196,16 +221,20 @@ describe("персонализация пробуждения", () => {
         />,
       ),
     );
-    expect(container.textContent).toContain("доступно ресурсов: 2");
+    expect(container.textContent).toContain("Условия2 доступно");
     expect(container.querySelector('select[aria-label="Допустимое движение"]')).toBeNull();
-    act(() => findButton(container, "Изменить").click());
+    act(() => findButton(container, "Движение").click());
     expect(container.querySelector('select[aria-label="Допустимое движение"]')).toBeNull();
     expect(findButton(container, "Только лёгкое движение").getAttribute("aria-pressed")).toBe(
       "true",
     );
+    act(() => findButton(container, "‹ Все возможности").click());
+    act(() => findButton(container, "Упражнения").click());
     expect(container.textContent).toContain("Пройтись");
     expect(container.textContent).toContain("Мягкая разминка");
     expect(container.textContent).not.toContain("Пять спокойных повторений");
+    act(() => findButton(container, "‹ Все возможности").click());
+    act(() => findButton(container, "Условия").click());
     expect(container.textContent).toContain("Яркий свет");
     expect(container.textContent).not.toContain("Шторы");
   });

@@ -135,7 +135,7 @@ export function CapabilityProfileCard({
   return (
     <section
       ref={cardRef}
-      className={wizard ? "min-w-0 max-w-full pb-4 pt-5" : "ps-surface mb-4 min-w-0 max-w-full p-4"}
+      className={wizard ? "min-w-0 max-w-full pb-4 pt-5" : "mb-4 min-w-0 max-w-full"}
     >
       {!wizard && (
         <>
@@ -182,27 +182,65 @@ export function CapabilityProfileCard({
         </div>
       )}
       {!editing ? (
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-secondary/60 p-3">
-          <p className="text-xs text-muted-foreground">
-            Движение:{" "}
-            {profile.movementLevel === "none"
-              ? "нет"
-              : profile.movementLevel === "light"
-                ? "лёгкое"
-                : "любое"}{" "}
-            · доступно ресурсов: {profile.availableResources.length}
-          </p>
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="min-h-10 shrink-0 rounded-xl border border-border px-3 text-xs font-semibold"
-          >
-            Изменить
-          </button>
+        <div className="mt-4 grid gap-2">
+          {(
+            [
+              [
+                "Движение",
+                profile.movementLevel === "none"
+                  ? "Без упражнений"
+                  : profile.movementLevel === "light"
+                    ? "Лёгкое"
+                    : "Любая нагрузка",
+                "steps",
+              ],
+              [
+                "Упражнения",
+                `${EXERCISES.filter(({ id, levels }) => levels.includes(profile.movementLevel) && (id !== "pushups" || (catalogV9Enabled && profile.availableResources.includes("active_movement"))) && !profile.excludedTaskIds.includes(id)).length} разрешено`,
+                "squats",
+              ],
+              ["Условия", `${profile.availableResources.length} доступно`, "window"],
+              ["Длительность", `${profile.defaultDurationMinutes} минут`, "reaction"],
+            ] as const
+          ).map(([title, detail, icon], index) => (
+            <button
+              key={title}
+              type="button"
+              onClick={() => {
+                setPage(index);
+                setEditing(true);
+              }}
+              className="ps-flow-choice flex min-h-16 items-center gap-3 px-4 py-3"
+            >
+              <TaskIcon taskId={icon} className="h-5 w-5 shrink-0 text-primary" />
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block text-sm font-semibold">{title}</span>
+                <span className="block text-xs text-muted-foreground">{detail}</span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+            </button>
+          ))}
         </div>
       ) : (
         <>
-          {(!wizard || page === 0) && (
+          {!wizard && (
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(profile);
+                setEditing(false);
+              }}
+              className="mt-4 min-h-11 text-sm font-semibold text-primary"
+            >
+              ‹ Все возможности
+            </button>
+          )}
+          {!wizard && (
+            <h3 className="mt-3 text-xl font-bold">
+              {["Движение", "Упражнения", "Условия", "Длительность"][page]}
+            </h3>
+          )}
+          {page === 0 && (
             <div className="motion-safe:animate-[onboarding-step-in_180ms_ease-out]">
               {!wizard && (
                 <p className="mt-5 text-sm font-semibold">Можешь выполнять упражнения?</p>
@@ -243,7 +281,7 @@ export function CapabilityProfileCard({
             </div>
           )}
 
-          {(!wizard || page === 1) && (
+          {page === 1 && (
             <div className="motion-safe:animate-[onboarding-step-in_180ms_ease-out]">
               {catalogV9Enabled && draft.movementLevel === "full" && (
                 <button
@@ -322,7 +360,7 @@ export function CapabilityProfileCard({
             </div>
           )}
 
-          {(!wizard || page === 2) && (
+          {page === 2 && (
             <div className="motion-safe:animate-[onboarding-step-in_180ms_ease-out]">
               {!wizard && <p className="mt-5 text-sm font-semibold">Что будет доступно рядом?</p>}
               <div className="mt-2 space-y-2">
@@ -396,7 +434,7 @@ export function CapabilityProfileCard({
             </div>
           )}
 
-          {(!wizard || page === 3) && (
+          {page === 3 && (
             <div className="motion-safe:animate-[onboarding-step-in_180ms_ease-out]">
               {!wizard && <p className="mt-5 text-sm font-semibold">Обычная длительность</p>}
               <div className={wizard ? "mt-2 space-y-3" : "mt-2 grid grid-cols-3 gap-2"}>

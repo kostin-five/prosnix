@@ -12,23 +12,22 @@ test("пользователь настраивает возможности, к
   await page.getByRole("button", { name: "Настройки" }).first().click();
   await expect(page.getByText(/персональном отчёте/i)).toHaveCount(0);
   await page.getByRole("button", { name: /Возможности Движение/ }).click();
-  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: /Движение Любая нагрузка/ }).click();
   await page.getByRole("button", { name: /Без упражнений/ }).click();
   await page.getByRole("button", { name: /Могу выполнять любые упражнения/ }).click();
+  await page.getByRole("button", { name: "Сохранить возможности" }).click();
+  await page.getByRole("button", { name: /Упражнения 3 разрешено/ }).click();
   await expect(page.getByRole("button", { name: /Приседания/ })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
+  await page.getByRole("button", { name: "‹ Все возможности" }).click();
+  await page.getByRole("button", { name: /Длительность 5 минут/ }).click();
   await page.getByRole("button", { name: /Короткий.*2 минуты/ }).click();
   await page.getByRole("button", { name: "Сохранить возможности" }).click();
 
   await page.getByRole("button", { name: "Настройки" }).first().click();
   await page.getByRole("button", { name: /Личный распорядок/ }).click();
-  await page
-    .locator("section")
-    .filter({ has: page.getByRole("heading", { name: "Рутина после пробуждения" }) })
-    .getByRole("button", { name: "Развернуть" })
-    .click();
   await page.getByRole("button", { name: "Добавить пункт" }).click();
   await page.getByLabel("Пункт рутины 1").fill("Выпить воды");
   await page.getByText("Показывать рутину").click();
@@ -98,16 +97,10 @@ test("протокол показывает крупную инструкцию 
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/?demo=1");
-  await expect(page.locator(".ps-home-orbit")).toHaveCSS("animation-name", "ps-orbit-drift");
-  expect(
-    await page.locator(".ps-home-orbit").evaluate((orbit) => {
-      const bounds = orbit.getBoundingClientRect();
-      return bounds.left >= 0 && bounds.right <= window.innerWidth;
-    }),
-  ).toBe(true);
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(page.locator(".ps-home-orbit")).toHaveCSS("animation-name", "none");
-  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect(page.locator(".ps-home-orbit")).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
   await page.getByRole("button", { name: "Попробовать пробуждение" }).click();
   await page.getByRole("button", { name: "Начать пробуждение" }).click();
   await page.getByRole("button", { name: "3", exact: true }).click();

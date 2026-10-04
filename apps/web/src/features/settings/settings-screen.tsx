@@ -81,9 +81,9 @@ export default function SettingsScreen({
         <button
           type="button"
           onClick={() => setSection(null)}
-          className="mb-5 flex min-h-11 items-center gap-2 self-start text-sm text-amber-300"
+          className="mb-5 flex min-h-14 items-center gap-2 self-start rounded-xl pr-4 text-base font-semibold text-amber-300"
         >
-          <ChevronLeft className="h-5 w-5" /> Настройки
+          <ChevronLeft className="h-6 w-6" /> Настройки
         </button>
       )}
       {!section ? (

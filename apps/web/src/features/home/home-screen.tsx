@@ -58,39 +58,22 @@ export default function HomeScreen({
   const experimentCount = demo
     ? valid.length
     : (apiProfile?.averageDelta.evidenceCount ?? serverItems.length);
-  const averageValue = demo
-    ? valid.length
-      ? valid.reduce((sum, item) => sum + item.endAlertness - item.startAlertness, 0) / valid.length
-      : null
-    : (apiProfile?.averageDelta.value ?? null);
-  const avgGain = averageValue === null ? "—" : averageValue.toFixed(1);
   const isLearning = experimentCount < 7;
   const lp = Math.min(experimentCount, 7);
 
   return (
     <div className="ps-home flex flex-1 flex-col overflow-y-auto px-5 pb-28 pt-8">
-      <header className="flex min-w-0 items-center justify-between gap-2">
+      <header className="flex min-w-0 items-center gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <span className="ps-wordmark" aria-label="Prosnix">
             Prosni<span>x</span>
           </span>
           <ProductBetaBadge className="mt-1" />
         </div>
-        <div
-          className="shrink-0 rounded-full border border-border bg-card/60 px-2.5 py-1 text-xs"
-          aria-label={
-            countKnown ? `Завершено сессий: ${experimentCount}` : "Загружаем число сессий"
-          }
-        >
-          {countKnown ? `${experimentCount} сессий` : "…"}
-        </div>
       </header>
-      <p className="ps-kicker mt-2">Больше, чем просто утро</p>
 
-      <section className="relative mt-12 mb-7" aria-labelledby="home-wake-title">
-        <div className="ps-home-orbit" aria-hidden="true" />
-        <p className="ps-kicker max-w-40 leading-relaxed">Твой день начинается здесь</p>
-        <h1 id="home-wake-title" className="ps-home-heading relative z-10 mt-5">
+      <section className="relative mb-8 mt-12" aria-labelledby="home-wake-title">
+        <h1 id="home-wake-title" className="ps-home-heading relative z-10">
           Пора проснуться
         </h1>
         <p className="relative z-10 mt-4 max-w-72 text-lg text-muted-foreground">
@@ -152,42 +135,16 @@ export default function HomeScreen({
         </div>
       </div>
 
-      <section className="ps-surface mt-4 p-4">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold">
-            {countKnown
-              ? isLearning
-                ? "Изучаем твоё пробуждение"
-                : "Первый профиль готов"
-              : "Загружаем прогресс"}
-          </p>
-          {countKnown && <span className="text-xs text-amber-300">{lp} из 7</span>}
-        </div>
-        {countKnown && isLearning && (
-          <div className="mt-3 flex gap-1.5" aria-label={`${lp} из 7 до первого профиля`}>
-            {Array.from({ length: 7 }, (_, index) => (
-              <span
-                key={index}
-                className={`h-1.5 flex-1 rounded-full ${index < lp ? "bg-amber-400" : "bg-secondary"}`}
-              />
-            ))}
-          </div>
-        )}
-        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-          {countKnown
-            ? `Среднее изменение бодрости: ${avgGain === "—" ? "пока нет данных" : `${(averageValue ?? 0) >= 0 ? "+" : ""}${avgGain} по ${experimentCount} пробуждениям`}. Наблюдения не доказывают причину изменений.`
-            : "Получаем подтверждённые данные с сервера."}
-        </p>
-      </section>
-
       {GOAL_CALIBRATION_ENABLED && (
-        <Suspense fallback={null}>
-          <MorningExperienceSlot
-            mode="due"
-            storageScope={localStorageScope}
-            onOpenSettings={onOpenSettings}
-          />
-        </Suspense>
+        <div className="mt-5">
+          <Suspense fallback={null}>
+            <MorningExperienceSlot
+              mode="due"
+              storageScope={localStorageScope}
+              onOpenSettings={onOpenSettings}
+            />
+          </Suspense>
+        </div>
       )}
     </div>
   );

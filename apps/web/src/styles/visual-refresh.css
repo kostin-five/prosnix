@@ -79,77 +79,7 @@ body,
   isolation: isolate;
   overflow-x: hidden;
   background:
-    radial-gradient(ellipse 55% 34% at 100% 17%, rgba(112, 55, 8, 0.2), transparent 74%), #0d0b09;
-}
-
-.ps-home::after {
-  position: absolute;
-  z-index: -1;
-  right: 0;
-  top: 0;
-  width: min(24rem, calc(100vw - 2.5rem));
-  aspect-ratio: 1;
-  border: 1px solid rgba(255, 168, 49, 0.14);
-  border-radius: 50%;
-  content: "";
-  pointer-events: none;
-}
-
-.ps-home-orbit {
-  position: absolute;
-  z-index: -1;
-  top: 1.2rem;
-  right: 0;
-  width: min(20rem, calc(100vw - 2.5rem));
-  aspect-ratio: 1;
-  border: 1px solid rgba(255, 174, 63, 0.23);
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.ps-home-orbit::before {
-  position: absolute;
-  top: 4.2rem;
-  right: 3.5rem;
-  width: 6rem;
-  height: 6rem;
-  border: 1px solid rgba(255, 188, 77, 0.62);
-  border-radius: 50%;
-  background: radial-gradient(circle at 38% 34%, #db8a22, #723b0b 74%);
-  box-shadow: 0 0 55px rgba(255, 147, 26, 0.2);
-  content: "";
-}
-
-.ps-home-orbit::after {
-  position: absolute;
-  top: 2.4rem;
-  left: 1.1rem;
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 50%;
-  background: #ac721f;
-  content: "";
-}
-
-@keyframes ps-orbit-drift {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes ps-orbit-breathe {
-  50% {
-    opacity: 0.55;
-    transform: scale(1.035);
-  }
-}
-
-.ps-home-orbit {
-  animation: ps-orbit-drift 28s linear infinite;
-}
-
-.ps-home::after {
-  animation: ps-orbit-breathe 12s ease-in-out infinite;
+    radial-gradient(ellipse 85% 35% at 100% 13%, rgba(112, 55, 8, 0.15), transparent 74%), #0d0b09;
 }
 
 .ps-home-heading {
@@ -377,13 +307,18 @@ body,
 }
 
 .ps-task-toolbar {
-  align-items: center;
+  align-items: flex-start;
 }
 
 .ps-task-toolbar > div {
   flex: none;
   align-items: center;
   gap: 0.4rem;
+}
+
+.ps-task-toolbar > span {
+  max-width: 8rem;
+  line-height: 1.35;
 }
 
 .ps-task-toolbar button {
@@ -430,17 +365,16 @@ body,
 }
 
 .ps-task-card {
-  border-color: rgba(255, 204, 128, 0.17);
-  background:
-    radial-gradient(ellipse 80% 42% at 50% 14%, rgba(90, 51, 16, 0.16), transparent 85%), #14110e;
-  border-radius: 1.55rem;
-  padding: 0.9rem;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
   animation: ps-enter 220ms ease-out;
 }
 
 .ps-task-motion {
-  height: clamp(9.5rem, 23vh, 12.5rem);
-  margin-bottom: 0.8rem;
+  height: clamp(11rem, 28vh, 16rem);
+  margin-bottom: 0.55rem;
 }
 
 .ps-task-motion figure {
@@ -462,6 +396,7 @@ body,
   width: 100%;
   height: 100%;
   object-fit: contain;
+  object-position: center center;
 }
 
 .ps-task-illustration::before,
@@ -493,12 +428,9 @@ body,
 }
 
 .ps-task-symbol {
-  width: 7.5rem;
-  height: 7.5rem;
-  border: 1px solid rgba(255, 181, 65, 0.25);
-  border-radius: 2.3rem;
-  background: radial-gradient(circle, rgba(105, 61, 18, 0.45), rgba(24, 19, 15, 0.8) 70%);
-  box-shadow: 0 0 50px rgba(255, 161, 28, 0.08);
+  width: 6rem;
+  height: 6rem;
+  color: #ffad37;
 }
 
 @keyframes ps-first-phase {
@@ -612,11 +544,11 @@ body,
     margin-bottom: 0.35rem;
   }
   .ps-task-motion {
-    height: 7rem;
+    height: 9rem;
     margin-bottom: 0.4rem;
   }
   .ps-task-card {
-    padding: 0.7rem;
+    padding: 0;
   }
 }
 
@@ -734,7 +666,7 @@ body,
     height: 9rem;
   }
   .ps-task-card {
-    padding: 0.7rem;
+    padding: 0;
   }
   .ps-rating-panel {
     padding-inline: 0.6rem;
@@ -745,8 +677,6 @@ body,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ps-home-orbit,
-  .ps-home::after,
   .ps-task-illustration::before,
   .ps-task-illustration::after {
     animation: none;
@@ -760,6 +690,23 @@ body,
   }
   .ps-task-interaction button {
     transition: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .ps-home,
+  .ps-settings,
+  .ps-stats,
+  .ps-flow,
+  .ps-protocol {
+    scrollbar-width: none;
+  }
+  .ps-home::-webkit-scrollbar,
+  .ps-settings::-webkit-scrollbar,
+  .ps-stats::-webkit-scrollbar,
+  .ps-flow::-webkit-scrollbar,
+  .ps-protocol::-webkit-scrollbar {
+    display: none;
   }
 }
 

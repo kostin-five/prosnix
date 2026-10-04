@@ -15,7 +15,6 @@ export function WakeRoutineCard({
 }) {
   const [items, setItems] = React.useState(routine.items);
   const [enabled, setEnabled] = React.useState(routine.enabled);
-  const [expanded, setExpanded] = React.useState(false);
   const [feedback, setFeedback] = React.useState<string | null>(null);
   React.useEffect(() => {
     setItems(routine.items);
@@ -47,109 +46,88 @@ export function WakeRoutineCard({
       <div className="flex items-center gap-2">
         <TaskIcon taskId="window" className="h-4 w-4 text-accent" />
         <h2 className="text-sm font-semibold">Рутина после пробуждения</h2>
-        <button
-          type="button"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((current) => !current)}
-          className="ml-auto min-h-11 rounded-xl px-2 text-xs font-semibold text-accent"
-        >
-          {expanded ? "Свернуть" : "Развернуть"}
-        </button>
       </div>
-      {!expanded ? (
+      <>
         <p className="mt-2 text-xs text-muted-foreground">
-          {enabled && items.length
-            ? `${items.length} пунктов · покажем после измерения`
-            : "Не настроена · можно добавить позже"}
+          Необязательный чек-лист после измерения. На аналитику не влияет.
         </p>
-      ) : (
-        <>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Необязательный чек-лист после измерения. На аналитику не влияет.
-          </p>
-          <label className="mt-4 flex min-h-11 items-center justify-between rounded-xl bg-secondary px-3 text-sm">
-            <span>Показывать рутину</span>
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={(event) => setEnabled(event.target.checked)}
-            />
-          </label>
-          <div className="mt-3 space-y-2">
-            {items.map((item, index) => (
-              <div
-                key={item.id}
-                className="flex flex-col gap-2 rounded-xl border border-border p-2"
-              >
-                <input
-                  aria-label={`Пункт рутины ${index + 1}`}
-                  value={item.title}
-                  maxLength={80}
-                  onChange={(event) =>
-                    setItems(
-                      items.map((current) =>
-                        current.id === item.id
-                          ? { ...current, title: event.target.value }
-                          : current,
-                      ),
-                    )
-                  }
-                  placeholder="Например, выпить воды"
-                  className="min-h-12 w-full rounded-xl border border-border bg-secondary px-4 text-sm text-foreground placeholder:text-muted-foreground"
-                />
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    aria-label={`Поднять пункт ${index + 1}`}
-                    disabled={index === 0}
-                    onClick={() => move(index, -1)}
-                    className="min-h-10 min-w-10 rounded-xl border border-border disabled:opacity-30"
-                  >
-                    <span aria-hidden="true">↑</span>
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Опустить пункт ${index + 1}`}
-                    disabled={index === items.length - 1}
-                    onClick={() => move(index, 1)}
-                    className="min-h-10 min-w-10 rounded-xl border border-border disabled:opacity-30"
-                  >
-                    <span aria-hidden="true">↓</span>
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Удалить пункт"
-                    onClick={() => setItems(items.filter((current) => current.id !== item.id))}
-                    className="min-h-10 min-w-10 rounded-xl border border-border"
-                  >
-                    <span aria-hidden="true">×</span>
-                  </button>
-                </div>
+        <label className="mt-4 flex min-h-11 items-center justify-between rounded-xl bg-secondary px-3 text-sm">
+          <span>Показывать рутину</span>
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(event) => setEnabled(event.target.checked)}
+          />
+        </label>
+        <div className="mt-3 space-y-2">
+          {items.map((item, index) => (
+            <div key={item.id} className="flex flex-col gap-2 rounded-xl border border-border p-2">
+              <input
+                aria-label={`Пункт рутины ${index + 1}`}
+                value={item.title}
+                maxLength={80}
+                onChange={(event) =>
+                  setItems(
+                    items.map((current) =>
+                      current.id === item.id ? { ...current, title: event.target.value } : current,
+                    ),
+                  )
+                }
+                placeholder="Например, выпить воды"
+                className="min-h-12 w-full rounded-xl border border-border bg-secondary px-4 text-sm text-foreground placeholder:text-muted-foreground"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  aria-label={`Поднять пункт ${index + 1}`}
+                  disabled={index === 0}
+                  onClick={() => move(index, -1)}
+                  className="min-h-10 min-w-10 rounded-xl border border-border disabled:opacity-30"
+                >
+                  <span aria-hidden="true">↑</span>
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Опустить пункт ${index + 1}`}
+                  disabled={index === items.length - 1}
+                  onClick={() => move(index, 1)}
+                  className="min-h-10 min-w-10 rounded-xl border border-border disabled:opacity-30"
+                >
+                  <span aria-hidden="true">↓</span>
+                </button>
+                <button
+                  type="button"
+                  aria-label="Удалить пункт"
+                  onClick={() => setItems(items.filter((current) => current.id !== item.id))}
+                  className="min-h-10 min-w-10 rounded-xl border border-border"
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
               </div>
-            ))}
-          </div>
-          {items.length < 5 && (
-            <button
-              onClick={add}
-              className="mt-3 flex min-h-11 items-center gap-2 text-sm font-semibold text-accent"
-            >
-              <span aria-hidden="true">+</span> Добавить пункт
-            </button>
-          )}
+            </div>
+          ))}
+        </div>
+        {items.length < 5 && (
           <button
-            disabled={saving || items.some((item) => !item.title.trim())}
-            onClick={() => void submit()}
-            className="ps-primary-button mt-3 w-full disabled:opacity-50"
+            onClick={add}
+            className="mt-3 flex min-h-11 items-center gap-2 text-sm font-semibold text-accent"
           >
-            {saving ? "Сохраняем…" : "Сохранить рутину"}
+            <span aria-hidden="true">+</span> Добавить пункт
           </button>
-          {feedback && (
-            <p role="status" className="mt-2 text-xs text-muted-foreground">
-              {feedback}
-            </p>
-          )}
-        </>
-      )}
+        )}
+        <button
+          disabled={saving || items.some((item) => !item.title.trim())}
+          onClick={() => void submit()}
+          className="ps-primary-button mt-3 w-full disabled:opacity-50"
+        >
+          {saving ? "Сохраняем…" : "Сохранить рутину"}
+        </button>
+        {feedback && (
+          <p role="status" className="mt-2 text-xs text-muted-foreground">
+            {feedback}
+          </p>
+        )}
+      </>
     </section>
   );
 }
