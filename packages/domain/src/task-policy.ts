@@ -4,6 +4,7 @@ export const STRICT_TASK_PROTOCOL_VERSION = 3;
 export const COMPACT_FIVE_MINUTE_PROTOCOL_VERSION = 10;
 export const SHORT_OBSERVATION_PROTOCOL_VERSION = 12;
 export const REALISTIC_ACTION_TIMING_PROTOCOL_VERSION = 13;
+export const BREATHING_PROTOCOL_VERSION = 14;
 
 const REALISTIC_ESTIMATED_SECONDS: Record<WakeDurationMinutes, Partial<Record<TaskId, number>>> = {
   2: {
@@ -61,6 +62,7 @@ const BASE_ESTIMATED_SECONDS: Record<TaskId, number> = {
   pushups: 25,
   notice_three: 60,
   find_color: 60,
+  breathing: 30,
 };
 
 const TEN_MINUTE_ESTIMATED_SECONDS: Record<TaskId, number> = {
@@ -79,6 +81,7 @@ const TEN_MINUTE_ESTIMATED_SECONDS: Record<TaskId, number> = {
   pushups: 30,
   notice_three: 90,
   find_color: 90,
+  breathing: 30,
 };
 
 const COMPACT_FIVE_MINUTE_ESTIMATED_SECONDS: Record<TaskId, number> = {
@@ -97,6 +100,7 @@ const COMPACT_FIVE_MINUTE_ESTIMATED_SECONDS: Record<TaskId, number> = {
   pushups: 40,
   notice_three: 60,
   find_color: 60,
+  breathing: 30,
 };
 
 export function taskSuccessTarget(

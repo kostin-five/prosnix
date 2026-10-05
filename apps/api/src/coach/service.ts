@@ -65,6 +65,7 @@ function fingerprint(payload: CoachAggregatePayload): string {
 }
 
 const TASK_LABELS: Record<string, string> = {
+  breathing: "Спокойное дыхание",
   math: "Математика",
   memory: "Память",
   stroop: "Цвета",

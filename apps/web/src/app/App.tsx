@@ -4,7 +4,7 @@ import {
   estimatedTaskSeconds,
   taskSuccessTarget,
   HANDS_FREE_ORDER,
-  REALISTIC_ACTION_TIMING_PROTOCOL_VERSION,
+  BREATHING_PROTOCOL_VERSION,
 } from "@awc/domain";
 import {
   Home,
@@ -124,7 +124,8 @@ export type TaskId =
   | "cool_wash"
   | "pushups"
   | "notice_three"
-  | "find_color";
+  | "find_color"
+  | "breathing";
 export type TaskCategory = "cognitive" | "movement" | "behavioral" | "environment";
 export type FollowUp = "up" | "back" | "drowsy" | null;
 
@@ -234,6 +235,11 @@ export function initialProtocolScreen(
 
 // ─── Task Pool ────────────────────────────────────────────────────────────────
 const TASK_META: Record<TaskId, { category: TaskCategory; title: string; subtitle: string }> = {
+  breathing: {
+    category: "behavioral",
+    title: "Спокойное дыхание",
+    subtitle: "В удобном ритме · 30 секунд",
+  },
   math: { category: "cognitive", title: "Математика", subtitle: "Арифметика в уме" },
   memory: {
     category: "cognitive",
@@ -1278,7 +1284,8 @@ export function TasksContainer({
             id === "cool_wash" ||
             id === "pushups" ||
             id === "notice_three" ||
-            id === "find_color") && (
+            id === "find_color" ||
+            id === "breathing") && (
             <Suspense fallback={<div className="rounded-2xl bg-secondary/30" />}>
               <ConfirmTask
                 key={`${id}-${taskIndex}`}
@@ -1782,7 +1789,7 @@ function PrototypeApp({
     if (demo) {
       const ids =
         mode === "hands_free"
-          ? (["notice_three", "find_color"] as TaskId[])
+          ? (["breathing", "notice_three", "find_color"] as TaskId[])
           : selectTasks(sessions.length, sessions);
       setTaskIds(ids);
       setTaskIndex(0);
@@ -2351,8 +2358,7 @@ function PrototypeApp({
                   estimatedTaskSeconds(
                     taskId,
                     serverSession?.durationMinutes ?? activeDurationMinutes,
-                    serverSession?.assignment.protocolVersion ??
-                      REALISTIC_ACTION_TIMING_PROTOCOL_VERSION,
+                    serverSession?.assignment.protocolVersion ?? BREATHING_PROTOCOL_VERSION,
                   ),
                 0,
               )}
@@ -2374,7 +2380,7 @@ function PrototypeApp({
             taskIndex={taskIndex}
             durationMinutes={serverSession?.durationMinutes ?? activeDurationMinutes}
             protocolVersion={
-              serverSession?.assignment.protocolVersion ?? REALISTIC_ACTION_TIMING_PROTOCOL_VERSION
+              serverSession?.assignment.protocolVersion ?? BREATHING_PROTOCOL_VERSION
             }
             soundMode={soundMode}
             onSoundModeChange={setSoundMode}

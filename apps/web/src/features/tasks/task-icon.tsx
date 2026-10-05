@@ -15,9 +15,11 @@ export type TaskId =
   | "cool_wash"
   | "pushups"
   | "notice_three"
-  | "find_color";
+  | "find_color"
+  | "breathing";
 
 const ICON_PATHS: Record<TaskId, string> = {
+  breathing: "M12 3v8M9 6C5 6 3 11 3 16c0 4 5 5 7 2V9m5-3c4 0 6 5 6 10 0 4-5 5-7 2V9",
   math: "M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm1 4h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h4",
   memory:
     "M9.5 4.5A3.5 3.5 0 0 0 6 8v.4A3.5 3.5 0 0 0 5 15v.5A3.5 3.5 0 0 0 8.5 19H12V6.5a2 2 0 0 0-2.5-2Zm5 0A3.5 3.5 0 0 1 18 8v.4a3.5 3.5 0 0 1 1 6.6v.5a3.5 3.5 0 0 1-3.5 3.5H12V6.5a2 2 0 0 1 2.5-2ZM8 9h4m0 5H8m4-2h4",

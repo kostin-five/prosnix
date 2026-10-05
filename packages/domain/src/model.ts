@@ -13,7 +13,8 @@ export type TaskId =
   | "cool_wash"
   | "pushups"
   | "notice_three"
-  | "find_color";
+  | "find_color"
+  | "breathing";
 
 export type TaskCategory = "cognitive" | "movement" | "behavioral" | "environment";
 export type FollowUpOutcome = "up" | "back" | "drowsy";

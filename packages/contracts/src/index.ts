@@ -16,6 +16,7 @@ export const TASK_IDS = [
   "pushups",
   "notice_three",
   "find_color",
+  "breathing",
 ] as const;
 
 export const TASK_CATEGORIES = ["cognitive", "movement", "behavioral", "environment"] as const;
@@ -145,7 +146,7 @@ export const WakeProfileInputSchema = Type.Object(
   {
     movementLevel: MovementLevelSchema,
     availableResources: Type.Array(WakeResourceSchema, { maxItems: 5, uniqueItems: true }),
-    excludedTaskIds: Type.Array(TaskIdSchema, { maxItems: 15, uniqueItems: true }),
+    excludedTaskIds: Type.Array(TaskIdSchema, { maxItems: 16, uniqueItems: true }),
     defaultDurationMinutes: WakeDurationSchema,
     onboardingCompleted: Type.Boolean(),
   },

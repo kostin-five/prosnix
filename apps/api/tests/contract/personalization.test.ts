@@ -133,7 +133,7 @@ describe("контракт персонализации", () => {
       payload: {
         movementLevel: "none",
         availableResources: [],
-        excludedTaskIds: ["math", "memory", "stroop", "reaction"],
+        excludedTaskIds: ["breathing", "math", "memory", "stroop", "reaction"],
         defaultDurationMinutes: 5,
         onboardingCompleted: true,
       },

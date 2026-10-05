@@ -70,6 +70,7 @@ const TASK_IDS = new Set<TaskId>([
   "pushups",
   "notice_three",
   "find_color",
+  "breathing",
 ]);
 const CATEGORIES = new Set<TaskCategory>(["cognitive", "movement", "behavioral", "environment"]);
 function parseSteps(value: unknown): readonly ProtocolStep[] {

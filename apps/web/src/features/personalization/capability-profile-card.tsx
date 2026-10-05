@@ -63,6 +63,7 @@ const EXERCISES: Array<{
 ];
 
 const OTHER_TASKS: Array<[TaskId, string]> = [
+  ["breathing", "Спокойное дыхание"],
   ["math", "Математика"],
   ["memory", "Память"],
   ["stroop", "Внимание"],
@@ -328,8 +329,22 @@ export function CapabilityProfileCard({
                           key={exercise.id}
                           type="button"
                           aria-pressed={selected}
-                          onClick={() => permitted && toggleTask(exercise.id)}
-                          disabled={!permitted}
+                          onClick={() => {
+                            if (!permitted) {
+                              setDraft((current) => ({
+                                ...current,
+                                availableResources: [
+                                  ...new Set([
+                                    ...current.availableResources,
+                                    "active_movement" as const,
+                                  ]),
+                                ],
+                                excludedTaskIds: current.excludedTaskIds.filter(
+                                  (id) => id !== "pushups",
+                                ),
+                              }));
+                            } else toggleTask(exercise.id);
+                          }}
                           className={`ps-flow-choice flex min-h-20 items-center gap-3 p-3 ${selected ? "border-amber-400 bg-amber-400/10" : "border-border bg-secondary/40"} ${permitted ? "" : "opacity-55"}`}
                         >
                           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-secondary text-accent">
@@ -338,7 +353,9 @@ export function CapabilityProfileCard({
                           <span className="min-w-0 flex-1">
                             <span className="block text-sm font-semibold">{exercise.title}</span>
                             <span className="mt-0.5 block text-xs text-muted-foreground">
-                              {exercise.description}
+                              {!permitted
+                                ? "Нажми, чтобы разрешить отжимания. Во вкладке «Условия» укажи свободное место."
+                                : exercise.description}
                             </span>
                           </span>
                           <span
@@ -424,7 +441,7 @@ export function CapabilityProfileCard({
                       type="button"
                       onClick={() => toggleTask(id)}
                       aria-pressed={!excluded}
-                      className={`min-h-10 rounded-xl border px-3 text-xs ${excluded ? "border-destructive/50 bg-destructive/10 text-red-300 line-through" : "border-border bg-secondary"}`}
+                      className={`min-h-11 rounded-xl border px-3 text-xs ${excluded ? "border-destructive/50 bg-destructive/10 text-red-300 line-through" : "border-border bg-secondary"}`}
                     >
                       {label}
                     </button>

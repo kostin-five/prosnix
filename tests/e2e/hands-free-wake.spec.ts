@@ -11,6 +11,10 @@ test("режим без телефона сам завершает шаги, д�
   await expect(page.getByText(/Без телефона ·/)).toBeVisible();
   await page.getByRole("button", { name: "3", exact: true }).click();
   await page.getByRole("button", { name: /Начать протокол/ }).click();
+  await expect(page.getByRole("heading", { name: "Спокойное дыхание" })).toBeVisible();
+  await expect(page.getByText(/Не задерживай дыхание/)).toBeVisible();
+  await page.clock.runFor(30_000);
+  await page.clock.runFor(10_000);
   await expect(page.getByRole("heading", { name: "Три предмета" })).toBeVisible();
   await expect(page.getByRole("timer", { name: "Осталось 15 секунд" })).toBeVisible();
 

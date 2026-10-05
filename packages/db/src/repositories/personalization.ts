@@ -46,6 +46,7 @@ const TASK_IDS = new Set<TaskId>([
   "pushups",
   "notice_three",
   "find_color",
+  "breathing",
 ]);
 
 function stringArray<T extends string>(value: unknown, allowed?: ReadonlySet<T>): T[] {

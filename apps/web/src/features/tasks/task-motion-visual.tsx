@@ -9,8 +9,10 @@ import sitEdgeIllustration from "./illustrations/sit-edge.webp";
 import shakeIllustration from "./illustrations/shake.webp";
 import coolWashIllustration from "./illustrations/cool-wash.webp";
 import daylightIllustration from "./illustrations/daylight.webp";
+import breathingIllustration from "./illustrations/breathing.webp";
 
 const ILLUSTRATIONS: Partial<Record<TaskId, { src: string; phases: string }>> = {
+  breathing: { src: breathingIllustration, phases: "Сядь удобно · дыши в своём ритме" },
   squats: { src: squatIllustration, phases: "Стоя → присед" },
   pushups: { src: pushupIllustration, phases: "Упор → отжимание" },
   steps: { src: stepsIllustration, phases: "Шаг за шагом" },
@@ -23,6 +25,7 @@ const ILLUSTRATIONS: Partial<Record<TaskId, { src: string; phases: string }>> = 
 };
 
 const MOTION_LABELS: Record<TaskId, string> = {
+  breathing: "Дыши мягко в своём ритме",
   math: "Сфокусируйся на примере",
   memory: "Запомни последовательность",
   stroop: "Смотри на цвет букв",
@@ -87,7 +90,11 @@ export function TaskMotionVisual({ taskId }: { taskId: TaskId }) {
         />
       )}
       {illustration ? (
-        <div className="ps-task-illustration" data-testid="task-illustration">
+        <div
+          className="ps-task-illustration"
+          data-testid="task-illustration"
+          data-single-pose={taskId === "breathing" ? "true" : undefined}
+        >
           <img src={illustration.src} alt="" loading="eager" decoding="async" />
           <span>{illustration.phases}</span>
         </div>

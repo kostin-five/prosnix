@@ -455,6 +455,11 @@ body,
   line-height: 1.2;
 }
 
+.ps-task-illustration[data-single-pose="true"]::before,
+.ps-task-illustration[data-single-pose="true"]::after {
+  display: none;
+}
+
 .ps-task-symbol {
   width: 6rem;
   height: 6rem;

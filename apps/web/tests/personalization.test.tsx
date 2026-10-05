@@ -168,12 +168,16 @@ describe("персонализация пробуждения", () => {
     act(() => findButton(container, "Могу выполнять любые упражнения").click());
     await act(async () => findButton(container, "Сохранить возможности").click());
     act(() => findButton(container, "Упражнения").click());
-    expect(findButton(container, "Отжимания").disabled).toBe(true);
-    act(() => findButton(container, "Можно активные упражнения").click());
+    expect(findButton(container, "Отжимания").disabled).toBe(false);
+    act(() => findButton(container, "Отжимания").click());
     expect(findButton(container, "Отжимания").disabled).toBe(false);
     await act(async () => findButton(container, "Сохранить возможности").click());
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ availableResources: ["active_movement"] }),
+    );
+    expect(onSave.mock.calls.at(-1)?.[0]?.availableResources).not.toContain("floor_space");
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ excludedTaskIds: expect.not.arrayContaining(["pushups"]) }),
     );
     act(() =>
       root.render(

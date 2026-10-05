@@ -14,6 +14,12 @@ const GUIDED_TASK_EXPERIENCE_ENABLED =
 type ConfirmTaskId = Exclude<TaskId, "math" | "memory" | "stroop" | "reaction">;
 
 const CONFIG: Record<ConfirmTaskId, { instruction: string; countdown: number; cta: string }> = {
+  breathing: {
+    instruction:
+      "Сядь удобно и дыши мягко в своём ритме 30 секунд. Не задерживай дыхание и не старайся вдохнуть глубже. При головокружении или дискомфорте остановись и замени задание.",
+    countdown: 30,
+    cta: "Готово",
+  },
   steps: {
     instruction:
       "Встаньте и пройдитесь по комнате или коридору. Шаги не измеряются датчиком — отметьте выполнение честно после таймера.",
@@ -177,6 +183,7 @@ const FAST_ACTION_INSTRUCTIONS: Partial<Record<ConfirmTaskId, string>> = {
 };
 
 const CATEGORY: Record<ConfirmTaskId, "movement" | "behavioral" | "environment"> = {
+  breathing: "behavioral",
   steps: "movement",
   squats: "movement",
   shake: "movement",

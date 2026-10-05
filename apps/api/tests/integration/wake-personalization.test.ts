@@ -8,7 +8,7 @@ import {
   PostgresWakePersonalizationRepository,
   sql,
 } from "@awc/db";
-import { taskSuccessTarget } from "@awc/domain";
+import { plannedProtocolSeconds, taskSuccessTarget } from "@awc/domain";
 
 const databaseUrl = process.env.DATABASE_URL;
 const localDatabase = databaseUrl
@@ -50,7 +50,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
         profile: {
           movementLevel: "light",
           availableResources: ["water"],
-          excludedTaskIds: ["squats"],
+          excludedTaskIds: ["squats", "breathing"],
           defaultDurationMinutes: 2,
           onboardingCompleted: true,
         },
@@ -65,13 +65,14 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           profile: {
             movementLevel: "light",
             availableResources: ["water"],
-            excludedTaskIds: ["squats"],
+            excludedTaskIds: ["squats", "breathing"],
             defaultDurationMinutes: 2,
             onboardingCompleted: true,
           },
           now: new Date("2026-09-04T06:00:01.000Z"),
         }),
       ).resolves.toEqual(savedProfile);
+      expect((await personalization.loadProfile(user.id)).excludedTaskIds).toContain("breathing");
 
       await personalization.saveRoutine({
         userId: user.id,
@@ -99,9 +100,10 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
       expect(session).toMatchObject({
         wakeContext: "short_nap",
         durationMinutes: 2,
-        personalization: { profileRevision: 1, excludedTaskIds: ["squats"] },
+        personalization: { profileRevision: 1, excludedTaskIds: ["squats", "breathing"] },
       });
       expect(session.assignment.steps.every(({ taskId }) => taskId !== "squats")).toBe(true);
+      expect(session.assignment.steps.some(({ taskId }) => taskId === "breathing")).toBe(false);
 
       session = (
         await commands.execute({
@@ -343,8 +345,13 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           },
         })
       ).session;
-      expect(session.assignment.protocolVersion).toBe(8);
-      expect(session.assignment.steps).toHaveLength(10);
+      expect(session.assignment.protocolVersion).toBe(14);
+      expect(
+        plannedProtocolSeconds(session.assignment.steps, 10, session.assignment.protocolVersion),
+      ).toBeGreaterThanOrEqual(540);
+      expect(
+        plannedProtocolSeconds(session.assignment.steps, 10, session.assignment.protocolVersion),
+      ).toBeLessThanOrEqual(660);
       expect(session.assignment.steps.map(({ taskId }) => taskId)).not.toContain("curtains");
 
       session = (
@@ -459,7 +466,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
         })
       ).session;
 
-      expect(session.assignment.protocolVersion).toBe(9);
+      expect(session.assignment.protocolVersion).toBe(14);
       expect(session.assignment.steps.map(({ taskId }) => taskId)).toEqual(
         expect.arrayContaining(["pushups"]),
       );

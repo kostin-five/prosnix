@@ -46,11 +46,12 @@ describe("персонализация протокола", () => {
   it("назначает безэкранный режим без запрещённых ресурсов и экранных тестов", () => {
     const safe = selectHandsFreeAssignment(SAFE_WAKE_PROFILE, 2);
     expect(safe.assignment.steps.map(({ taskId }) => taskId)).toEqual([
+      "breathing",
       "notice_three",
       "find_color",
     ]);
-    expect(safe.assignment.protocolVersion).toBe(13);
-    expect(plannedProtocolSeconds(safe.assignment.steps, 2, 13)).toBe(40);
+    expect(safe.assignment.protocolVersion).toBe(14);
+    expect(plannedProtocolSeconds(safe.assignment.steps, 2, 13)).toBe(70);
     expect(selectHandsFreeAssignment(SAFE_WAKE_PROFILE, 5).snapshot.fallbackReason).toBe(
       "limited_eligible_tasks",
     );
@@ -203,7 +204,7 @@ describe("персонализация протокола", () => {
         }),
       );
       const selected = selectPersonalizedAssignment(candidates, fullProfile, 5).assignment;
-      expect(selected.protocolVersion).toBe(13);
+      expect(selected.protocolVersion).toBe(14);
       expect(selected.steps.length).toBeGreaterThanOrEqual(6);
       expect(selected.steps.length).toBeLessThanOrEqual(7);
       expect(
@@ -255,7 +256,7 @@ describe("персонализация протокола", () => {
           duration,
           result.assignment.protocolVersion,
         );
-        expect(result.assignment.protocolVersion).toBe(13);
+        expect(result.assignment.protocolVersion).toBe(14);
         expect(seconds).toBeGreaterThanOrEqual(duration * 60 * 0.9);
         expect(seconds).toBeLessThanOrEqual(duration * 60 * 1.1);
       }
@@ -374,7 +375,7 @@ describe("персонализация протокола", () => {
         ...profile,
         movementLevel: "none",
         availableResources: [],
-        excludedTaskIds: ["math", "memory", "stroop", "reaction"],
+        excludedTaskIds: ["breathing", "math", "memory", "stroop", "reaction"],
       }),
     ).toEqual([]);
   });
@@ -526,7 +527,7 @@ describe("персонализация протокола", () => {
     );
     const taskIds = result.assignment.steps.map(({ taskId }) => taskId);
 
-    expect(result.assignment.protocolVersion).toBe(13);
+    expect(result.assignment.protocolVersion).toBe(14);
     expect(taskIds).toEqual(expect.arrayContaining(["cool_wash", "pushups"]));
     expect(taskIds.indexOf("sit_edge")).toBeLessThan(taskIds.indexOf("shake"));
     expect(taskIds.indexOf("shake")).toBeLessThan(taskIds.indexOf("pushups"));
@@ -611,8 +612,8 @@ describe("персонализация протокола", () => {
     ).assignment.steps.map(({ taskId }) => taskId);
 
     expect(taskIds).toEqual(expect.arrayContaining(["math", "memory", "stroop"]));
-    expect(taskIds).toHaveLength(3);
-    expect(new Set(taskIds)).toHaveLength(3);
+    expect(taskIds).toHaveLength(4);
+    expect(new Set(taskIds)).toHaveLength(4);
   });
 
   it("выбирает консервативный fallback без нарушения явных запретов", () => {
@@ -621,7 +622,12 @@ describe("персонализация протокола", () => {
       { ...profile, movementLevel: "none", availableResources: [], excludedTaskIds: ["reaction"] },
       2,
     );
-    expect(result.assignment.steps.map(({ taskId }) => taskId)).toEqual(["stroop", "math"]);
+    expect(
+      result.assignment.steps.every(({ taskId }) =>
+        eligibleWakeTasks({ ...SAFE_WAKE_PROFILE, excludedTaskIds: ["reaction"] }).includes(taskId),
+      ),
+    ).toBe(true);
+    expect(result.assignment.steps.some(({ taskId }) => taskId === "breathing")).toBe(true);
     expect(result.assignment.phase).toBe("fallback");
   });
 
@@ -688,5 +694,31 @@ describe("персонализация протокола", () => {
     });
 
     expect(steps).toEqual([]);
+  });
+});
+
+describe("каталог дыхания v14", () => {
+  it("учитывает исключение и не вставляет дыхание в старую сессию", () => {
+    expect(eligibleWakeTasks(SAFE_WAKE_PROFILE)).toContain("breathing");
+    expect(
+      eligibleWakeTasks({ ...SAFE_WAKE_PROFILE, excludedTaskIds: ["breathing"] }),
+    ).not.toContain("breathing");
+    const input = {
+      steps: [{ index: 0, taskId: "math" as const, category: "cognitive" as const }],
+      targetIndex: 0,
+      currentStepIndex: 0,
+      completedTaskIds: [],
+      rejectedTaskIds: [],
+      profile: {
+        ...SAFE_WAKE_PROFILE,
+        excludedTaskIds: ["memory", "reaction", "stroop", "notice_three", "find_color"] as TaskId[],
+      },
+      durationMinutes: 2 as const,
+      reason: "unwilling_now" as const,
+    };
+    expect(selectTaskSubstitution({ ...input, protocolVersion: 13 })).toBeNull();
+    expect(selectTaskSubstitution({ ...input, protocolVersion: 14 })?.replacementTaskId).toBe(
+      "breathing",
+    );
   });
 });

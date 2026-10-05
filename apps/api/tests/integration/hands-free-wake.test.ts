@@ -3,9 +3,11 @@ import { afterAll, describe, expect, it } from "vitest";
 import {
   connectDatabase,
   PostgresSessionCommandRepository,
+  PostgresSessionHistoryRepository,
   PostgresUserDeletionRepository,
   taskObservations,
 } from "@awc/db";
+import { estimatedTaskSeconds } from "@awc/domain";
 
 const databaseUrl = process.env.DATABASE_URL;
 const localDatabase = databaseUrl
@@ -47,8 +49,9 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL hands-free wak
       },
     });
     expect(created.session.experience?.interactionMode).toBe("hands_free");
-    expect(created.session.assignment.protocolVersion).toBe(13);
+    expect(created.session.assignment.protocolVersion).toBe(14);
     expect(created.session.assignment.steps.map(({ taskId }) => taskId)).toEqual([
+      "breathing",
       "notice_three",
       "find_color",
     ]);
@@ -73,23 +76,64 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)("PostgreSQL hands-free wak
       userId: user.id,
       operationId: "hands-free-task-1",
       requestHash: "hands-free-task-hash",
-      observedAt: new Date("2026-09-30T04:00:25.000Z"),
+      observedAt: new Date("2026-09-30T04:00:40.000Z"),
       command: {
         type: "task",
         sessionId: created.session.id,
         expectedVersion: baseline.session.version,
         stepIndex: 0,
-        taskId: "notice_three",
+        taskId: "breathing",
         correct: 1,
         total: 1,
-        durationMs: 15_000,
+        durationMs: 30_000,
         completionSource: "timer",
       },
     });
-    expect(first.session.tasks[0]?.completionSource).toBe("timer");
     const rows = await database.db.select().from(taskObservations);
     expect(rows.find(({ sessionId }) => sessionId === created.session.id)?.completionSource).toBe(
       "timer",
     );
+    let current = first.session;
+    let observedMs = Date.parse("2026-09-30T04:00:40.000Z");
+    for (const step of current.assignment.steps.slice(1)) {
+      const seconds = estimatedTaskSeconds(step.taskId, 2, current.assignment.protocolVersion);
+      observedMs += seconds * 1_000;
+      current = (
+        await commands.execute({
+          userId: user.id,
+          operationId: `hands-free-task-${step.index + 1}`,
+          requestHash: `hands-free-task-hash-${step.index + 1}`,
+          observedAt: new Date(observedMs),
+          command: {
+            type: "task",
+            sessionId: current.id,
+            expectedVersion: current.version,
+            stepIndex: step.index,
+            taskId: step.taskId,
+            correct: 1,
+            total: 1,
+            durationMs: seconds * 1_000,
+            completionSource: "timer",
+          },
+        })
+      ).session;
+    }
+    await commands.execute({
+      userId: user.id,
+      operationId: "hands-free-post",
+      requestHash: "hands-free-post-hash",
+      observedAt: new Date(observedMs + 1_000),
+      command: {
+        type: "post_rating",
+        sessionId: current.id,
+        expectedVersion: current.version,
+        value: 5,
+      },
+    });
+    const history = await new PostgresSessionHistoryRepository(database.db).listCompleted(
+      user.id,
+      5,
+    );
+    expect(history[0]?.tasks.map(({ taskId }) => taskId)).toContain("breathing");
   });
 });

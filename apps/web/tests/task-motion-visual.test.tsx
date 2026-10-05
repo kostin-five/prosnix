@@ -6,6 +6,7 @@ import { TaskMotionVisual } from "../src/features/tasks/task-motion-visual.js";
 import type { TaskId } from "../src/features/tasks/task-icon.js";
 
 const TASK_IDS: TaskId[] = [
+  "breathing",
   "math",
   "memory",
   "stroop",
@@ -71,6 +72,22 @@ describe("визуальное сопровождение заданий", () =>
     expect(visual?.innerHTML).not.toContain("animate-bounce");
     expect(visual?.innerHTML).not.toContain("animate-ping");
     expect(visual?.querySelector('[data-testid="task-illustration"] img')).not.toBeNull();
+  });
+
+  it("показывает фото разминки с понятными фазами движения", () => {
+    useReducedMotion(true);
+    act(() => root.render(<TaskMotionVisual taskId="shake" />));
+    expect(container.querySelector('[data-testid="task-illustration"] img')).not.toBeNull();
+    expect(container.textContent).toContain("Опусти руки → мягко подними");
+    expect(container.querySelector(".ps-human-motion")).toBeNull();
+  });
+
+  it("показывает фотографию дыхания без смены фаз и заданного темпа", () => {
+    act(() => root.render(<TaskMotionVisual taskId="breathing" />));
+    const visual = container.querySelector('[data-testid="task-illustration"]');
+    expect(visual?.querySelector("img")).not.toBeNull();
+    expect(visual?.getAttribute("data-single-pose")).toBe("true");
+    expect(container.textContent).toContain("дыши в своём ритме");
   });
 
   it("показывает две фазы приседания", () => {

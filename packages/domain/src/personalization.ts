@@ -9,7 +9,7 @@ import type {
   WakePersonalizationSnapshot,
   WakeContext,
 } from "./model.js";
-import { REALISTIC_ACTION_TIMING_PROTOCOL_VERSION, estimatedTaskSeconds } from "./task-policy.js";
+import { BREATHING_PROTOCOL_VERSION, estimatedTaskSeconds } from "./task-policy.js";
 
 export const SAFE_WAKE_PROFILE: WakeCapabilityProfile = {
   movementLevel: "none",
@@ -31,6 +31,7 @@ const BUDGET_EXPANSION_ORDER: readonly TaskId[] = [
   "shake",
   "steps",
   "squats",
+  "breathing",
 ];
 const V9_BUDGET_EXPANSION_ORDER: readonly TaskId[] = [
   "cool_wash",
@@ -44,6 +45,7 @@ const V9_BUDGET_EXPANSION_ORDER: readonly TaskId[] = [
   "shake",
   "steps",
   "squats",
+  "breathing",
 ];
 export interface WakeTaskCatalogOptions {
   v9Enabled?: boolean;
@@ -119,6 +121,7 @@ export function eligibleWakeTasks(
 ): TaskId[] {
   return (
     [
+      "breathing",
       "math",
       "memory",
       "stroop",
@@ -143,7 +146,12 @@ export function categoryForTask(taskId: TaskId): ProtocolStep["category"] {
   ) {
     return "movement";
   }
-  if (taskId === "water" || taskId === "cool_wash" || taskId === "notice_three")
+  if (
+    taskId === "breathing" ||
+    taskId === "water" ||
+    taskId === "cool_wash" ||
+    taskId === "notice_three"
+  )
     return "behavioral";
   if (taskId === "window" || taskId === "curtains" || taskId === "find_color") return "environment";
   return "cognitive";
@@ -241,6 +249,10 @@ export function selectTaskSubstitution(input: {
     ...((input.protocolVersion ?? 0) >= 11 ? (["notice_three", "find_color"] as const) : []),
   ];
   const candidates = substitutionPool
+    .filter(
+      (taskId) =>
+        taskId !== "breathing" || (input.protocolVersion ?? 0) >= BREATHING_PROTOCOL_VERSION,
+    )
     .filter((taskId) => allowed(taskId, input.profile, input.catalog ?? {}))
     .filter((taskId) => taskId !== target.taskId && !unavailable.has(taskId))
     .filter((taskId) => keepsSafeOrder(input.steps, input.targetIndex, taskId))
@@ -365,6 +377,7 @@ export function plannedProtocolSeconds(
 }
 
 export const HANDS_FREE_ORDER: readonly TaskId[] = [
+  "breathing",
   "notice_three",
   "find_color",
   "shake",
@@ -396,11 +409,8 @@ export function selectHandsFreeAssignment(
       { index: selected.length, taskId, category: categoryForTask(taskId) },
     ]);
     if (
-      plannedProtocolSeconds(
-        candidate,
-        durationMinutes,
-        REALISTIC_ACTION_TIMING_PROTOCOL_VERSION,
-      ) <= maximumSeconds
+      plannedProtocolSeconds(candidate, durationMinutes, BREATHING_PROTOCOL_VERSION) <=
+      maximumSeconds
     ) {
       selected.splice(0, selected.length, ...candidate);
     }
@@ -408,7 +418,7 @@ export function selectHandsFreeAssignment(
   const plannedSeconds = plannedProtocolSeconds(
     selected,
     durationMinutes,
-    REALISTIC_ACTION_TIMING_PROTOCOL_VERSION,
+    BREATHING_PROTOCOL_VERSION,
   );
   const fallbackReason: WakePersonalizationSnapshot["fallbackReason"] =
     plannedSeconds < durationMinutes * 60 * 0.9
@@ -420,7 +430,7 @@ export function selectHandsFreeAssignment(
     assignment: {
       id: "pending",
       protocolKey: `hands-free-v3:${durationMinutes}m:${selected.map(({ taskId }) => taskId).join("-")}`,
-      protocolVersion: REALISTIC_ACTION_TIMING_PROTOCOL_VERSION,
+      protocolVersion: BREATHING_PROTOCOL_VERSION,
       strategyVersion: "hands-free-v1",
       phase: "fallback",
       hypothesis: "Проверяем пробуждение с голосовыми подсказками и действиями без экрана",
@@ -443,7 +453,7 @@ function planForDuration(
   rotationSeed = 0,
   options: WakeTaskCatalogOptions = {},
 ): { steps: ProtocolStep[]; belowMinimum: boolean } {
-  const protocolVersion = REALISTIC_ACTION_TIMING_PROTOCOL_VERSION;
+  const protocolVersion = BREATHING_PROTOCOL_VERSION;
   const maximumSteps = durationMinutes === 5 ? 7 : Number.POSITIVE_INFINITY;
   const minimumSeconds = durationMinutes * 60 * 0.9;
   const maximumSeconds = durationMinutes * 60 * 1.1;
@@ -630,10 +640,7 @@ export function personalizeAssignment(
   return {
     assignment: {
       ...baseAssignment,
-      protocolVersion: Math.max(
-        REALISTIC_ACTION_TIMING_PROTOCOL_VERSION,
-        assignment.protocolVersion,
-      ),
+      protocolVersion: Math.max(BREATHING_PROTOCOL_VERSION, assignment.protocolVersion),
       protocolKey: `${assignment.protocolKey}:${durationMinutes}m:${suffix}`,
       steps,
       ...(preserveComparison ? { comparison } : {}),
