@@ -63,6 +63,7 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
             wakeContext: wakeSessions.wakeContext,
             durationMinutes: wakeSessions.durationBudgetMinutes,
             completedAt: wakeSessions.protocolCompletedAt,
+            experienceSnapshot: wakeSessions.experienceSnapshot,
           })
           .from(wakeSessions)
           .innerJoin(experimentAssignments, eq(wakeSessions.assignmentId, experimentAssignments.id))
@@ -113,6 +114,11 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
             .where(inArray(sessionTaskSubstitutions.sessionId, sessionIds)),
         ]);
         evidence = sessions.flatMap((session) => {
+          if (
+            (session.experienceSnapshot as { completedEarly?: boolean } | null)?.completedEarly ===
+            true
+          )
+            return [];
           const baseline = ratings.find(
             (rating) => rating.sessionId === session.sessionId && rating.kind === "baseline",
           )?.value;

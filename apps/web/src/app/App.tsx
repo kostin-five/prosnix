@@ -1,3 +1,4 @@
+import { readTransitionPause } from "../features/tasks/transition-preference.js";
 import { ProsnixWordmark } from "../features/brand/prosnix-brand.js";
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import {
@@ -150,6 +151,7 @@ interface TaskResult {
 }
 
 export interface Session {
+  completedEarly?: boolean;
   id: string;
   date: string;
   wakeTime: string;
@@ -474,7 +476,7 @@ function computeNextPlan(sessions: Session[]): {
   rationale: string;
   isLearning: boolean;
 } {
-  const valid = sessions.filter((s) => s.endAlertness > 0);
+  const valid = sessions.filter((s) => s.endAlertness > 0 && !s.completedEarly);
   if (valid.length < 3) {
     const idx = valid.length < LEARNING_SEQ.length ? valid.length : 0;
     return {
@@ -975,6 +977,7 @@ export function TasksContainer({
   onResumeAuto = () => undefined,
   notice = null,
   onDismissNotice = () => undefined,
+  onAwakened,
 }: {
   taskIds: TaskId[];
   taskIndex: number;
@@ -993,12 +996,13 @@ export function TasksContainer({
   onResumeAuto?: () => void;
   notice?: string | null;
   onDismissNotice?: () => void;
+  onAwakened?: () => void;
 }) {
   const [protocolOpen, setProtocolOpen] = useState(false);
   const [replacementTarget, setReplacementTarget] = useState<number | null>(null);
   const [taskActionContainer, setTaskActionContainer] = useState<HTMLDivElement | null>(null);
-  const [preparingSeconds, setPreparingSeconds] = useState(
-    interactionMode === "hands_free" && taskIndex > 0 ? 10 : 0,
+  const [preparingSeconds, setPreparingSeconds] = useState<number>(
+    taskIndex > 0 ? readTransitionPause(localStorageScope, interactionMode === "hands_free") : 0,
   );
   const [preparationPaused, setPreparationPaused] = useState(false);
   const [speechUnavailable, setSpeechUnavailable] = useState(false);
@@ -1037,14 +1041,11 @@ export function TasksContainer({
     preparationPaused,
   ]);
   useEffect(() => {
-    if (
-      interactionMode !== "hands_free" ||
-      preparingSeconds === 0 ||
-      preparationPaused ||
-      autoResumeBlocked
-    )
-      return;
-    const timer = window.setTimeout(() => setPreparingSeconds((seconds) => seconds - 1), 1_000);
+    if (preparingSeconds === 0 || preparationPaused || autoResumeBlocked) return;
+    const timer = window.setTimeout(() => {
+      if (document.visibilityState === "hidden") setPreparationPaused(true);
+      else setPreparingSeconds((seconds) => seconds - 1);
+    }, 1_000);
     return () => window.clearTimeout(timer);
   }, [interactionMode, preparingSeconds, preparationPaused, autoResumeBlocked]);
   useEffect(() => {
@@ -1089,6 +1090,9 @@ export function TasksContainer({
     .slice(0, taskIndex)
     .reduce((total, seconds) => total + seconds, 0);
   const plannedRemaining =
+    preparingSeconds +
+    Math.max(0, taskIds.length - taskIndex - 1) *
+      readTransitionPause(localStorageScope, interactionMode === "hands_free") +
     (currentStepRemaining ?? plannedSeconds[taskIndex] ?? 0) +
     plannedSeconds.slice(taskIndex + 1).reduce((total, seconds) => total + seconds, 0);
   const progress = plannedTotal === 0 ? 0 : (plannedCompleted / plannedTotal) * 100;
@@ -1137,6 +1141,8 @@ export function TasksContainer({
               steps={taskIds.map((taskId) => ({ taskId, title: TASK_META[taskId].title }))}
               currentIndex={taskIndex}
               onClose={() => setProtocolOpen(false)}
+              onAwakened={onAwakened}
+              busy={submitting}
             />
           </Suspense>
         )}
@@ -1173,7 +1179,7 @@ export function TasksContainer({
           </button>
         )}
       </div>
-      {interactionMode === "hands_free" && preparingSeconds > 0 && (
+      {preparingSeconds > 0 && (
         <button
           type="button"
           onClick={() => setPreparationPaused((paused) => !paused)}
@@ -1241,69 +1247,71 @@ export function TasksContainer({
           </div>
         )}
         <div className="ps-task-interaction" data-testid="task-interaction-region">
-          {id === "math" && (
-            <MathTask
-              key={`${id}-${taskIndex}`}
-              durationMinutes={durationMinutes}
-              protocolVersion={protocolVersion}
-              onDone={completeTask}
-            />
-          )}
-          {id === "memory" && (
-            <MemoryTask
-              key={`${id}-${taskIndex}`}
-              durationMinutes={durationMinutes}
-              protocolVersion={protocolVersion}
-              onDone={completeTask}
-            />
-          )}
-          {id === "stroop" && (
-            <StroopTask
-              key={`${id}-${taskIndex}`}
-              durationMinutes={durationMinutes}
-              protocolVersion={protocolVersion}
-              onDone={completeTask}
-            />
-          )}
-          {id === "reaction" && (
-            <ReactionTask
-              key={`${id}-${taskIndex}`}
-              durationMinutes={durationMinutes}
-              protocolVersion={protocolVersion}
-              soundMode={soundMode}
-              onDone={completeTask}
-            />
-          )}
-          {(id === "steps" ||
-            id === "squats" ||
-            id === "shake" ||
-            id === "water" ||
-            id === "window" ||
-            id === "curtains" ||
-            id === "sit_edge" ||
-            id === "cool_wash" ||
-            id === "pushups" ||
-            id === "notice_three" ||
-            id === "find_color" ||
-            id === "breathing") && (
-            <Suspense fallback={<div className="rounded-2xl bg-secondary/30" />}>
-              <ConfirmTask
-                key={`${id}-${taskIndex}`}
-                taskId={id}
-                durationMinutes={durationMinutes}
-                protocolVersion={protocolVersion}
-                onRemainingChange={setCurrentStepRemaining}
-                onPauseChange={setTaskPaused}
-                soundMode={soundMode}
-                onDone={completeTask}
-                actionContainer={taskActionContainer}
-                interactionMode={interactionMode}
-                preparing={preparingSeconds > 0}
-                autoStart={
-                  interactionMode === "hands_free" && preparingSeconds === 0 && !autoResumeBlocked
-                }
-              />
-            </Suspense>
+          {preparingSeconds === 0 && (
+            <>
+              {id === "math" && (
+                <MathTask
+                  key={`${id}-${taskIndex}`}
+                  durationMinutes={durationMinutes}
+                  protocolVersion={protocolVersion}
+                  onDone={completeTask}
+                />
+              )}
+              {id === "memory" && (
+                <MemoryTask
+                  key={`${id}-${taskIndex}`}
+                  durationMinutes={durationMinutes}
+                  protocolVersion={protocolVersion}
+                  onDone={completeTask}
+                />
+              )}
+              {id === "stroop" && (
+                <StroopTask
+                  key={`${id}-${taskIndex}`}
+                  durationMinutes={durationMinutes}
+                  protocolVersion={protocolVersion}
+                  onDone={completeTask}
+                />
+              )}
+              {id === "reaction" && (
+                <ReactionTask
+                  key={`${id}-${taskIndex}`}
+                  durationMinutes={durationMinutes}
+                  protocolVersion={protocolVersion}
+                  soundMode={soundMode}
+                  onDone={completeTask}
+                />
+              )}
+              {(id === "steps" ||
+                id === "squats" ||
+                id === "shake" ||
+                id === "water" ||
+                id === "window" ||
+                id === "curtains" ||
+                id === "sit_edge" ||
+                id === "cool_wash" ||
+                id === "pushups" ||
+                id === "notice_three" ||
+                id === "find_color" ||
+                id === "breathing") && (
+                <Suspense fallback={<div className="rounded-2xl bg-secondary/30" />}>
+                  <ConfirmTask
+                    key={`${id}-${taskIndex}`}
+                    taskId={id}
+                    durationMinutes={durationMinutes}
+                    protocolVersion={protocolVersion}
+                    onRemainingChange={setCurrentStepRemaining}
+                    onPauseChange={setTaskPaused}
+                    soundMode={soundMode}
+                    onDone={completeTask}
+                    actionContainer={taskActionContainer}
+                    interactionMode={interactionMode}
+                    preparing={preparingSeconds > 0}
+                    autoStart={preparingSeconds === 0 && !autoResumeBlocked}
+                  />
+                </Suspense>
+              )}
+            </>
           )}
         </div>
         {submitting && (
@@ -1377,7 +1385,7 @@ function ResultsScreen({
         : delta >= 0
           ? "text-orange-400"
           : "text-red-400";
-  const validSessions = allSessions.filter((s) => s.endAlertness > 0);
+  const validSessions = allSessions.filter((s) => s.endAlertness > 0 && !s.completedEarly);
   const evidenceCount = demo
     ? validSessions.length
     : analytics.status === "ready"
@@ -1418,15 +1426,23 @@ function ResultsScreen({
           <Check className="w-8 h-8 text-green-400" strokeWidth={2.5} />
         </div>
         <h1 className="text-2xl font-bold mb-1">
-          {session.sessionKind === "recovery"
-            ? "Дополнительный раунд завершён"
-            : "Протокол завершён"}
+          {session.completedEarly
+            ? "Пробуждение завершено досрочно"
+            : session.sessionKind === "recovery"
+              ? "Дополнительный раунд завершён"
+              : "Протокол завершён"}
         </h1>
         <p className="text-sm text-muted-foreground">
           {new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
         </p>
       </div>
 
+      {session.completedEarly && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          Ты отметил, что уже проснулся. Сохранены только выполненные задания; этот результат не
+          участвует в сравнении полных протоколов.
+        </p>
+      )}
       {/* Before / After / Effect — main result */}
       <div className="ps-results-scores bg-card border border-border rounded-3xl p-5 mb-5">
         <div className="flex items-center justify-between">
@@ -1968,6 +1984,8 @@ function PrototypeApp({
     }
   }
 
+  const [endEarly, setEndEarly] = useState(false);
+
   async function handleEndRating(endAlertness: number) {
     setSyncError(null);
     let confirmedTasks = taskResults;
@@ -1976,7 +1994,12 @@ function PrototypeApp({
       if (!serverSession) return;
       setSyncing(true);
       try {
-        const updated = await savePostRating(serverSession.id, serverSession.version, endAlertness);
+        const updated = await savePostRating(
+          serverSession.id,
+          serverSession.version,
+          endAlertness,
+          endEarly ? "awakened" : undefined,
+        );
         setServerSession(updated);
         confirmedServerSession = updated;
         confirmedTasks = updated.tasks
@@ -2000,6 +2023,7 @@ function PrototypeApp({
     }
     const session: Session = {
       id: serverSession?.id ?? `s${Date.now()}`,
+      completedEarly: demo ? endEarly : confirmedServerSession?.experience?.completedEarly === true,
       date: new Date().toLocaleDateString("ru", { day: "numeric", month: "short" }),
       wakeTime: new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" }),
       startAlertness,
@@ -2014,6 +2038,7 @@ function PrototypeApp({
     setCompletedSession(session);
     setSessions((prev) => [...prev, session]);
     setScreen("results");
+    setEndEarly(false);
   }
 
   async function handleStartRecovery(): Promise<void> {
@@ -2394,6 +2419,12 @@ function PrototypeApp({
             substitutionEnabled={WAKE_TASK_SUBSTITUTION_ENABLED}
             onReplace={(stepIndex, reason) => void handleTaskReplacement(stepIndex, reason)}
             onDone={handleTaskDone}
+            onAwakened={() => {
+              if (!syncing) {
+                setEndEarly(true);
+                setScreen("endRating");
+              }
+            }}
           />
         )}
         {screen === "endRating" && (

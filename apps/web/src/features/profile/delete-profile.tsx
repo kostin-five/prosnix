@@ -1,3 +1,4 @@
+import { clearTransitionPause } from "../tasks/transition-preference.js";
 import { useState } from "react";
 
 import { deleteProfile } from "../../shared/api/client.js";
@@ -16,6 +17,7 @@ export function DeleteProfile({ localStorageScope }: { localStorageScope: string
       await deleteProfile();
       await clearSessionDrafts();
       clearMorningPreferences(localStorageScope);
+      clearTransitionPause(localStorageScope);
       window.location.reload();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Не удалось удалить профиль");

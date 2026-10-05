@@ -25,10 +25,7 @@ describe("подтверждаемые задания с таймером", () =
   it("не разрешает отметить воду раньше десяти секунд", async () => {
     const onDone = vi.fn();
     act(() => root.render(<ConfirmTask taskId="water" durationMinutes={5} onDone={onDone} />));
-    const start = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-      (item) => item.textContent?.trim() === "Начать",
-    );
-    act(() => start?.click());
+    expect(container.textContent).not.toContain("Начать");
 
     let confirm = [...container.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
       item.textContent?.includes("Выпил"),
@@ -56,10 +53,7 @@ describe("подтверждаемые задания с таймером", () =
   it("даёт двадцать секунд на пять приседаний", async () => {
     const onDone = vi.fn();
     act(() => root.render(<ConfirmTask taskId="squats" durationMinutes={5} onDone={onDone} />));
-    const start = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-      (item) => item.textContent?.trim() === "Начать",
-    );
-    act(() => start?.click());
+    expect(container.textContent).not.toContain("Начать");
 
     expect(container.textContent).toContain("20");
     let confirm = [...container.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
@@ -127,7 +121,7 @@ describe("подтверждаемые задания с таймером", () =
           />,
         ),
       );
-      act(() => container.querySelector<HTMLButtonElement>("button.ps-primary-button")?.click());
+      expect(container.textContent).not.toContain("Начать");
       expect(onRemainingChange).toHaveBeenCalledWith(seconds);
       for (let second = 0; second < seconds; second += 1) {
         await act(async () => vi.advanceTimersByTimeAsync(1_000));
@@ -146,10 +140,7 @@ describe("подтверждаемые задания с таймером", () =
   ] as const)("не разрешает подтвердить %s до конца таймера", async (taskId, seconds, cta) => {
     const onDone = vi.fn();
     act(() => root.render(<ConfirmTask taskId={taskId} durationMinutes={5} onDone={onDone} />));
-    const start = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-      (item) => item.textContent?.trim() === "Начать",
-    );
-    act(() => start?.click());
+    expect(container.textContent).not.toContain("Начать");
 
     expect(container.textContent).toContain(String(seconds));
     for (let second = 0; second < seconds - 1; second += 1) {

@@ -144,6 +144,9 @@ function parseExperienceSnapshot(value: unknown): WakeExperienceSnapshot {
   return {
     soundMode: soundMode === "on" || soundMode === "off" ? soundMode : "unknown",
     interactionMode: interactionMode === "hands_free" ? "hands_free" : "manual",
+    ...((value as { completedEarly?: unknown }).completedEarly === true
+      ? { completedEarly: true }
+      : {}),
   };
 }
 
@@ -337,6 +340,7 @@ async function loadSession(
   if (
     options.wakeLowEffectRecoveryEnabled &&
     session.sessionKind === "primary" &&
+    !session.experience?.completedEarly &&
     session.status === "protocol_completed" &&
     session.baseline !== null &&
     session.postRating !== null &&
@@ -397,6 +401,8 @@ async function createSession(
         wakeContext: wakeSessions.wakeContext,
         durationMinutes: wakeSessions.durationBudgetMinutes,
         completedAt: wakeSessions.protocolCompletedAt,
+        experienceSnapshot: wakeSessions.experienceSnapshot,
+        sessionKind: wakeSessions.sessionKind,
       })
       .from(wakeSessions)
       .innerJoin(experimentAssignments, eq(wakeSessions.assignmentId, experimentAssignments.id))
@@ -413,7 +419,10 @@ async function createSession(
       .orderBy(desc(wakeSessions.protocolCompletedAt))
       .limit(100),
     db
-      .select({ steps: protocolDefinitions.steps })
+      .select({
+        steps: protocolDefinitions.steps,
+        experienceSnapshot: wakeSessions.experienceSnapshot,
+      })
       .from(wakeSessions)
       .innerJoin(experimentAssignments, eq(wakeSessions.assignmentId, experimentAssignments.id))
       .innerJoin(
@@ -422,10 +431,14 @@ async function createSession(
       )
       .where(eq(wakeSessions.userId, envelope.userId))
       .orderBy(desc(wakeSessions.createdAt))
-      .limit(1),
+      .limit(100),
   ]);
-  const previousTaskIds = Array.isArray(previousAssignments[0]?.steps)
-    ? previousAssignments[0].steps.flatMap((step) =>
+  const mode = envelope.command.interactionMode === "hands_free" ? "hands_free" : "manual";
+  const previous = previousAssignments.find(
+    (row) => parseExperienceSnapshot(row.experienceSnapshot).interactionMode === mode,
+  );
+  const previousTaskIds = Array.isArray(previous?.steps)
+    ? previous.steps.flatMap((step) =>
         typeof step === "object" &&
         step !== null &&
         "taskId" in step &&
@@ -465,6 +478,12 @@ async function createSession(
             .orderBy(asc(taskObservations.protocolStepIndex)),
         ]);
   const adaptiveEvidence: AdaptiveProtocolEvidence[] = completedRows.flatMap((row) => {
+    if (
+      parseExperienceSnapshot(row.experienceSnapshot).completedEarly ||
+      row.sessionKind !== "primary" ||
+      parseExperienceSnapshot(row.experienceSnapshot).interactionMode !== mode
+    )
+      return [];
     const baseline = completedRatings.find(
       (rating) => rating.sessionId === row.sessionId && rating.kind === "baseline",
     )?.value;
@@ -509,9 +528,19 @@ async function createSession(
   const profile = mapProfile(profileRow);
   const personalized =
     envelope.command.interactionMode === "hands_free"
-      ? selectHandsFreeAssignment(profile, envelope.command.durationMinutes, {
-          v9Enabled: options.wakeTaskCatalogV9Enabled,
-        })
+      ? selectHandsFreeAssignment(
+          profile,
+          envelope.command.durationMinutes,
+          {
+            v9Enabled: options.wakeTaskCatalogV9Enabled,
+          },
+          {
+            evidence: adaptiveEvidence,
+            wakeContext: envelope.command.wakeContext,
+            completedSessions: adaptiveEvidence.length,
+          },
+          previousTaskIds,
+        )
       : selectPersonalizedAssignment(
           learningAssignmentCandidates(user.learningSessionCount).map((candidate) => ({
             ...candidate,
@@ -658,6 +687,7 @@ async function createRecoverySession(
   }
   if (
     primary.status !== "protocol_completed" ||
+    primary.experience?.completedEarly === true ||
     primary.baseline === null ||
     primary.postRating === null ||
     primary.postRating - primary.baseline > 1 ||
@@ -951,6 +981,7 @@ async function mutateSession(
         value: command.value,
         observedAt,
         followUpDelayMinutes: 15,
+        ...(command.completionReason ? { completionReason: command.completionReason } : {}),
       });
       await updateSnapshot(db, current, next, envelope.observedAt);
       await db.insert(ratingObservations).values({
@@ -964,7 +995,7 @@ async function mutateSession(
           : {}),
         operationId: envelope.operationId,
       });
-      if (current.sessionKind !== "recovery") {
+      if (current.sessionKind !== "recovery" && !next.experience?.completedEarly) {
         await db
           .update(users)
           .set({
@@ -975,6 +1006,7 @@ async function mutateSession(
       }
       if (
         options.wakeLowEffectRecoveryEnabled &&
+        !next.experience?.completedEarly &&
         current.sessionKind !== "recovery" &&
         current.baseline !== null &&
         command.value - current.baseline <= 1 &&

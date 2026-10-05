@@ -237,7 +237,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           })
         ).session;
         expect(session.assignment).toMatchObject({
-          strategyVersion: "adaptive-v7",
+          strategyVersion: "adaptive-v8",
           phase: "adaptive",
         });
         signatures.push(session.assignment.steps.map(({ taskId }) => taskId).join(","));
@@ -345,7 +345,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
           },
         })
       ).session;
-      expect(session.assignment.protocolVersion).toBe(14);
+      expect(session.assignment.protocolVersion).toBe(15);
       expect(
         plannedProtocolSeconds(session.assignment.steps, 10, session.assignment.protocolVersion),
       ).toBeGreaterThanOrEqual(540);
@@ -466,7 +466,7 @@ describe.runIf(Boolean(databaseUrl) && localDatabase)(
         })
       ).session;
 
-      expect(session.assignment.protocolVersion).toBe(14);
+      expect(session.assignment.protocolVersion).toBe(15);
       expect(session.assignment.steps.map(({ taskId }) => taskId)).toEqual(
         expect.arrayContaining(["pushups"]),
       );

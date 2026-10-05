@@ -8,8 +8,8 @@
     "start": "node dist/server.js",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:integration": "vitest run tests/integration --passWithNoTests",
+    "test": "vitest run --exclude 'tests/integration/**'",
+    "test:integration": "vitest run tests/integration --passWithNoTests --no-file-parallelism",
     "notifications:dispatch": "node --env-file-if-exists=../../.env dist/notifications/run-worker.js"
   },
   "dependencies": {

@@ -203,7 +203,7 @@ test("полный wake-up цикл подтверждается серверо�
   expect(headerAlignment.soundCenter).toBe(headerAlignment.protocolCenter);
   expect(headerAlignment.shellHeight).toBeLessThan(550);
   const taskLayout = await page
-    .getByRole("button", { name: "Начать", exact: true })
+    .getByRole("button", { name: "Готово", exact: true })
     .evaluate((button) => {
       const screen = document.scrollingElement;
       const taskScreen = document.querySelector(
@@ -221,10 +221,10 @@ test("полный wake-up цикл подтверждается серверо�
   expect(taskLayout.pageScrollHeight).toBeLessThanOrEqual(taskLayout.viewportHeight);
   expect(taskLayout.taskScrollHeight).toBeLessThanOrEqual(taskLayout.taskClientHeight);
   await page.addStyleTag({ content: "html { font-size: 24px !important; }" });
-  await page.getByRole("button", { name: "Начать", exact: true }).scrollIntoViewIfNeeded();
-  await expect(page.getByRole("button", { name: "Начать", exact: true })).toBeInViewport();
+  await page.getByRole("button", { name: "Готово", exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole("button", { name: "Готово", exact: true })).toBeInViewport();
   await expect(page.locator('[data-task-motion="window"]')).toBeVisible();
-  await page.getByRole("button", { name: "Начать", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Начать", exact: true })).toHaveCount(0);
   await expect(page.getByRole("timer", { name: "Осталось 30 секунд" })).toBeVisible();
   expect(
     await page
@@ -304,7 +304,7 @@ test("сохранённая version 10 показывает шесть шаго
   await page.getByRole("button", { name: "Продолжить" }).click();
   await expect(page.getByText("Шаг 1 из 6", { exact: false })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Стакан воды" })).toBeVisible();
-  await page.getByRole("button", { name: "Начать", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Начать", exact: true })).toHaveCount(0);
   await expect(page.getByRole("timer", { name: "Осталось 25 секунд" })).toBeVisible();
   await page.clock.runFor(24_000);
   await expect(page.getByRole("button", { name: "Выпил" })).toBeDisabled();

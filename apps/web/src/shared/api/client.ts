@@ -101,7 +101,11 @@ export interface WakeSessionResponse {
   parentSessionId?: string | null;
   recoveryBaseline?: { sessionId: string; ratingKind: "post_protocol" } | null;
   recoveryOffer?: RecoveryOfferResponse | null;
-  experience?: { soundMode: "unknown" | "off" | "on"; interactionMode?: "manual" | "hands_free" };
+  experience?: {
+    completedEarly?: boolean;
+    soundMode: "unknown" | "off" | "on";
+    interactionMode?: "manual" | "hands_free";
+  };
   assignment: {
     id: string;
     protocolKey: string;
@@ -204,6 +208,7 @@ export interface CoachInsightResponse {
 }
 
 export interface SessionHistoryItemResponse {
+  completedEarly?: boolean;
   id: string;
   completedAt: string;
   baseline: number;

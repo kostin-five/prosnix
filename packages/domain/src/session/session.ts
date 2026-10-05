@@ -22,6 +22,7 @@ interface TaskResultCommand extends VersionedCommand {
   observedAt: string;
 }
 interface PostRatingCommand extends VersionedCommand {
+  completionReason?: "awakened";
   value: number;
   observedAt: string;
   followUpDelayMinutes: number;
@@ -177,7 +178,10 @@ export function acceptPostRating(session: WakeSession, command: PostRatingComman
       "A baseline must be recorded before the post rating",
     );
   }
-  if (session.currentStepIndex !== (session.effectiveSteps ?? session.assignment.steps).length) {
+  if (
+    session.currentStepIndex !== (session.effectiveSteps ?? session.assignment.steps).length &&
+    command.completionReason !== "awakened"
+  ) {
     throw new SessionCommandError(
       "invalid_transition",
       "All assigned steps must be completed before the post rating",
@@ -200,6 +204,12 @@ export function acceptPostRating(session: WakeSession, command: PostRatingComman
     ...session,
     status: "protocol_completed",
     postRating: command.value,
+    experience: {
+      ...session.experience,
+      soundMode: session.experience?.soundMode ?? "unknown",
+      completedEarly:
+        session.currentStepIndex < (session.effectiveSteps ?? session.assignment.steps).length,
+    },
     protocolCompletedAt: command.observedAt,
     followUpDueAt,
     version: session.version + 1,

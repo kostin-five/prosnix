@@ -160,6 +160,7 @@ export type SessionCommand =
     }
   | {
       type: "post_rating";
+      completionReason?: "awakened";
       sessionId: string;
       expectedVersion: number;
       value: number;
@@ -318,6 +319,7 @@ export interface CoachInsightRepository {
 }
 
 export interface SessionHistoryItem {
+  completedEarly?: boolean;
   id: string;
   completedAt: Date;
   baseline: number;

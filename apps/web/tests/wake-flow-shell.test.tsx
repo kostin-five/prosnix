@@ -10,6 +10,7 @@ vi.mock("../src/features/pro-interest/pro-interest-card.js", () => ({
 }));
 
 import { TasksContainer, initialProtocolScreen } from "../src/app/App.js";
+import { saveTransitionPause } from "../src/features/tasks/transition-preference.js";
 import StatsResearchCards from "../src/features/research/stats-research-cards.js";
 import { StartRatingScreen } from "../src/features/session/rating-screens.js";
 
@@ -30,6 +31,52 @@ describe("утренний вход и компактный shell", () => {
     vi.clearAllMocks();
   });
 
+  it("ждёт выбранные 20 секунд между шагами и ставит подготовку на паузу при скрытии", async () => {
+    await Promise.all([
+      import("../src/features/tasks/confirm-task.js"),
+      import("../src/features/tasks/task-timer-visual.js"),
+    ]);
+    vi.useFakeTimers();
+    saveTransitionPause("pause-test", 20);
+    try {
+      await act(async () =>
+        root.render(
+          <TasksContainer
+            taskIds={["math", "water"]}
+            taskIndex={1}
+            durationMinutes={5}
+            protocolVersion={15}
+            localStorageScope="pause-test"
+            onDone={() => undefined}
+          />,
+        ),
+      );
+      expect(container.textContent).toContain("20 сек");
+      expect(container.querySelector('[role="timer"]')).toBeNull();
+      for (let i = 0; i < 5; i++) await act(async () => vi.advanceTimersByTimeAsync(1000));
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      await act(async () => vi.advanceTimersByTimeAsync(30000));
+      expect(container.textContent).toContain("Подготовка на паузе");
+      expect(container.querySelector('[role="timer"]')).toBeNull();
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+      act(() =>
+        [...container.querySelectorAll<HTMLButtonElement>("button")]
+          .find((b) => b.textContent?.includes("Подготовка на паузе"))
+          ?.click(),
+      );
+      for (let i = 0; i < 15; i++) await act(async () => vi.advanceTimersByTimeAsync(1000));
+      expect(container.textContent).not.toContain("Приготовься:");
+      expect(container.querySelector('[role="timer"]')?.getAttribute("aria-label")).toBe(
+        "Осталось 15 секунд",
+      );
+      expect(container.textContent).not.toContain("Начать");
+    } finally {
+      localStorage.removeItem("prosnix:pause-test:transition-pause");
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+      vi.useRealTimers();
+    }
+  });
   it("направляет wake deep link сразу к исходной оценке", () => {
     expect(initialProtocolScreen(undefined, "wake")).toBe("startRating");
     expect(initialProtocolScreen(undefined, null)).toBe("home");

@@ -22,6 +22,12 @@ import { CapabilityProfileCard } from "../personalization/capability-profile-car
 import { MorningGoalCard } from "../personalization/morning-goal-card.js";
 import { WakeRoutineCard } from "../personalization/wake-routine-card.js";
 import type { WakeProfile, WakeRoutine } from "../../shared/api/client.js";
+import {
+  hasTransitionPreference,
+  readTransitionPause,
+  saveTransitionPause,
+  type TransitionPause,
+} from "../tasks/transition-preference.js";
 import { resetHandsFreeGuidance } from "../tasks/hands-free-audio.js";
 
 export default function SettingsScreen({
@@ -61,6 +67,9 @@ export default function SettingsScreen({
     "schedule" | "capabilities" | "goal" | "routine" | "audio" | "pro" | "privacy" | "delete" | null
   >(initialSection);
   const [guidanceReset, setGuidanceReset] = useState(false);
+  const [transitionPause, setTransitionPause] = useState(() =>
+    !hasTransitionPreference(localStorageScope) ? null : readTransitionPause(localStorageScope),
+  );
   useEffect(() => setSection(initialSection), [initialSection]);
 
   const row = (title: string, description: string, icon: React.ReactNode, onClick: () => void) => (
@@ -122,8 +131,8 @@ export default function SettingsScreen({
               () => setSection("routine"),
             )}
             {row(
-              "Без телефона",
-              "Голосовые подсказки к заданиям",
+              "Прохождение протокола",
+              "Пауза между заданиями и голос",
               <Headphones className="h-5 w-5" />,
               () => setSection("audio"),
             )}
@@ -159,7 +168,7 @@ export default function SettingsScreen({
                 capabilities: "Возможности",
                 goal: "Цель в жизни",
                 routine: "Личный распорядок",
-                audio: "Без телефона",
+                audio: "Прохождение протокола",
                 pro: "Pro",
                 privacy: "Документы",
                 delete: "Удаление профиля",
@@ -173,7 +182,7 @@ export default function SettingsScreen({
                 capabilities: "Задания подбираются с учётом твоих ответов",
                 goal: "Что вдохновляет тебя начинать новый день?",
                 routine: "Необязательные шаги после пробуждения",
-                audio: "Подробные инструкции звучат при первой встрече с заданием",
+                audio: "Пауза между заданиями и голосовые подсказки",
                 pro: "Возможности Prosnix",
                 privacy: "Правила использования и обработки данных",
                 delete: "Управление личными данными",
@@ -207,6 +216,32 @@ export default function SettingsScreen({
           )}
           {section === "audio" && (
             <div className="ps-surface p-4">
+              <fieldset className="mb-6">
+                <legend className="font-semibold">Пауза между заданиями</legend>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  После сохранения шага следующее задание начнётся через выбранное время. Таймер
+                  самого упражнения не меняется.
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Без выбора настройки: обычный режим без паузы, «Без телефона» — 10 секунд.
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {([0, 5, 10, 20] as const).map((seconds) => (
+                    <button
+                      key={seconds}
+                      type="button"
+                      aria-pressed={transitionPause === seconds}
+                      className="min-h-11 rounded-xl border border-border bg-secondary px-3 py-2 text-sm aria-pressed:border-primary aria-pressed:text-primary"
+                      onClick={() => {
+                        setTransitionPause(seconds);
+                        saveTransitionPause(localStorageScope, seconds as TransitionPause);
+                      }}
+                    >
+                      {seconds === 0 ? "Без паузы" : `${seconds} секунд`}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Верни подробную озвучку для всех заданий. Следующий раз подсказка снова объяснит,
                 как выполнять каждое действие.

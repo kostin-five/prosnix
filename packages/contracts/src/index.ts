@@ -57,6 +57,16 @@ export const RatingInputSchema = Type.Object(
   { additionalProperties: false },
 );
 
+export const PostRatingInputSchema = Type.Object(
+  {
+    value: Type.Integer({ minimum: 1, maximum: 10 }),
+    clientObservedAt: Type.Optional(Type.String({ format: "date-time" })),
+    completionReason: Type.Optional(Type.Literal("awakened")),
+  },
+  { additionalProperties: false },
+);
+export type PostRatingInput = Static<typeof PostRatingInputSchema>;
+
 export const TaskResultInputSchema = Type.Object(
   {
     taskId: TaskIdSchema,
@@ -239,6 +249,7 @@ export interface CoachInsightResponse {
 }
 
 export interface SessionHistoryItemResponse {
+  completedEarly?: boolean;
   id: string;
   completedAt: string;
   baseline: number;
@@ -281,7 +292,7 @@ export interface WakeSessionEvolutionResponse {
     maxDurationSeconds: 90;
     recoverySessionId: string | null;
   } | null;
-  experience?: WakeExperienceSnapshot;
+  experience?: WakeExperienceSnapshot & { completedEarly?: boolean };
 }
 
 export interface SessionHistoryResponse {

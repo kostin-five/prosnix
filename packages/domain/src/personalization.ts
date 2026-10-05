@@ -9,7 +9,11 @@ import type {
   WakePersonalizationSnapshot,
   WakeContext,
 } from "./model.js";
-import { BREATHING_PROTOCOL_VERSION, estimatedTaskSeconds } from "./task-policy.js";
+import {
+  BREATHING_PROTOCOL_VERSION,
+  EXERCISE_VARIETY_PROTOCOL_VERSION,
+  estimatedTaskSeconds,
+} from "./task-policy.js";
 
 export const SAFE_WAKE_PROFILE: WakeCapabilityProfile = {
   movementLevel: "none",
@@ -393,57 +397,99 @@ export function selectHandsFreeAssignment(
   profile: WakeCapabilityProfile,
   durationMinutes: WakeDurationMinutes,
   options: WakeTaskCatalogOptions = {},
+  adaptive?: AdaptiveSelection,
+  previousTaskIds: readonly TaskId[] = [],
 ): { assignment: ExperimentAssignment; snapshot: WakePersonalizationSnapshot } {
-  const selected: ProtocolStep[] = [];
-  const maximumSeconds = durationMinutes * 60 * 1.1;
-  for (const taskId of HANDS_FREE_ORDER) {
-    if (!allowed(taskId, profile, options)) continue;
-    if (
-      INTENSE_TASK_IDS.has(taskId) &&
-      !selected.some(({ taskId: current }) => WARMUP_TASK_IDS.has(current))
-    ) {
-      continue;
-    }
-    const candidate = withStandingTransition([
-      ...selected,
-      { index: selected.length, taskId, category: categoryForTask(taskId) },
-    ]);
-    if (
-      plannedProtocolSeconds(candidate, durationMinutes, BREATHING_PROTOCOL_VERSION) <=
-      maximumSeconds
-    ) {
-      selected.splice(0, selected.length, ...candidate);
-    }
-  }
-  const plannedSeconds = plannedProtocolSeconds(
-    selected,
-    durationMinutes,
-    BREATHING_PROTOCOL_VERSION,
+  const orders = [
+    HANDS_FREE_ORDER,
+    [
+      "notice_three",
+      "find_color",
+      "water",
+      "window",
+      "shake",
+      "pushups",
+      "steps",
+      "breathing",
+      "cool_wash",
+      "squats",
+    ],
+    [
+      "find_color",
+      "breathing",
+      "shake",
+      "steps",
+      "squats",
+      "window",
+      "water",
+      "notice_three",
+      "cool_wash",
+      "pushups",
+    ],
+  ] as readonly (readonly TaskId[])[];
+  const variants = orders.map(
+    (order): { assignment: ExperimentAssignment; snapshot: WakePersonalizationSnapshot } => {
+      const selected: ProtocolStep[] = [];
+      const maximumSeconds = durationMinutes * 60 * 1.1;
+      for (const taskId of order) {
+        if (!allowed(taskId, profile, options)) continue;
+        if (
+          INTENSE_TASK_IDS.has(taskId) &&
+          !selected.some(({ taskId: current }) => WARMUP_TASK_IDS.has(current))
+        ) {
+          continue;
+        }
+        const candidate = withStandingTransition([
+          ...selected,
+          { index: selected.length, taskId, category: categoryForTask(taskId) },
+        ]);
+        if (
+          plannedProtocolSeconds(candidate, durationMinutes, BREATHING_PROTOCOL_VERSION) <=
+          maximumSeconds
+        ) {
+          selected.splice(0, selected.length, ...candidate);
+        }
+      }
+      const plannedSeconds = plannedProtocolSeconds(
+        selected,
+        durationMinutes,
+        BREATHING_PROTOCOL_VERSION,
+      );
+      const fallbackReason: WakePersonalizationSnapshot["fallbackReason"] =
+        plannedSeconds < durationMinutes * 60 * 0.9
+          ? "limited_eligible_tasks"
+          : profile.onboardingCompleted
+            ? "none"
+            : "profile_missing";
+      return {
+        assignment: {
+          id: "pending",
+          protocolKey: `hands-free-v3:${durationMinutes}m:${selected.map(({ taskId }) => taskId).join("-")}`,
+          protocolVersion: BREATHING_PROTOCOL_VERSION,
+          strategyVersion: "hands-free-adaptive-v2",
+          phase: "adaptive",
+          hypothesis: "Проверяем пробуждение с голосовыми подсказками и действиями без экрана",
+          steps: selected,
+        },
+        snapshot: {
+          profileRevision: profile.revision,
+          movementLevel: profile.movementLevel,
+          availableResources: [...profile.availableResources],
+          excludedTaskIds: [...profile.excludedTaskIds],
+          fallbackReason,
+        },
+      };
+    },
   );
-  const fallbackReason: WakePersonalizationSnapshot["fallbackReason"] =
-    plannedSeconds < durationMinutes * 60 * 0.9
-      ? "limited_eligible_tasks"
-      : profile.onboardingCompleted
-        ? "none"
-        : "profile_missing";
-  return {
-    assignment: {
-      id: "pending",
-      protocolKey: `hands-free-v3:${durationMinutes}m:${selected.map(({ taskId }) => taskId).join("-")}`,
-      protocolVersion: BREATHING_PROTOCOL_VERSION,
-      strategyVersion: "hands-free-v1",
-      phase: "fallback",
-      hypothesis: "Проверяем пробуждение с голосовыми подсказками и действиями без экрана",
-      steps: selected,
-    },
-    snapshot: {
-      profileRevision: profile.revision,
-      movementLevel: profile.movementLevel,
-      availableResources: [...profile.availableResources],
-      excludedTaskIds: [...profile.excludedTaskIds],
-      fallbackReason,
-    },
-  };
+  const unique = [
+    ...new Map(
+      variants.map((value) => [
+        value.assignment.steps.map(({ taskId }) => taskId).join(">"),
+        value,
+      ]),
+    ).values(),
+  ];
+  return selectFromPersonalized(unique, durationMinutes, previousTaskIds, adaptive);
 }
 
 function planForDuration(
@@ -453,7 +499,7 @@ function planForDuration(
   rotationSeed = 0,
   options: WakeTaskCatalogOptions = {},
 ): { steps: ProtocolStep[]; belowMinimum: boolean } {
-  const protocolVersion = BREATHING_PROTOCOL_VERSION;
+  const protocolVersion = EXERCISE_VARIETY_PROTOCOL_VERSION;
   const maximumSteps = durationMinutes === 5 ? 7 : Number.POSITIVE_INFINITY;
   const minimumSeconds = durationMinutes * 60 * 0.9;
   const maximumSeconds = durationMinutes * 60 * 1.1;
@@ -640,7 +686,7 @@ export function personalizeAssignment(
   return {
     assignment: {
       ...baseAssignment,
-      protocolVersion: Math.max(BREATHING_PROTOCOL_VERSION, assignment.protocolVersion),
+      protocolVersion: Math.max(EXERCISE_VARIETY_PROTOCOL_VERSION, assignment.protocolVersion),
       protocolKey: `${assignment.protocolKey}:${durationMinutes}m:${suffix}`,
       steps,
       ...(preserveComparison ? { comparison } : {}),
@@ -658,6 +704,12 @@ export function personalizeAssignment(
       fallbackReason,
     },
   };
+}
+
+interface AdaptiveSelection {
+  evidence: readonly AdaptiveProtocolEvidence[];
+  wakeContext: WakeContext;
+  completedSessions: number;
 }
 
 export function selectPersonalizedAssignment(
@@ -682,14 +734,30 @@ export function selectPersonalizedAssignment(
     const signature = value.assignment.steps.map(({ taskId }) => taskId).join(">");
     if (!personalizedBySequence.has(signature)) personalizedBySequence.set(signature, value);
   }
-  const personalized = [...personalizedBySequence.values()];
+  return selectFromPersonalized(
+    [...personalizedBySequence.values()],
+    durationMinutes,
+    previousTaskIds,
+    candidates.some(({ phase }) => phase === "adaptive") ? adaptive : undefined,
+  );
+}
+
+function selectFromPersonalized(
+  personalized: readonly {
+    assignment: ExperimentAssignment;
+    snapshot: WakePersonalizationSnapshot;
+  }[],
+  durationMinutes: WakeDurationMinutes,
+  previousTaskIds: readonly TaskId[],
+  adaptive?: AdaptiveSelection,
+): { assignment: ExperimentAssignment; snapshot: WakePersonalizationSnapshot } {
   const previousSignature = previousTaskIds.join(",");
   const withoutImmediateRepeat = personalized.filter(
     ({ assignment }) =>
       assignment.steps.map(({ taskId }) => taskId).join(",") !== previousSignature,
   );
   const available = withoutImmediateRepeat.length > 0 ? withoutImmediateRepeat : personalized;
-  if (!adaptive || !candidates.some(({ phase }) => phase === "adaptive")) {
+  if (!adaptive) {
     return available[0]!;
   }
 

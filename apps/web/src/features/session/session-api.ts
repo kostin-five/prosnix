@@ -150,11 +150,16 @@ export function savePostRating(
   sessionId: string,
   expectedVersion: number,
   value: number,
+  completionReason?: "awakened",
 ): Promise<WakeSessionResponse> {
   return sendSessionCommand(
     "PUT",
     `/api/v1/sessions/${sessionId}/post-rating`,
-    { value, clientObservedAt: new Date().toISOString() },
+    {
+      value,
+      clientObservedAt: new Date().toISOString(),
+      ...(completionReason ? { completionReason } : {}),
+    },
     expectedVersion,
   );
 }

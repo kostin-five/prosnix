@@ -349,7 +349,7 @@ test("mobile user продолжает protocol v9 с таймером умыв�
   await page.goto("/");
   await page.getByRole("button", { name: "Продолжить" }).click();
   await expect(page.getByRole("heading", { name: "Умыться прохладной водой" })).toBeVisible();
-  await page.getByRole("button", { name: "Начать", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Начать", exact: true })).toHaveCount(0);
   await expect(page.getByRole("timer", { name: "Осталось 20 секунд" })).toBeVisible();
   await page.clock.runFor(20_000);
   await page.getByRole("button", { name: "Умылся" }).click();

@@ -11,7 +11,7 @@ function plan(
   return {
     protocolKey,
     protocolVersion: 7,
-    strategyVersion: "learning-v6",
+    strategyVersion: "learning-v8",
     phase: "learning",
     hypothesis,
     steps,
@@ -44,7 +44,7 @@ const LEARNING_ASSIGNMENTS: readonly PlannedAssignment[] = [
   plan("calibration-movement-memory", "Проверяем движение перед математикой и памятью", [
     { index: 0, taskId: "shake", category: "movement" },
     { index: 1, taskId: "steps", category: "movement" },
-    { index: 2, taskId: "squats", category: "movement" },
+    { index: 2, taskId: "pushups", category: "movement" },
     { index: 3, taskId: "math", category: "cognitive" },
     { index: 4, taskId: "memory", category: "cognitive" },
   ]),
@@ -133,7 +133,7 @@ const ADAPTIVE_ASSIGNMENTS: readonly PlannedAssignment[] = [
   ]),
   plan("adaptive-standing-memory", "Проверяем движение перед памятью и математикой", [
     { index: 0, taskId: "steps", category: "movement" },
-    { index: 1, taskId: "squats", category: "movement" },
+    { index: 1, taskId: "pushups", category: "movement" },
     { index: 2, taskId: "memory", category: "cognitive" },
     { index: 3, taskId: "math", category: "cognitive" },
     { index: 4, taskId: "window", category: "environment" },
@@ -148,7 +148,7 @@ const ADAPTIVE_ASSIGNMENTS: readonly PlannedAssignment[] = [
 ].map((assignment) => ({
   ...assignment,
   protocolVersion: 7,
-  strategyVersion: "adaptive-v7",
+  strategyVersion: "adaptive-v8",
   phase: "adaptive" as const,
 }));
 

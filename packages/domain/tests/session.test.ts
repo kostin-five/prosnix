@@ -51,6 +51,47 @@ function assignedSession(): WakeSession {
 }
 
 describe("wake session transitions", () => {
+  it("сохраняет досрочную оценку без вымышленных шагов и оставляет follow-up", () => {
+    const active = acceptBaseline(assignedSession(), {
+      expectedVersion: 1,
+      value: 3,
+      observedAt: "2026-10-05T05:00:00Z",
+    });
+    expect(() =>
+      acceptPostRating(active, {
+        expectedVersion: 2,
+        value: 7,
+        observedAt: "2026-10-05T05:00:10Z",
+        followUpDelayMinutes: 15,
+      }),
+    ).toThrow();
+    const early = acceptPostRating(active, {
+      expectedVersion: 2,
+      value: 7,
+      completionReason: "awakened",
+      observedAt: "2026-10-05T05:00:10Z",
+      followUpDelayMinutes: 15,
+    });
+    expect(early).toMatchObject({
+      status: "protocol_completed",
+      currentStepIndex: 0,
+      tasks: [],
+      experience: { completedEarly: true },
+      postRating: 7,
+      followUpDueAt: "2026-10-05T05:15:10.000Z",
+    });
+    expect(() =>
+      acceptPostRating(early, {
+        expectedVersion: 2,
+        value: 8,
+        completionReason: "awakened",
+        observedAt: "2026-10-05T05:00:20Z",
+        followUpDelayMinutes: 15,
+      }),
+    ).toThrow();
+    expect(acceptFollowUp(early, { expectedVersion: 3, outcome: "up" }).followUp).toBe("up");
+  });
+
   it("отличает завершение по таймеру и проверяет режим и длительность", () => {
     const assigned = {
       ...assignedSession(),

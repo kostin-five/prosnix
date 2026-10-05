@@ -45,6 +45,7 @@ export class PostgresSessionHistoryRepository implements SessionHistoryRepositor
         durationMinutes: wakeSessions.durationBudgetMinutes,
         sessionKind: wakeSessions.sessionKind,
         parentSessionId: wakeSessions.parentSessionId,
+        experienceSnapshot: wakeSessions.experienceSnapshot,
       })
       .from(wakeSessions)
       .where(and(eq(wakeSessions.userId, userId), eq(wakeSessions.status, "protocol_completed")))
@@ -87,6 +88,9 @@ export class PostgresSessionHistoryRepository implements SessionHistoryRepositor
       return [
         {
           id: session.id,
+          completedEarly:
+            (session.experienceSnapshot as { completedEarly?: boolean } | null)?.completedEarly ===
+            true,
           completedAt: session.completedAt,
           baseline,
           postRating,

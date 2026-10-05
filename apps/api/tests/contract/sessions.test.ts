@@ -10,6 +10,54 @@ import {
 } from "../helpers.js";
 
 describe("контракт команд wake-сессии", () => {
+  it("принимает явное досрочное пробуждение, но не обходит обычное завершение", async () => {
+    const dependencies = createMemoryDependencies();
+    const app = await createApp(testConfig, {
+      ...dependencies,
+      sessionCommands: createMemorySessionCommands(dependencies.user.id),
+      now: () => testNow,
+    });
+    const cookie = await authenticateTestUser(app);
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/sessions",
+      headers: { cookie, "idempotency-key": "early-create-1" },
+      payload: { timezone: "Europe/Moscow", wakeContext: "night_sleep", durationMinutes: 5 },
+    });
+    const id = created.json().id;
+    await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${id}/baseline`,
+      headers: { cookie, "idempotency-key": "early-baseline-1", "if-match": "1" },
+      payload: { value: 3 },
+    });
+    const denied = await app.inject({
+      method: "PUT",
+      url: `/api/v1/sessions/${id}/post-rating`,
+      headers: { cookie, "idempotency-key": "early-denied-1", "if-match": "2" },
+      payload: { value: 8 },
+    });
+    expect(denied.statusCode).toBe(409);
+    const headers = { cookie, "idempotency-key": "early-rating-1", "if-match": "2" };
+    const input = {
+      method: "PUT" as const,
+      url: `/api/v1/sessions/${id}/post-rating`,
+      headers,
+      payload: { value: 8, completionReason: "awakened" },
+    };
+    const completed = await app.inject(input);
+    expect(completed.statusCode).toBe(200);
+    expect(completed.json()).toMatchObject({
+      status: "protocol_completed",
+      currentStepIndex: 0,
+      tasks: [],
+      experience: { completedEarly: true },
+    });
+    expect(completed.json().recoveryOffer ?? null).toBeNull();
+    expect((await app.inject(input)).json()).toEqual(completed.json());
+    await app.close();
+  });
+
   it("создаёт отдельный идемпотентный recovery после слабого результата", async () => {
     const dependencies = createMemoryDependencies();
     const app = await createApp(

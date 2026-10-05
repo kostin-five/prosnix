@@ -95,6 +95,14 @@ response. Ответ session/bootstrap может дополнительно с�
 
 ## Analytics и Coach
 
+`PUT /api/v1/sessions/:id/post-rating` дополнительно принимает `completionReason: "awakened"`.
+Это явное досрочное завершение после baseline с итоговой оценкой; без поля прежнее требование
+выполнить все шаги сохраняется. Не создаются результаты невыполненных заданий. Ответ возвращает
+`experience.completedEarly: true` для неполного порядка; history возвращает `completedEarly`.
+Сохраняются ownership, `If-Match`, idempotency и follow-up. Досрочные результаты исключены из
+learning count, evidence полных протоколов и recovery; запись хранится в существующем JSON snapshot,
+новая миграция не требуется.
+
 | Метод | Маршрут                     | Результат                                             |
 | ----- | --------------------------- | ----------------------------------------------------- |
 | GET   | `/api/v1/analytics/profile` | пересчитанные метрики, confidence и evidence metadata |

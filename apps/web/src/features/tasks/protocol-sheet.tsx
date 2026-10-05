@@ -5,10 +5,14 @@ export function ProtocolSheet({
   steps,
   currentIndex,
   onClose,
+  onAwakened,
+  busy = false,
 }: {
   steps: Array<{ taskId: TaskId; title: string }>;
   currentIndex: number;
   onClose: () => void;
+  onAwakened?: () => void;
+  busy?: boolean;
 }) {
   return (
     <div
@@ -22,19 +26,31 @@ export function ProtocolSheet({
         className="ps-protocol-dialog mx-auto w-full max-w-[358px] rounded-3xl border border-border bg-card p-4 shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-bold">Твой протокол</p>
             <p className="text-xs text-muted-foreground">Порядок сохранён для этого пробуждения</p>
           </div>
-          <button
-            type="button"
-            aria-label="Закрыть протокол"
-            onClick={onClose}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground"
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {onAwakened && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onAwakened}
+                className="min-h-11 rounded-xl border border-primary/30 bg-primary/10 px-3 text-sm font-semibold text-primary disabled:opacity-50"
+              >
+                Проснулся
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label="Закрыть протокол"
+              onClick={onClose}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
         </div>
         <ol className="ps-protocol-list space-y-2">
           {steps.map((step, index) => (

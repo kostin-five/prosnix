@@ -136,7 +136,7 @@ export default function StatsScreen({
   const [openHistoryIds, setOpenHistoryIds] = useState<Set<string>>(() => new Set());
   const [showAllHistory, setShowAllHistory] = useState(false);
   const apiProfile = analytics.status === "ready" ? analytics.profile : null;
-  const valid = sessions.filter((s) => s.endAlertness > 0);
+  const valid = sessions.filter((s) => s.endAlertness > 0 && !s.completedEarly);
   const evidenceCount = demo ? valid.length : (apiProfile?.averageDelta.evidenceCount ?? 0);
   const progressKnown = demo || analytics.status === "ready";
   const isLearning = progressKnown && evidenceCount < 7;
@@ -158,7 +158,7 @@ export default function StatsScreen({
   const serverDurations =
     history.status === "ready"
       ? history.items
-          .filter((item) => item.sessionKind !== "recovery")
+          .filter((item) => item.sessionKind !== "recovery" && !item.completedEarly)
           .map((item) => item.durationMs)
           .filter((duration): duration is number => duration !== null)
       : [];
@@ -444,7 +444,9 @@ export default function StatsScreen({
               evidenceCount={evidenceCount}
               recentSessions={
                 history.status === "ready"
-                  ? history.items.filter((item) => item.sessionKind !== "recovery")
+                  ? history.items.filter(
+                      (item) => item.sessionKind !== "recovery" && !item.completedEarly,
+                    )
                   : []
               }
             />
@@ -588,6 +590,11 @@ export default function StatsScreen({
                           minute: "2-digit",
                         })}
                       </p>
+                      {item.completedEarly && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Проснулся · завершено досрочно
+                        </p>
+                      )}
                       {item.sessionKind === "recovery" && (
                         <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
                           Дополнительный раунд

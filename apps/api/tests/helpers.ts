@@ -338,9 +338,11 @@ export function createMemorySessionCommands(
               value: command.value,
               observedAt,
               followUpDelayMinutes: 15,
+              ...(command.completionReason ? { completionReason: command.completionReason } : {}),
             });
             if (
               session.sessionKind !== "recovery" &&
+              !session.experience?.completedEarly &&
               session.baseline !== null &&
               command.value - session.baseline <= 1
             ) {

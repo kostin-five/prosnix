@@ -221,7 +221,7 @@ export function ConfirmTask({
   soundMode = "off",
   actionContainer,
   interactionMode = "manual",
-  autoStart = false,
+  autoStart = interactionMode === "manual",
   preparing = false,
   onRemainingChange,
   onPauseChange,
@@ -384,7 +384,7 @@ export function ConfirmTask({
           </button>
         ) : (
           <p className="max-w-[240px] text-center text-xs leading-relaxed text-muted-foreground">
-            Нажми «Начать», когда будешь готов выполнить действие.
+            Выполни действие и подтверди результат.
           </p>
         )}
       </div>

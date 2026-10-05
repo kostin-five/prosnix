@@ -119,13 +119,14 @@ test("протокол показывает крупную инструкцию 
       .getByTestId("task-illustration")
       .evaluate((element) => getComputedStyle(element, "::before").animationName),
   ).toBe("none");
-  await expect(page.getByLabel("Таймер ещё не начат")).toBeVisible();
-  await expect(page.locator(".ps-task-action-slot button")).toHaveText("Начать");
+  await expect(page.getByRole("timer")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Начать", exact: true })).toHaveCount(0);
+  await expect(page.locator(".ps-task-action-slot button")).toHaveText(/Прошёл/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
   const remainingBeforeStart = await page.locator(".ps-task-toolbar").innerText();
-  await page.locator(".ps-task-action-slot button").click();
-  await page.clock.runFor(1_000);
+  await expect(page.locator(".ps-task-action-slot button")).toBeDisabled();
+  await page.clock.runFor(10_000);
   expect(await page.locator(".ps-task-toolbar").innerText()).not.toBe(remainingBeforeStart);
   await expect(page.getByLabel("Таймер ещё не начат")).toHaveCount(0);
   await expect(page.locator(".ps-task-action-slot button")).toBeDisabled();

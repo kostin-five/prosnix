@@ -1,4 +1,4 @@
-import type { TaskId } from "../src/model.js";
+import type { AdaptiveProtocolEvidence, TaskId } from "../src/model.js";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -43,6 +43,54 @@ const profile: WakeCapabilityProfile = {
 };
 
 describe("персонализация протокола", () => {
+  it("исследует отжимания в серии первых семи полных разрешённых протоколов", () => {
+    const full: WakeCapabilityProfile = {
+      ...profile,
+      movementLevel: "full",
+      availableResources: [
+        "water",
+        "bright_light",
+        "floor_space",
+        "active_movement",
+        "wash_access",
+      ],
+    };
+    const series = Array.from(
+      { length: 7 },
+      (_, count) =>
+        selectPersonalizedAssignment(
+          learningAssignmentCandidates(count).map((plan) => ({ ...plan, id: `plan-${count}` })),
+          full,
+          5,
+          [],
+          undefined,
+          { v9Enabled: true },
+        ).assignment,
+    );
+    const withPushups = series.filter((plan) =>
+      plan.steps.some((step) => step.taskId === "pushups"),
+    );
+    expect(withPushups.length).toBeGreaterThan(0);
+    for (const plan of withPushups) {
+      const ids = plan.steps.map((step) => step.taskId);
+      expect(plan.protocolVersion).toBe(15);
+      expect(ids.indexOf("sit_edge")).toBeLessThan(ids.indexOf("pushups"));
+      expect(
+        ids.slice(0, ids.indexOf("pushups")).some((id) => id === "shake" || id === "steps"),
+      ).toBe(true);
+      expect(plannedProtocolSeconds(plan.steps, 5, 15)).toBeLessThanOrEqual(330);
+    }
+    const denied = selectPersonalizedAssignment(
+      learningAssignmentCandidates(3).map((plan) => ({ ...plan, id: "denied" })),
+      { ...full, excludedTaskIds: ["pushups"] },
+      5,
+      [],
+      undefined,
+      { v9Enabled: true },
+    );
+    expect(denied.assignment.steps.map((step) => step.taskId)).not.toContain("pushups");
+  });
+
   it("назначает безэкранный режим без запрещённых ресурсов и экранных тестов", () => {
     const safe = selectHandsFreeAssignment(SAFE_WAKE_PROFILE, 2);
     expect(safe.assignment.steps.map(({ taskId }) => taskId)).toEqual([
@@ -73,6 +121,110 @@ describe("персонализация протокола", () => {
     expect(ids).not.toContain("math");
     expect(ids).not.toContain("pushups");
     expect(ids.indexOf("sit_edge")).toBeLessThan(ids.indexOf("shake"));
+  });
+
+  it("без телефона исследует порядки и выбирает результат по контексту", () => {
+    const first = selectHandsFreeAssignment(SAFE_WAKE_PROFILE, 2);
+    const second = selectHandsFreeAssignment(
+      SAFE_WAKE_PROFILE,
+      2,
+      {},
+      undefined,
+      first.assignment.steps.map(({ taskId }) => taskId),
+    );
+    expect(second.assignment.steps).not.toEqual(first.assignment.steps);
+    const key = (plan: typeof first) => plan.assignment.steps.map(({ taskId }) => taskId).join(">");
+    const third = selectHandsFreeAssignment(
+      SAFE_WAKE_PROFILE,
+      2,
+      {},
+      {
+        evidence: [first, second].map((plan) => ({
+          sequenceKey: key(plan),
+          wakeContext: "night_sleep",
+          durationMinutes: 2,
+          baseline: 3,
+          postRating: 4,
+          followUp: null,
+        })),
+        wakeContext: "night_sleep",
+        completedSessions: 2,
+      },
+    );
+    const evidence = [first, second, third].flatMap((plan, index) =>
+      [0, 1].map(() => ({
+        sequenceKey: key(plan),
+        wakeContext: "night_sleep" as const,
+        durationMinutes: 2 as const,
+        baseline: 3,
+        postRating: index === 1 ? 8 : 4,
+        followUp: "up" as const,
+      })),
+    );
+    const best = selectHandsFreeAssignment(
+      SAFE_WAKE_PROFILE,
+      2,
+      {},
+      { evidence, wakeContext: "night_sleep", completedSessions: 7 },
+    );
+    expect(key(best)).toBe(key(second));
+    const otherContext = selectHandsFreeAssignment(
+      SAFE_WAKE_PROFILE,
+      2,
+      {},
+      { evidence, wakeContext: "short_nap", completedSessions: 7 },
+    );
+    expect(key(otherContext)).toBe(key(first));
+    expect(best.assignment.strategyVersion).toBe("hands-free-adaptive-v2");
+  });
+
+  it("все безэкранные варианты соблюдают ресурсы, бюджет и подготовку к нагрузке", () => {
+    const full = {
+      ...profile,
+      movementLevel: "full" as const,
+      availableResources: [
+        "water",
+        "bright_light",
+        "wash_access",
+        "floor_space",
+        "active_movement",
+      ] as WakeCapabilityProfile["availableResources"],
+    };
+    for (const duration of [2, 5, 10] as const) {
+      let previous: TaskId[] = [];
+      const evidence: AdaptiveProtocolEvidence[] = [];
+      for (let count = 0; count < 3; count++) {
+        const plan = selectHandsFreeAssignment(
+          full,
+          duration,
+          { v9Enabled: true },
+          { evidence, wakeContext: "night_sleep", completedSessions: count },
+          previous,
+        );
+        const ids = plan.assignment.steps.map(({ taskId }) => taskId);
+        expect(new Set(ids).size).toBe(ids.length);
+        expect(plannedProtocolSeconds(plan.assignment.steps, duration, 14)).toBeLessThanOrEqual(
+          duration * 66,
+        );
+        for (const intense of ["squats", "pushups"] as const) {
+          const index = ids.indexOf(intense);
+          if (index >= 0) {
+            expect(ids.indexOf("sit_edge")).toBeLessThan(index);
+            expect(ids.slice(0, index).some((id) => id === "shake" || id === "steps")).toBe(true);
+          }
+        }
+        expect(ids.some((id) => ["math", "memory", "reaction", "stroop"].includes(id))).toBe(false);
+        evidence.push({
+          sequenceKey: ids.join(">"),
+          wakeContext: "night_sleep",
+          durationMinutes: duration,
+          baseline: 3,
+          postRating: 4,
+          followUp: null,
+        });
+        previous = ids;
+      }
+    }
   });
 
   it("замена в режиме без телефона остаётся среди неэкранных заданий", () => {
@@ -204,7 +356,7 @@ describe("персонализация протокола", () => {
         }),
       );
       const selected = selectPersonalizedAssignment(candidates, fullProfile, 5).assignment;
-      expect(selected.protocolVersion).toBe(14);
+      expect(selected.protocolVersion).toBe(15);
       expect(selected.steps.length).toBeGreaterThanOrEqual(6);
       expect(selected.steps.length).toBeLessThanOrEqual(7);
       expect(
@@ -213,7 +365,7 @@ describe("персонализация протокола", () => {
       expect(
         plannedProtocolSeconds(selected.steps, 5, selected.protocolVersion),
       ).toBeLessThanOrEqual(330);
-      expect(selected.strategyVersion).toBe("learning-v6");
+      expect(selected.strategyVersion).toBe("learning-v8");
       return selected.steps.map(({ taskId }) => taskId);
     });
     const count = (taskId: (typeof sequences)[number][number]) =>
@@ -256,7 +408,7 @@ describe("персонализация протокола", () => {
           duration,
           result.assignment.protocolVersion,
         );
-        expect(result.assignment.protocolVersion).toBe(14);
+        expect(result.assignment.protocolVersion).toBe(15);
         expect(seconds).toBeGreaterThanOrEqual(duration * 60 * 0.9);
         expect(seconds).toBeLessThanOrEqual(duration * 60 * 1.1);
       }
@@ -527,7 +679,7 @@ describe("персонализация протокола", () => {
     );
     const taskIds = result.assignment.steps.map(({ taskId }) => taskId);
 
-    expect(result.assignment.protocolVersion).toBe(14);
+    expect(result.assignment.protocolVersion).toBe(15);
     expect(taskIds).toEqual(expect.arrayContaining(["cool_wash", "pushups"]));
     expect(taskIds.indexOf("sit_edge")).toBeLessThan(taskIds.indexOf("shake"));
     expect(taskIds.indexOf("shake")).toBeLessThan(taskIds.indexOf("pushups"));

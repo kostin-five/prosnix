@@ -355,7 +355,10 @@ export function CapabilityProfileCard({
                             <span className="mt-0.5 block text-xs text-muted-foreground">
                               {!permitted
                                 ? "Нажми, чтобы разрешить отжимания. Во вкладке «Условия» укажи свободное место."
-                                : exercise.description}
+                                : exercise.id === "pushups" &&
+                                    !draft.availableResources.includes("floor_space")
+                                  ? "Разрешены. Чтобы они появлялись в протоколе, подтверди свободное место во вкладке «Условия»."
+                                  : exercise.description}
                             </span>
                           </span>
                           <span

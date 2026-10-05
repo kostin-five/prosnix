@@ -1,3 +1,4 @@
+import { PostRatingInputSchema, type PostRatingInput } from "@awc/contracts";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import {
@@ -186,9 +187,9 @@ export async function registerSessionRoutes(
     },
   );
 
-  app.put<{ Params: SessionParams; Body: RatingInput }>(
+  app.put<{ Params: SessionParams; Body: PostRatingInput }>(
     "/api/v1/sessions/:sessionId/post-rating",
-    { schema: { body: RatingInputSchema } },
+    { schema: { body: PostRatingInputSchema } },
     (request, reply) => {
       const version = expectedVersion(request);
       if (!version) return reply.status(400).send({ code: "expected_version_required" });
@@ -198,6 +199,9 @@ export async function registerSessionRoutes(
         { ...options, now },
         {
           type: "post_rating",
+          ...(request.body.completionReason
+            ? { completionReason: request.body.completionReason }
+            : {}),
           sessionId: request.params.sessionId,
           expectedVersion: version,
           value: request.body.value,

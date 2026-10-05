@@ -84,6 +84,7 @@ export interface SessionTaskSubstitution {
 }
 
 export interface WakeExperienceSnapshot {
+  completedEarly?: boolean;
   soundMode: WakeSoundMode;
   interactionMode?: WakeInteractionMode;
 }
