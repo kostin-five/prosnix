@@ -16,11 +16,11 @@
   },
   "dependencies": {
     "@awc/domain": "workspace:*",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.3",
     "postgres": "^3.4.7"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.4",
+    "drizzle-kit": "^0.31.11",
     "typescript": "^5.9.2",
     "vitest": "^4.1.11"
   },
