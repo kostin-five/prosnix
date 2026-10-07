@@ -20,9 +20,26 @@ CI secret/dependency checks, модульный App и session repository, ав�
 без находок. 292 файла кода/тестов/миграций и README сохранены побайтово. Повторный verify:release
 и браузерный test:demo — успешно. Подробности результата — в CURRENT handoff.
 
+## Проверка GitHub — 7 октября
+
+Очищенные dev и master указывают на 6968da5. CI обеих веток успешен, включая integration и mobile E2E:
+[dev](https://github.com/kostin-five/prosnix/actions/runs/37628240420),
+[master](https://github.com/kostin-five/prosnix/actions/runs/37628871748).
+
+Проверены все 60 старых CI-запусков: скачаны журналы, проверены 212 текстовых файлов.
+Gitleaks и поиск известных личных маркеров — без находок. Старые запуски удалены вместе с журналами;
+удалены три кэша, созданные до очистки истории. Актуальные CI-запуски и два новых кэша сохранены.
+Artifacts, forks, releases, отдельные issues и комментарии отсутствуют. Wiki и Pages выключены.
+Четыре PR Dependabot созданы от очищенной истории; их commits проверены отдельно.
+
 ## Осталось снаружи
 
-Разрешённое обновление remote веток и tags после сверки их фактических SHA, затем зелёный CI
-и отдельное решение о публичности. GitHub PR refs, кэши и forks не очищаются локальными командами.
+Репозиторий остаётся private. Старые commits всё ещё доступны через GitHub API по известным SHA.
+Force-push и удаление Actions не удаляют серверные объекты. Владелец должен обратиться в
+[GitHub Support](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)
+за удалением cached views и server-side garbage collection. Support рассматривает удаление
+чувствительных сведений; удаление обычных ненужных материалов не гарантируется.
+После ответа нужна повторная проверка прежних SHA перед отдельным решением о публичности/demo.
+
 При сохранении live Mini App отдельно проверить Telegram, AI, уведомления и голос на устройстве.
 Автоматические проверки не гарантируют отсутствие всех рисков и не подтверждают происхождение assets.
