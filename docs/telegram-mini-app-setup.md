@@ -492,7 +492,7 @@ deploy`. В React, Render Static Site, Git, BotFather и cron-job.org этот �
 добавлением второго токена.
 
 Полная пошаговая инструкция, включая BotFather, webhook, откат и безопасное включение Stars,
-находится в [`docs/prosnix-production.md`](./prosnix-production.md). До включения продаж оставьте
+находится в `docs/prosnix-production.md`. До включения продаж оставьте
 `TELEGRAM_STARS_MONTHLY_PRICE=0`: карточка Pro будет видна как анонс, но счёт создать будет
 невозможно.
 

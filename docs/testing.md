@@ -244,7 +244,7 @@ OpenSpec change и не production deploy.
 
 Полный ручной прогон режимов 2/5/10 минут, контекстов, семи контрольных сессий, удаления профиля,
 Telegram-сообщений и реального личного цикла описан в
-[`pre-pilot-manual-test-plan.md`](pre-pilot-manual-test-plan.md).
+`pre-pilot-manual-test-plan.md`.
 
 ## Публичное портфолио и отдельная тестовая БД
 
