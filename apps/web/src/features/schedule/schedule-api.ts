@@ -1,3 +1,4 @@
+import { apiFetch } from "../../shared/api/transport.js";
 import { ApiError } from "../../shared/api/client.js";
 
 export interface WakeSchedule {
@@ -16,7 +17,7 @@ async function expectSuccess(response: Response): Promise<Response> {
 
 export async function loadWakeSchedule(): Promise<WakeSchedule | null> {
   const response = await expectSuccess(
-    await fetch("/api/v1/me/wake-schedule", { credentials: "same-origin" }),
+    await apiFetch("/api/v1/me/wake-schedule", { credentials: "same-origin" }),
   );
   return ((await response.json()) as { schedule: WakeSchedule | null }).schedule;
 }
@@ -27,7 +28,7 @@ export async function saveWakeSchedule(input: {
   enabled: boolean;
 }): Promise<WakeSchedule> {
   const response = await expectSuccess(
-    await fetch("/api/v1/me/wake-schedule", {
+    await apiFetch("/api/v1/me/wake-schedule", {
       method: "PUT",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
@@ -38,7 +39,7 @@ export async function saveWakeSchedule(input: {
 }
 
 export async function snoozeWakeSchedule(): Promise<WakeSchedule> {
-  const response = await fetch("/api/v1/me/wake-schedule/snooze", {
+  const response = await apiFetch("/api/v1/me/wake-schedule/snooze", {
     method: "POST",
     credentials: "same-origin",
     headers: { "idempotency-key": crypto.randomUUID() },

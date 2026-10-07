@@ -17,18 +17,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      DATABASE_URL: postgres://awc:awc@localhost:5432/awc
+      DATABASE_URL: postgres://awc:awc@localhost:5432/awc_test
     services:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_DB: awc
+          POSTGRES_DB: awc_test
           POSTGRES_USER: awc
           POSTGRES_PASSWORD: awc
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U awc -d awc"
+          --health-cmd "pg_isready -U awc -d awc_test"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
@@ -43,6 +43,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
+      - run: pnpm verify:module-size
       - run: pnpm typecheck
       - run: pnpm db:migrate
       - run: pnpm test
@@ -52,6 +53,7 @@ jobs:
       - run: pnpm verify:production
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+      - run: pnpm test:demo
       - name: Сохранить отчёт Playwright при ошибке
         if: failure()
         uses: actions/upload-artifact@v4
@@ -76,4 +78,16 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm audit --prod --audit-level high
+      - run: pnpm audit --audit-level high
+
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Проверить историю и текущие файлы без вывода секретов
+        run: |
+          docker run --rm -v "$PWD:/repo:ro" zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f git /repo --redact --config /repo/.gitleaks.toml --gitleaks-ignore-path /repo/.gitleaksignore
+          docker run --rm -v "$PWD:/repo:ro" zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f dir /repo --redact --config /repo/.gitleaks.toml --gitleaks-ignore-path /repo/.gitleaksignore

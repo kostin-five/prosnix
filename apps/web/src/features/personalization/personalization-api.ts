@@ -1,3 +1,4 @@
+import { apiFetch } from "../../shared/api/transport.js";
 import {
   ApiError,
   type WakeProfile,
@@ -14,7 +15,7 @@ async function expectJson<T>(response: Response): Promise<T> {
 }
 
 async function save<T>(path: string, body: unknown, revision: number): Promise<T> {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     method: "PUT",
     credentials: "same-origin",
     headers: {
@@ -47,7 +48,9 @@ export function saveWakeProfile(
 export type LifeGoal = { text: string; revision: number };
 
 export async function loadLifeGoal(): Promise<LifeGoal> {
-  return expectJson<LifeGoal>(await fetch("/api/v1/me/life-goal", { credentials: "same-origin" }));
+  return expectJson<LifeGoal>(
+    await apiFetch("/api/v1/me/life-goal", { credentials: "same-origin" }),
+  );
 }
 
 export function saveLifeGoal(text: string, revision: number): Promise<LifeGoal> {
@@ -71,7 +74,7 @@ export function saveWakeRoutineRun(
 
 export async function loadWakeRoutineRun(sessionId: string): Promise<WakeRoutineRun | null> {
   const payload = await expectJson<{ run: WakeRoutineRun | null }>(
-    await fetch(`/api/v1/sessions/${sessionId}/routine`, { credentials: "same-origin" }),
+    await apiFetch(`/api/v1/sessions/${sessionId}/routine`, { credentials: "same-origin" }),
   );
   return payload.run;
 }

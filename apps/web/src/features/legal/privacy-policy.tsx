@@ -2,7 +2,7 @@ import { ProsnixWordmark } from "../brand/prosnix-brand.js";
 import { LegalBack } from "./legal-back.js";
 
 const UPDATED_AT = "26 сентября 2026 года";
-const OPERATOR_NAME = import.meta.env.VITE_LEGAL_OPERATOR_NAME || "разработчик разработчик Денисович";
+const OPERATOR_NAME = import.meta.env.VITE_LEGAL_OPERATOR_NAME || "Владелец экземпляра Prosnix";
 const OPERATOR_CONTACT = import.meta.env.VITE_LEGAL_CONTACT || "@prosnix_support";
 const OPERATOR_CONTACT_URL = `https://t.me/${OPERATOR_CONTACT.replace(/^@/, "")}`;
 

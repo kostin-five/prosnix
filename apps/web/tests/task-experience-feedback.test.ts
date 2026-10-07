@@ -25,13 +25,15 @@ describe("звук и тактильная обратная связь зада�
     },
     connect: vi.fn(),
   }));
-  const audioConstructor = vi.fn(() => ({
-    currentTime: 0,
-    state: "running",
-    destination: {},
-    createOscillator,
-    createGain,
-  }));
+  const audioConstructor = vi.fn(function () {
+    return {
+      currentTime: 0,
+      state: "running",
+      destination: {},
+      createOscillator,
+      createGain,
+    };
+  });
 
   beforeEach(() => {
     resetWakeSoundForTests();

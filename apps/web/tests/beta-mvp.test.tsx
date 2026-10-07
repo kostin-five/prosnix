@@ -34,12 +34,12 @@ describe("финальная Beta-полировка", () => {
 
   it("показывает актуального оператора и отдельный контакт поддержки", () => {
     act(() => root.render(<PrivacyPolicy />));
-    expect(container.textContent).toContain("разработчик разработчик Денисович");
+    expect(container.textContent).toContain("Владелец экземпляра Prosnix");
     expect(container.textContent).toContain("@prosnix_support");
     expect(container.querySelector('a[href="https://t.me/prosnix_support"]')).not.toBeNull();
 
     act(() => root.render(<TermsOfUse />));
-    expect(container.textContent).toContain("разработчик разработчик Денисович");
+    expect(container.textContent).toContain("Владелец экземпляра Prosnix");
     expect(container.textContent).toContain("@prosnix_support");
   });
 });

@@ -1,3 +1,4 @@
+import { apiFetch } from "./transport.js";
 export type WakeContext = "night_sleep" | "short_nap" | "long_nap" | "energy_reset";
 export type WakeDurationMinutes = 2 | 5 | 10;
 export interface WakeProfile {
@@ -251,7 +252,7 @@ async function expectSuccess(response: Response): Promise<Response> {
 
 export async function authenticateTelegram(initData: string, signal?: AbortSignal): Promise<void> {
   await expectSuccess(
-    await fetch("/api/v1/auth/telegram", {
+    await apiFetch("/api/v1/auth/telegram", {
       method: "POST",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
@@ -263,7 +264,7 @@ export async function authenticateTelegram(initData: string, signal?: AbortSigna
 
 export async function loadBootstrap(signal?: AbortSignal): Promise<BootstrapResponse> {
   const response = await expectSuccess(
-    await fetch("/api/v1/bootstrap", {
+    await apiFetch("/api/v1/bootstrap", {
       credentials: "same-origin",
       ...(signal ? { signal } : {}),
     }),
@@ -273,14 +274,14 @@ export async function loadBootstrap(signal?: AbortSignal): Promise<BootstrapResp
 
 export async function loadAnalyticsProfile(): Promise<AnalyticsProfileResponse> {
   const response = await expectSuccess(
-    await fetch("/api/v1/analytics/profile", { credentials: "same-origin" }),
+    await apiFetch("/api/v1/analytics/profile", { credentials: "same-origin" }),
   );
   return (await response.json()) as AnalyticsProfileResponse;
 }
 
 export async function loadCoachInsight(confirmEarly = false): Promise<CoachInsightResponse> {
   const response = await expectSuccess(
-    await fetch("/api/v1/coach/insight", {
+    await apiFetch("/api/v1/coach/insight", {
       method: "POST",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
@@ -292,14 +293,14 @@ export async function loadCoachInsight(confirmEarly = false): Promise<CoachInsig
 
 export async function loadSessionHistory(limit = 10): Promise<SessionHistoryResponse> {
   const response = await expectSuccess(
-    await fetch(`/api/v1/sessions/history?limit=${limit}`, { credentials: "same-origin" }),
+    await apiFetch(`/api/v1/sessions/history?limit=${limit}`, { credentials: "same-origin" }),
   );
   return (await response.json()) as SessionHistoryResponse;
 }
 
 export async function loadExperimentFeedbackStatus(): Promise<ExperimentFeedbackStatus> {
   const response = await expectSuccess(
-    await fetch("/api/v1/experiment-feedback", { credentials: "same-origin" }),
+    await apiFetch("/api/v1/experiment-feedback", { credentials: "same-origin" }),
   );
   return (await response.json()) as ExperimentFeedbackStatus;
 }
@@ -310,7 +311,7 @@ export async function submitExperimentFeedback(input: {
   continueIntent: number;
 }): Promise<ExperimentFeedbackStatus> {
   const response = await expectSuccess(
-    await fetch("/api/v1/experiment-feedback", {
+    await apiFetch("/api/v1/experiment-feedback", {
       method: "POST",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
@@ -321,7 +322,9 @@ export async function submitExperimentFeedback(input: {
 }
 
 export async function deleteProfile(): Promise<void> {
-  await expectSuccess(await fetch("/api/v1/me", { method: "DELETE", credentials: "same-origin" }));
+  await expectSuccess(
+    await apiFetch("/api/v1/me", { method: "DELETE", credentials: "same-origin" }),
+  );
 }
 
 export interface LegalStatusResponse {
@@ -333,7 +336,7 @@ export interface LegalStatusResponse {
 
 export async function loadLegalStatus(signal?: AbortSignal): Promise<LegalStatusResponse> {
   const response = await expectSuccess(
-    await fetch("/api/v1/legal/status", {
+    await apiFetch("/api/v1/legal/status", {
       credentials: "same-origin",
       ...(signal ? { signal } : {}),
     }),
@@ -346,7 +349,7 @@ export async function acceptLegalDocuments(input: {
   termsVersion: string;
 }): Promise<void> {
   await expectSuccess(
-    await fetch("/api/v1/legal/accept", {
+    await apiFetch("/api/v1/legal/accept", {
       method: "POST",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },

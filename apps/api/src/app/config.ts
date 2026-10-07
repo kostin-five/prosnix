@@ -99,8 +99,34 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       throw new Error("TELEGRAM_WEB_APP_URL must be a valid URL");
     }
   }
-  if (nodeEnv === "production" && (!botToken || sessionSecret.length < 32)) {
+  const placeholder = (value: string) =>
+    /replace[-_ ]|example|changeme|test[-_ ]|development/i.test(value);
+  if (
+    nodeEnv === "production" &&
+    (!botToken || sessionSecret.length < 32 || placeholder(botToken) || placeholder(sessionSecret))
+  ) {
     throw new Error("Production authentication secrets are missing or unsafe");
+  }
+  if (nodeEnv === "production") {
+    let database: URL;
+    try {
+      database = new URL(env.DATABASE_URL ?? "");
+    } catch {
+      throw new Error("DATABASE_URL must be explicitly configured in production");
+    }
+    if (
+      !["postgres:", "postgresql:"].includes(database.protocol) ||
+      !database.hostname ||
+      !database.pathname.slice(1)
+    ) {
+      throw new Error("DATABASE_URL must identify a PostgreSQL database");
+    }
+    if (
+      (cronSecret && placeholder(cronSecret)) ||
+      (telegramWebhookSecret && placeholder(telegramWebhookSecret))
+    ) {
+      throw new Error("Production service secrets must not be placeholders");
+    }
   }
   if (cronSecret && cronSecret.length < 32) {
     throw new Error("CRON_SECRET must contain at least 32 characters");

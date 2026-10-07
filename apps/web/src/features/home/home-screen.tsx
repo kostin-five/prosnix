@@ -69,6 +69,9 @@ export default function HomeScreen({
           <ProductBetaBadge className="mt-1" />
         </div>
       </header>
+      {demo && (
+        <p className="mt-3 text-xs text-muted-foreground">Демонстрация · данные вымышлены</p>
+      )}
 
       <section className="relative mb-8 mt-12" aria-labelledby="home-wake-title">
         <h1 id="home-wake-title" className="ps-home-heading relative z-10">

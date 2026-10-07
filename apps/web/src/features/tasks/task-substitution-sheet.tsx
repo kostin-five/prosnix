@@ -1,3 +1,4 @@
+import { useDialogFocus } from "../../shared/use-dialog-focus.js";
 import { RefreshCw, ShieldAlert, ThumbsDown } from "lucide-react";
 
 export type TaskSubstitutionReason = "unwilling_now" | "not_helpful" | "cannot_do";
@@ -39,12 +40,15 @@ export function TaskSubstitutionSheet({
   onSelect: (reason: TaskSubstitutionReason) => void;
   onClose: () => void;
 }) {
+  const dialogRef = useDialogFocus(onClose);
   return (
     <div
       className="ps-substitution-sheet fixed inset-0 z-[70] flex items-end bg-black/65 p-4"
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={`Заменить задание ${taskTitle}`}

@@ -1,3 +1,4 @@
+import { useDialogFocus } from "../../shared/use-dialog-focus.js";
 import { X } from "lucide-react";
 import { TaskIcon, type TaskId } from "./task-icon.js";
 
@@ -14,12 +15,15 @@ export function ProtocolSheet({
   onAwakened?: () => void;
   busy?: boolean;
 }) {
+  const dialogRef = useDialogFocus(onClose);
   return (
     <div
       className="ps-protocol-sheet fixed inset-0 z-50 flex items-end bg-black/60 p-4"
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label="Назначенный протокол"

@@ -13,3 +13,7 @@ supportedArchitectures:
     - arm64
   libc:
     - glibc
+overrides:
+  source-map-js: ^1.2.2
+  esbuild: ^0.25.12
+  tinypool: ^2.1.2

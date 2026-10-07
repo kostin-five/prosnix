@@ -1,3 +1,4 @@
+import { apiFetch } from "../../shared/api/transport.js";
 import { useEffect, useState } from "react";
 import { Crown } from "lucide-react";
 
@@ -15,7 +16,7 @@ export function ProCard() {
   const [error, setError] = useState<string | null>(null);
 
   async function reload() {
-    const response = await fetch("/api/v1/billing/status", { credentials: "same-origin" });
+    const response = await apiFetch("/api/v1/billing/status", { credentials: "same-origin" });
     if (response.ok) setStatus((await response.json()) as BillingStatus);
   }
 
@@ -27,7 +28,7 @@ export function ProCard() {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch("/api/v1/billing/checkout", {
+      const response = await apiFetch("/api/v1/billing/checkout", {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },

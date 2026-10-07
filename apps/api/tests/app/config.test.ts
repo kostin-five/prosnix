@@ -4,9 +4,9 @@ import { loadConfig } from "../../src/app/config.js";
 
 const production = {
   NODE_ENV: "production",
-  TELEGRAM_BOT_TOKEN: "123456:test-token",
-  SESSION_SECRET: "test-session-secret-that-is-longer-than-32-chars",
-  DATABASE_URL: "postgres://example",
+  TELEGRAM_BOT_TOKEN: "123456:fixtureToken",
+  SESSION_SECRET: "ssssssssssssssssssssssssssssssssssssssss",
+  DATABASE_URL: "postgres://fixture:fixture@db.invalid/prosnix",
 };
 
 describe("application config", () => {
@@ -153,4 +153,18 @@ describe("application config", () => {
       }),
     ).toMatchObject({ telegramStarsMonthlyPrice: 149, adminTelegramUserIds: [42n] });
   });
+});
+
+it("rejects example secrets and implicit production databases without revealing values", () => {
+  expect(() =>
+    loadConfig({ ...production, SESSION_SECRET: "replace-with-at-least-32-random-characters" }),
+  ).toThrow("unsafe");
+  expect(() =>
+    loadConfig({ ...production, TELEGRAM_BOT_TOKEN: "replace-with-test-bot-token" }),
+  ).toThrow("unsafe");
+  const { DATABASE_URL: _database, ...missingDatabase } = production;
+  expect(() => loadConfig(missingDatabase)).toThrow("explicitly configured");
+  expect(() => loadConfig({ ...production, DATABASE_URL: "https://db.invalid/prosnix" })).toThrow(
+    "PostgreSQL",
+  );
 });

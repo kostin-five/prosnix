@@ -1,3 +1,4 @@
+import { apiFetch } from "../../shared/api/transport.js";
 import {
   ApiError,
   type WakeContext,
@@ -35,7 +36,7 @@ export async function sendSessionCommand(
 
   let response: Response;
   try {
-    response = await fetch(path, {
+    response = await apiFetch(path, {
       method,
       credentials: "same-origin",
       headers: {

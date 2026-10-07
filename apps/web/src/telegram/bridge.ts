@@ -75,6 +75,7 @@ export function getTelegramStartParam(locationSearch = window.location.search): 
 }
 
 export function getLaunchContext(locationSearch = window.location.search): LaunchContext {
+  if (import.meta.env.MODE === "portfolio") return { mode: "demo" };
   const webApp = window.Telegram?.WebApp;
   if (webApp?.initData) {
     webApp.ready();

@@ -1,3 +1,4 @@
+import { apiFetch } from "../../shared/api/transport.js";
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3, RefreshCcw, ShieldAlert } from "lucide-react";
 
@@ -212,7 +213,7 @@ export function AdminScreen() {
         } catch {
           /* An existing secure cookie can still authorize the owner. */
         }
-        const response = await fetch(`/api/v1/admin/growth?days=${days}`, {
+        const response = await apiFetch(`/api/v1/admin/growth?days=${days}`, {
           credentials: "same-origin",
         });
         if (!response.ok) {

@@ -1,3 +1,4 @@
+import { privacyLoggerOptions } from "./safe-logging.js";
 import cookie from "@fastify/cookie";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
@@ -93,7 +94,7 @@ export async function createApp(
   dependencies?: AppDependencies,
 ): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: config.nodeEnv !== "test",
+    logger: config.nodeEnv === "test" ? false : privacyLoggerOptions,
     bodyLimit: 32 * 1024,
     // Render terminates public traffic at its proxy. Trust exactly that nearest hop so
     // request.ip (and therefore rate limiting) identifies clients instead of the proxy itself.

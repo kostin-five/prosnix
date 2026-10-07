@@ -1,3 +1,4 @@
+import { useDialogFocus } from "../../shared/use-dialog-focus.js";
 import { clearTransitionPause } from "../tasks/transition-preference.js";
 import { useState } from "react";
 
@@ -36,38 +37,62 @@ export function DeleteProfile({ localStorageScope }: { localStorageScope: string
           Удалить мой профиль
         </button>
       ) : (
-        <div
-          role="alertdialog"
-          aria-modal="true"
-          aria-labelledby="delete-profile-title"
-          className="mt-3 flex flex-col gap-2"
-        >
-          <p id="delete-profile-title" className="text-xs text-red-300">
-            Точно удалить все данные?
-          </p>
-          <div className="flex gap-2">
-            <button
-              disabled={busy}
-              className="flex-1 rounded-xl bg-red-500 px-3 py-2 text-sm font-semibold text-white"
-              onClick={() => void remove()}
-            >
-              {busy ? "Удаляем…" : "Да, удалить всё"}
-            </button>
-            <button
-              disabled={busy}
-              className="flex-1 rounded-xl bg-secondary px-3 py-2 text-sm"
-              onClick={() => setConfirming(false)}
-            >
-              Отмена
-            </button>
-          </div>
-        </div>
+        <DeleteConfirmation
+          busy={busy}
+          onConfirm={() => void remove()}
+          onClose={() => setConfirming(false)}
+        />
       )}
       {error && (
         <p role="alert" className="mt-2 text-xs text-red-400">
           {error}
         </p>
       )}
+    </div>
+  );
+}
+
+function DeleteConfirmation({
+  busy,
+  onConfirm,
+  onClose,
+}: {
+  busy: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const ref = useDialogFocus(() => {
+    if (!busy) onClose();
+  });
+  return (
+    <div
+      ref={ref}
+      tabIndex={-1}
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="delete-profile-title"
+      className="mt-3 flex flex-col gap-2"
+    >
+      <p id="delete-profile-title" className="text-xs text-red-300">
+        Точно удалить все данные?
+      </p>
+      <div className="flex gap-2">
+        <button
+          disabled={busy}
+          className="flex-1 rounded-xl bg-red-500 px-3 py-2 text-sm font-semibold text-white"
+          onClick={onConfirm}
+        >
+          {busy ? "Удаляем…" : "Да, удалить всё"}
+        </button>
+        <button
+          disabled={busy}
+          className="flex-1 rounded-xl bg-secondary px-3 py-2 text-sm"
+          data-dialog-initial-focus
+          onClick={onClose}
+        >
+          Отмена
+        </button>
+      </div>
     </div>
   );
 }

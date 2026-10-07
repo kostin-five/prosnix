@@ -540,6 +540,7 @@ test("до третьего пробуждения отчёт недоступе
   });
 
   await page.goto("/");
+  await expect(page.getByLabel("Prosnix", { exact: true })).toBeVisible();
   const brand = await page.getByLabel("Prosnix", { exact: true }).boundingBox();
   expect(brand).not.toBeNull();
   expect(brand!.x + brand!.width).toBeLessThanOrEqual(320);
