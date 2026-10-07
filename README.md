@@ -1,144 +1,147 @@
 # Prosnix
 
-Telegram Mini App, который проводит контролируемые эксперименты пробуждения и учится подбирать
-последовательность действий по подтверждённым данным пользователя. Рабочее имя раннего прототипа —
-Adaptive Wake Coach; production-бот — `@prosnix_bot`.
+**Pet-проект: Telegram Mini App для личных экспериментов с пробуждением.**
 
-Текущий MVP уже работает в Telegram: wake-сессии сохраняются на сервере, прерванный сценарий
-восстанавливается, follow-up приходит через 15 минут, ежедневное напоминание можно отложить,
-статистика воспроизводима, а DeepSeek только объясняет рассчитанные показатели и имеет безопасный
-fallback.
+Пользователь оценивает бодрость, проходит последовательность небольших заданий, оценивает состояние
+повторно и отвечает через 15 минут. Приложение сохраняет наблюдения, сравнивает повторные эксперименты
+в похожих условиях и показывает, насколько данных достаточно для вывода.
 
-## Архитектура
+Проект развивается как инженерное портфолио. Пользователей и оплат на момент перехода в этот формат
+нет. Польза для здоровья и улучшение пробуждения не доказаны; приложение не является медицинским
+инструментом. Интерес проекта — в реализации надёжного полного сценария, а не в обещании результата.
 
-```text
-Telegram Mini App
-       │ signed initData / secure cookie
-       ▼
-apps/web (React + Vite)
-       │ same-origin /api rewrite
-       ▼
-apps/api (Fastify)
-       ├── packages/domain   — состояния сессий, эксперименты, аналитика
-       ├── packages/db       — PostgreSQL, транзакции, миграции
-       ├── Telegram Bot API  — ежедневные и follow-up сообщения
-       └── DeepSeek          — только объяснение агрегатов
-```
+## Интерфейс
 
-- `apps/web` — интерфейс Mini App, `/privacy`, `/terms` и приватный `/admin`;
-- `apps/api` — Telegram-аутентификация, API, cron-dispatch, readiness и graceful shutdown;
-- `packages/domain` — независимые детерминированные правила;
-- `packages/db` — Drizzle/PostgreSQL repositories и forward-only миграции;
-- `packages/contracts` — общие схемы ответов;
-- `specs/` — русские спецификации, планы, задачи и отчёты проверки.
+<p>
+  <img src="docs/portfolio/home.jpg" width="240" alt="Главная, синтетическое демо" />
+  <img src="docs/portfolio/statistics.jpg" width="240" alt="Статистика синтетических сессий" />
+  <img src="docs/portfolio/settings.jpg" width="240" alt="Настройки демо" />
+</p>
 
-## Требования
+Скриншоты сняты в отдельной demo-сборке; все показатели вымышлены.
 
-- Node.js 22–24;
-- pnpm 11.19.0;
-- Docker Desktop для локальной PostgreSQL;
-- Telegram-бот нужен только для реального запуска, demo работает без него.
+## Что можно посмотреть
 
-## Первый локальный запуск
+| Возможность         | Реализация                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------------- |
+| Надёжные сессии     | Серверная машина состояний, транзакции, `If-Match`, идемпотентность и восстановление                 |
+| Персональный подбор | Детерминированное сравнение истории по контексту, длительности и режиму; учёт разрешённых упражнений |
+| Два режима          | С экраном и без телефона: голосовые подсказки, таймеры и настраиваемая пауза между шагами            |
+| Изменение протокола | Безопасная замена текущего задания, досрочное завершение и необязательный короткий раунд             |
+| Аналитика           | Исходные оценки, follow-up, размер выборки и воспроизводимые агрегаты                                |
+| Необязательный AI   | Объясняет только агрегаты, не меняет метрики; работает fallback без ключа                            |
+| Интеграции          | Telegram authentication, расписание и follow-up; платежная основа выключена по умолчанию             |
+| Контроль качества   | Unit, contract, PostgreSQL integration и мобильные браузерные тесты; CI и secret scan                |
+
+Собственные шаблоны и библиотека протоколов других пользователей — **идеи**, не готовые функции.
+
+## Попробовать без Telegram, БД и ключей
+
+Требования: Node.js **22–24**, pnpm **11.19.0**.
 
 ```bash
 pnpm install --frozen-lockfile
+pnpm dev:demo
+```
+
+Откройте `http://localhost:5190/`. Отдельный режим `portfolio` использует синтетическую историю,
+игнорирует Telegram identity, не загружает `.env` и блокирует обращения к API. Изменения демо
+не сохраняются на сервере. Публичные изображения интерфейса также должны быть сняты только в демо.
+
+Статическая сборка для размещения в портфолио:
+
+```bash
+pnpm build:demo
+```
+
+Результат: `apps/web/dist-demo`. Это отдельный артефакт: обычный `pnpm build` создаёт приложение
+с настоящей авторизацией в `apps/web/dist` и не включает синтетическую историю.
+
+## Архитектура
+
+```mermaid
+flowchart TD
+  T[Telegram Mini App] --> W[React / Vite]
+  W --> A[Fastify API]
+  A --> D[Чистый TypeScript domain]
+  A --> R[Drizzle repositories]
+  R --> P[(PostgreSQL)]
+  A --> B[Telegram Bot API]
+  A --> AI[DeepSeek: объяснение агрегатов]
+```
+
+Модульный монолит: клиент не содержит серверных ключей, домен не зависит от React, Fastify и БД.
+Сервер проверяет identity, ownership, переходы сессии и все исходные данные. AI не принимает решений
+об оценках пользователя и не получает его цель, Telegram identity или свободные ответы.
+
+- `apps/web/src/app` — небольшой корневой App, управление сценарием, задания, результаты и навигация;
+- `apps/api` — HTTP, аутентификация, уведомления, аналитика, AI и эксплуатация;
+- `packages/domain` — правила, аналитические формулы и порты;
+- `packages/db` — транзакционные адаптеры, схема и forward-only migrations;
+- `packages/contracts` — общие транспортные схемы;
+- `openspec` — текущие изменения; `specs` и `.specify` — история ранних этапов;
+- `tests/e2e`, `tests/portfolio` — мобильные сценарии и изоляция собранного демо.
+
+## Полный локальный запуск
+
+Для разработки API нужна Docker PostgreSQL. Для реальной Telegram-аутентификации нужен собственный
+тестовый бот; его токен хранится только локально.
+
+```bash
 cp .env.example .env
 pnpm db:start
 pnpm db:migrate
 pnpm dev
 ```
 
-- web: `http://localhost:5190/?demo=1`;
-- API liveness: `http://localhost:3001/health`;
-- API readiness с проверкой БД: `http://localhost:3001/ready`.
+Web: `http://localhost:5190/?demo=1`; API: `http://localhost:3001/health` и `/ready`.
+Шаблон `.env.example` содержит **плейсхолдеры**, не рабочие ключи. Production отклоняет их.
+Сгенерировать отдельный случайный секрет можно командой:
 
-Если порт PostgreSQL занят, используйте [инструкцию инфраструктуры](infra/README.md). `.env`
-загружается API dev-скриптом автоматически; выполнять `source .env` не требуется.
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
 
-## Секреты и переменные
-
-Локально значения находятся только в `.env`, на Render — только в Environment API Web Service.
-Никогда не добавляйте серверные ключи в `VITE_*` или Static Site:
-
-- `DATABASE_URL` — строка Neon/PostgreSQL;
-- `TELEGRAM_BOT_TOKEN` — единственный токен staging-бота;
-- `SESSION_SECRET` — случайная строка от 32 символов;
-- `CRON_SECRET` — отдельная случайная строка от 32 символов для cron-job.org;
-- `TELEGRAM_WEB_APP_URL` — HTTPS-адрес Static Site;
-- `DEEPSEEK_API_KEY` — необязательный серверный ключ AI.
-
-Полный перечень и безопасные значения по умолчанию находятся в [.env.example](.env.example).
+Никогда не помещайте `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `SESSION_SECRET`, `CRON_SECRET` или
+`DEEPSEEK_API_KEY` в `VITE_*`. Переменные Vite доступны посетителю сайта. AI и платежи необязательны;
+цена Telegram Stars по умолчанию равна нулю.
 
 ## Проверки
 
-Быстрая обязательная проверка без PostgreSQL integration и браузера:
-
 ```bash
 pnpm verify:release
+pnpm test:demo
+pnpm audit --audit-level high
 ```
 
-Полная проверка при уже запущенной и мигрированной локальной PostgreSQL:
+Полный запуск дополнительно требует **отдельную локальную БД с `test` в имени**, уже мигрированную.
+Без неё интеграционные проверки завершаются ошибкой, а не успешным пропуском тестов.
 
 ```bash
-pnpm db:start
-pnpm db:migrate
-pnpm verify:release:full
-pnpm db:stop
+DATABASE_URL='postgres://awc:awc@127.0.0.1:5432/awc_test' pnpm test:integration
+DATABASE_URL='postgres://awc:awc@127.0.0.1:5432/awc_test' pnpm verify:release:full
 ```
 
-Отдельные команды:
+Пример создания и миграции такой БД: [тестирование](docs/testing.md#публичное-портфолио-и-отдельная-тестовая-бд).
+CI создаёт её автоматически. Jobs `verify`, `security`, `secrets` должны быть зелёными на точном SHA.
+Лимит исходного модуля — 1000 строк; автоматически сгенерированные migrations и lockfile исключены.
 
-```bash
-pnpm format:check
-pnpm typecheck
-pnpm test
-pnpm test:integration
-pnpm build
-pnpm verify:web-bundle
-pnpm verify:production
-pnpm audit --prod --audit-level high
-pnpm test:e2e
-```
+## Ограничения и честные выводы
 
-GitHub Actions повторяет полный набор на чистой PostgreSQL 17. Pull request нельзя считать готовым,
-если jobs `verify` или `security` не прошли.
+- Сравнение наблюдений не доказывает причинный эффект упражнений. Уровень уверенности — эвристика
+  достаточности истории, а не статистический доверительный интервал.
+- Голос и звук зависят от браузера, доступных голосов и явного разрешения звука пользователем.
+- Telegram, cron, внешняя AI-модель и production требуют отдельного smoke-test и собственной конфигурации.
+- Автоматический поиск секретов не гарантирует отсутствие персональных данных в изображениях и истории.
+- Шаблоны, социальная библиотека и premium не заявлены как реализованный продукт.
 
-## Deploy и сопровождение
+## Документация
 
-- ветка `dev` автоматически разворачивается Render как staging;
-- Render API Health Check Path должен быть `/ready`, а `/health` используется как liveness;
-- cron-job.org вызывает защищённый dispatch каждые пять минут;
-- новая миграция всегда применяется до проверки нового API;
-- откат к предыдущему commit не должен откатывать уже применённые миграции.
+[Архитектура](docs/architecture.md) · [API](docs/api-contracts.md) · [Тестирование](docs/testing.md) ·
+[Готовность к публикации](docs/public-readiness.md) · [Roadmap](docs/product-roadmap.md) ·
+[Текущий handoff](docs/handoffs/CURRENT.md) · [Вклад в проект](CONTRIBUTING.md) ·
+[Безопасность](SECURITY.md) · [Права на материалы](ASSET_LICENSES.md).
 
-Пошаговые инструкции:
-
-- [настройка Telegram, Render, Neon и cron-job.org](docs/telegram-mini-app-setup.md);
-- [эксплуатация, smoke-test, backup, диагностика и rollback](docs/operations.md);
-- [актуальный продуктовый roadmap](docs/product-roadmap.md);
-- [фактическая архитектура](docs/architecture.md);
-- [тестирование](docs/testing.md) и [release checklist](docs/release-checklist.md);
-- [текущий handoff](docs/handoffs/CURRENT.md) и [onboarding](docs/handoffs/DEVELOPER_ONBOARDING.md);
-- [стартовый промпт для нового AI-чата](docs/handoffs/NEW_CHAT_PROMPT.md);
-- [API-контракты](docs/api-contracts.md) и [архитектурные решения](docs/decisions/ADR-001-modular-monolith.md);
-- [история раннего release roadmap](docs/release-roadmap.md);
-- [переход на production-бота Prosnix](docs/prosnix-production.md);
-- [юридический launch-checklist](docs/legal-launch-checklist.md).
-
-Ежедневные правила для разработчиков и AI-агентов находятся в [`AGENTS.md`](AGENTS.md),
-неизменяемые границы — в [конституции](.specify/memory/constitution.md), security policy — в
-[`SECURITY.md`](SECURITY.md).
-
-## Статус безопасности
-
-- Telegram `initData` проверяется серверной HMAC-подписью и временем;
-- пользовательская cookie — `HttpOnly`, `Secure` в production и `SameSite=Strict`;
-- API-ответы запрещают кэширование персональных данных и получают защитные HTTP-заголовки;
-- Telegram auth и AI Coach ограничены по частоте, запросы — по размеру;
-- secrets/test fixtures автоматически ищутся в production bundle;
-- production dependency audit блокирует high/critical advisory;
-- удаление профиля каскадно удаляет сессии, расписание и AI-кэш.
-
-Сообщайте об уязвимостях приватно владельцу репозитория; не публикуйте токены, `initData`, cookie или
-строки подключения в issue и скриншотах.
+Развёртывание: [инструкция](docs/telegram-mini-app-setup.md) и [release checklist](docs/release-checklist.md).
+Публичность GitHub и публикация demo выбираются владельцем отдельно. Код, документация и материалы Prosnix распространяются под [MIT](LICENSE).
+Сторонние ресурсы сохраняют свои лицензии: см. [права на материалы](ASSET_LICENSES.md).

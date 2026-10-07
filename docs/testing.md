@@ -245,3 +245,35 @@ OpenSpec change и не production deploy.
 Полный ручной прогон режимов 2/5/10 минут, контекстов, семи контрольных сессий, удаления профиля,
 Telegram-сообщений и реального личного цикла описан в
 [`pre-pilot-manual-test-plan.md`](pre-pilot-manual-test-plan.md).
+
+## Публичное портфолио и отдельная тестовая БД
+
+`pnpm test:integration` требует явно заданную локальную PostgreSQL с отдельным `test` в имени БД.
+Отсутствующая, удалённая или обычная БД отклоняется до запуска тестов. Имя — дополнительный барьер,
+а не доказательство безопасности: не направляйте production-туннель на localhost.
+
+Пример полностью одноразового окружения (все значения ниже — локальные fixtures):
+
+```bash
+docker run --rm -d --name prosnix-integration-test \
+  -e POSTGRES_DB=prosnix_test -e POSTGRES_USER=fixture -e POSTGRES_PASSWORD=fixture \
+  -p 127.0.0.1:55438:5432 postgres:17-alpine
+# Дождитесь готовности БД: docker exec prosnix-integration-test pg_isready -U fixture
+cd packages/db
+DATABASE_URL='postgres://fixture:fixture@127.0.0.1:55438/prosnix_test' node node_modules/drizzle-kit/bin.cjs migrate
+cd ../..
+DATABASE_URL='postgres://fixture:fixture@127.0.0.1:55438/prosnix_test' pnpm verify:release:full
+pnpm test:demo
+docker stop prosnix-integration-test
+```
+
+Для этой проверки не загружается `.env`; production БД не используется. Обычный `db:migrate`
+предназначен для своей локальной разработки с явно проверенной конфигурацией.
+
+`pnpm verify:module-size` проверяет TS/TSX/JS/MJS/CSS в apps, packages, scripts и tests.
+Сгенерированные migrations и lockfile не разделяются вручную. `pnpm test:demo` проверяет отдельную
+собранную demo-версию, включая отсутствие запросов к API и сторонним сервисам.
+
+Secret scan в CI охватывает историю и чистое дерево checkout; dependency audit включает инструменты
+разработки. Единственное исключение `.gitleaksignore` — точный fingerprint исторического
+синтетического idempotency key. Нельзя исключать целиком tests или произвольные commits.
