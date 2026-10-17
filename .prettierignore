@@ -6,8 +6,6 @@ coverage/
 playwright-report/
 test-results/
 pnpm-lock.yaml
-.agents/
-.specify/
 apps/web/src/app/components/
 apps/web/src/imports/
 packages/db/migrations/meta/

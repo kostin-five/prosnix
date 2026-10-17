@@ -237,14 +237,9 @@ Integration tests должны выполняться на disposable database. 
 Устройства: Telegram iOS, Android и Desktop. Сейчас Android остаётся ручным пробелом; mobile Chromium
 покрывает layout/flow, но не заменяет Telegram Android WebView.
 
-Последний подтверждённый прогон ищите в актуальном handoff из
-[`handoffs/CURRENT.md`](handoffs/CURRENT.md). `.specify/feature.json` указывает на завершённый
-Spec Kit feature 017: его `validation.md` подтверждает только тот исторический этап, а не текущий
-OpenSpec change и не production deploy.
-
-Полный ручной прогон режимов 2/5/10 минут, контекстов, семи контрольных сессий, удаления профиля,
-Telegram-сообщений и реального личного цикла описан в
-`pre-pilot-manual-test-plan.md`.
+Результат проверок относится к конкретному commit. Перед слиянием проверьте GitHub Actions
+для актуального SHA; локальный прогон не подтверждает состояние опубликованного приложения.
+Ручные проверки перечислены выше и в [release checklist](release-checklist.md).
 
 ## Публичное портфолио и отдельная тестовая БД
 

@@ -1,7 +1,7 @@
 # Фактическая архитектура Prosnix
 
 **Актуально на:** 24 сентября 2026 года
-**Версия кода:** `dev`, OpenSpec change `strengthen-wake-engagement`
+**Ветка разработки:** `dev`
 
 Этот документ описывает реализованную систему. Планируемые изменения находятся в
 [`product-roadmap.md`](product-roadmap.md).
@@ -320,7 +320,7 @@ Migration `0010_wake_engagement_foundation` добавляет privacy-safe expe
 
 - Local: Docker PostgreSQL, web `5190`, API `3001`.
 - Текущая удалённая среда: Render Static Site + Render API + Neon + cron-job.org.
-- `dev` используется как интеграционная и staging-линия; `master` пока содержит исходный baseline.
+- `dev` используется как интеграционная линия; `master` — как стабильная.
 - API health: `/health`; готовность API вместе с БД: `/ready`.
 - Render получает server secrets только через Environment. Static Site получает лишь публичные
   `VITE_LEGAL_*` значения.
@@ -345,7 +345,7 @@ Telegram-доставки; общие HTTP/API ошибки остаются в 
 - AI объясняет, но не решает;
 - cron запускает работу, но не получает bot token или DB credentials;
 - billing включается только конфигурацией и ручным разрешением;
-- новое хранилище, очередь или внешний сервис требуют Spec Kit и ADR.
+- новое хранилище, очередь или внешний сервис требуют обсуждения и ADR.
 
 ## Уточнение wake flow — 5 октября 2026
 
