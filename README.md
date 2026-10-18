@@ -1,6 +1,6 @@
 # Prosnix
 
-Prosnix — Telegram Mini App для пробуждения после сна. Приложение предлагает короткую
+Prosnix — мини-приложение Telegram для пробуждения после сна. Приложение предлагает короткую
 последовательность заданий и помогает отслеживать, как меняется бодрость после их выполнения.
 
 Идея проекта — попробовать разные способы начать день и сравнить собственные результаты.
@@ -37,7 +37,7 @@ Prosnix — Telegram Mini App для пробуждения после сна. �
 - **База данных:** PostgreSQL 17, Drizzle ORM.
 - **Интеграции:** Telegram Bot API / Mini Apps, DeepSeek API.
 - **Тесты:** Vitest, Testing Library, Playwright.
-- **Инструменты:** pnpm workspace, Docker Compose, GitHub Actions, Prettier, Gitleaks.
+- **Инструменты:** рабочие пространства pnpm, Docker Compose, GitHub Actions, Prettier, Gitleaks.
 
 ## Быстрый запуск демо
 
@@ -73,10 +73,10 @@ pnpm db:migrate
 pnpm dev
 ```
 
-- Web: `http://localhost:5190/`.
+- Клиент: `http://localhost:5190/`.
 - API: `http://localhost:3001/health`.
 
-Для открытия Mini App в Telegram нужен HTTPS-адрес; подробнее — в
+Для открытия мини-приложения в Telegram нужен HTTPS-адрес; подробнее — в
 [инструкции по настройке](docs/telegram-mini-app-setup.md).
 DeepSeek необязателен. Токены и секреты храните в `.env`, не добавляйте их в Git или переменные `VITE_*`.
 
@@ -98,7 +98,7 @@ docs               Документация проекта
 ## Проверки
 
 ```bash
-pnpm verify:release  # форматирование, типы, unit-тесты и сборка
+pnpm verify:release  # форматирование, типы, модульные тесты и сборка
 pnpm test:e2e        # мобильные браузерные сценарии
 pnpm test:demo       # проверка автономного демо
 ```
